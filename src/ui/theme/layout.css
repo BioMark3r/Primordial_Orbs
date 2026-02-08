@@ -1,16 +1,16 @@
 :root {
-  --slot: 64px;
+  --slot: 56px;
 }
 
 @media (max-width: 1200px) {
   :root {
-    --slot: 54px;
+    --slot: 48px;
   }
 }
 
 @media (max-width: 900px) {
   :root {
-    --slot: 48px;
+    --slot: 42px;
   }
 }
 
@@ -146,7 +146,7 @@
 .player-panel__slot-btn {
   padding: 6px;
   border-radius: 10px;
-  min-height: calc(var(--slot) + 22px);
+  min-height: calc(var(--slot) + 16px);
 }
 
 .hand-panel {
