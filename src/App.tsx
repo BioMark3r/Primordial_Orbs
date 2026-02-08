@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useReducer, useState } from "react";
+import React, { useMemo, useReducer, useState } from "react";
 import logoUrl from "./assets/logo.png";
 import type { Core, GameState, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
@@ -67,12 +67,6 @@ export default function App() {
   }
 
 
-  useEffect(() => {
-    if (screen !== "SPLASH") return;
-    const t = window.setTimeout(() => setScreen("TITLE"), 1200);
-    return () => window.clearTimeout(t);
-  }, [screen]);
-
   if (screen === "SPLASH") {
     return (
       <div style={{ ...containerStyle, display: "grid", placeItems: "center", minHeight: "100vh" }}>
@@ -102,7 +96,7 @@ export default function App() {
           </div>
 
           <div style={{ marginTop: 14, fontSize: 12, color: "#777" }}>
-            Auto-continues in ~1 second • Click Enter to skip
+            Click Enter to continue
           </div>
         </div>
       </div>
