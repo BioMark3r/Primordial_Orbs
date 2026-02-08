@@ -172,7 +172,7 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.counters.impactsRemaining <= 0) return state;
 
       const p = state.active;
-      const target: 0 | 1 = p === 0 ? 1 : 0;
+      const target = action.target;
 
       const hand = [...state.players[p].hand];
       const orb = hand[action.handIndex];
