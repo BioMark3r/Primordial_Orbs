@@ -185,6 +185,7 @@ export default function App() {
   const [showInspector, setShowInspector] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
   const [showHowTo, setShowHowTo] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const [uiEvents, setUiEvents] = useState<UIEvent[]>([]);
   const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
   const [flashState, setFlashState] = useState<{ target: 0 | 1; slots: number[]; until: number } | null>(null);
@@ -196,8 +197,8 @@ export default function App() {
 
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
-    padding: 16,
-    maxWidth: 1100,
+    padding: 12,
+    maxWidth: 1200,
     margin: "0 auto",
   };
 
@@ -566,6 +567,7 @@ export default function App() {
     clearSelection();
   }
 
+  const topbarTitle =
   function onCoachAction(hint: CoachHint) {
     if (hint.actionLabel === "Draw 2" && canDraw) {
       clearSelection();
@@ -577,26 +579,27 @@ export default function App() {
   const title =
     state.phase === "GAME_OVER"
       ? `Game Over — Winner: P${String(state.winner)}`
-      : `Turn ${state.turn} • Phase: ${state.phase} • Active: P${active}`;
+      : `Turn ${state.turn} • Phase: ${state.phase}`;
 
   const activeFlashSlots = flashState?.target === active ? flashState.slots : [];
   const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
 
-  return (
-    <div style={containerStyle} className="app-shell">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <h2 style={{ margin: 0 }}>{title}</h2>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {isDev && (
-            <button onClick={() => setShowInspector((prev) => !prev)}>
-              {showInspector ? "Hide" : "Show"} Game Inspector
-            </button>
-          )}
-          <button onClick={() => setShowHowTo(true)}>How to Play</button>
-          <button onClick={() => setScreen("SETUP")}>Setup</button>
-        </div>
-      </div>
+  const logLines = logOpen ? state.log.slice(0, 120) : state.log.slice(0, 2);
 
+  return (
+    <div style={containerStyle} className="app-shell game-shell">
+      <div className="game-topbar">
+        <div className="game-topbar-left">
+          <div className="game-topbar-title">{topbarTitle}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span className="game-status-pill">Active: P{active}</span>
+            {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
+              <span className="game-status-pill" title="Solar Flare">Abilities Disabled</span>
+            )}
+          </div>
+        </div>
+
+        <div className="game-topbar-center">
       <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
         <button
           onClick={() => {
@@ -611,47 +614,63 @@ export default function App() {
 
         {mode === "LOCAL_2P" && (
           <button
-            disabled={!canUndo}
             onClick={() => {
+              clearSelection();
+              const seed = resolveSeed();
+              setSeedInput(String(seed));
+              dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
               resetTransientUi();
               setLastAction(null);
               setHistory((prev) => undo(prev));
             }}
           >
-            Undo
+            New Game
           </button>
-        )}
+          <button
+            disabled={!canDraw}
+            onClick={() => {
+              clearSelection();
+              dispatchWithLog({ type: "DRAW_2" });
+              pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
+            }}
+          >
+            Draw 2
+          </button>
+          <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatchWithLog({ type: "END_PLAY" }); }}>
+            End Play
+          </button>
+          <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatchWithLog({ type: "ADVANCE" }); }}>
+            Advance
+          </button>
+          {mode === "LOCAL_2P" && (
+            <button
+              disabled={!canUndo}
+              onClick={() => {
+                clearSelection();
+                dispatchWithLog({ type: "UNDO" });
+              }}
+            >
+              Undo
+            </button>
+          )}
+        </div>
 
-        <button
-          disabled={!canDraw}
-          onClick={() => {
-            clearSelection();
-            dispatchWithLog({ type: "DRAW_2" });
-            pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
-          }}
-        >
-          Draw 2
-        </button>
-
-        <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatchWithLog({ type: "END_PLAY" }); }}>
-          End Play
-        </button>
-
-        <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatchWithLog({ type: "ADVANCE" }); }}>
-          Advance
-        </button>
-
-        <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-          <div><b>Plays:</b> {playsRemaining}/2</div>
-          <div><b>Impacts:</b> {impactsRemaining}/1</div>
-          <div><b>Hand:</b> {activeHand.length}/3</div>
-          <a href={RULEBOOK_URL} target="_blank" rel="noreferrer">
-            Full rulebook
+        <div className="game-topbar-right">
+          <span className="game-status-pill">Plays {playsRemaining}/2</span>
+          <span className="game-status-pill">Impacts {impactsRemaining}/1</span>
+          <span className="game-status-pill">Hand {activeHand.length}/3</span>
+          <a className="game-status-pill" href={RULEBOOK_URL} target="_blank" rel="noreferrer">
+            Rulebook
           </a>
-          {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
-            <div style={{ color: "#a00" }} title="Solar Flare">
-              <b>Abilities Disabled</b>
-            </div>
+          <button onClick={() => setLogOpen((prev) => !prev)} aria-expanded={logOpen}>
+            Log
+          </button>
+          <button onClick={() => setShowHowTo(true)}>How to Play</button>
+          <button onClick={() => setScreen("SETUP")}>Setup</button>
+          {isDev && (
+            <button onClick={() => setShowInspector((prev) => !prev)}>
+              {showInspector ? "Hide" : "Show"} Inspector
+            </button>
           )}
         </div>
       </div>
@@ -663,245 +682,245 @@ export default function App() {
       />
       {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
 
-      {isDev && showInspector && (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #666", borderRadius: 10, background: "#fafafa" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <h3 style={{ margin: 0 }}>Game Inspector</h3>
-            <div style={{ fontSize: 12, color: "#666" }}>Dev-only</div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginTop: 10 }}>
-            <div><b>Seed:</b> {state.seed}</div>
-            <div><b>Phase:</b> {state.phase}</div>
-            <div><b>Turn:</b> {state.turn}</div>
-            <div><b>Active:</b> P{state.active}</div>
-            <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
-            <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 700 }}>Last Action</div>
-            <pre style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
-              {lastAction ? JSON.stringify(lastAction, null, 2) : "None"}
-            </pre>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 700 }}>State JSON</div>
-            <pre style={{ marginTop: 6, maxHeight: 240, overflow: "auto", background: "#fff", padding: 10, borderRadius: 8, border: "1px solid #ddd" }}>
-              {JSON.stringify(state, null, 2)}
-            </pre>
-          </div>
-        </div>
-      )}
-
-      {state.turn === 1 && state.phase !== "GAME_OVER" && (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #c7d7ff", borderRadius: 10, background: "#f4f7ff" }}>
-          <b>Recommended first turn:</b> {getFirstTurnHint(activePlanet.core)}
-        </div>
-      )}
-
-      {showDiscard && (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #999", borderRadius: 8 }}>
-          <b>Hand overflow.</b> Discard until you have 3 or fewer.
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-              {activeHand.map((o, i) => (
-                <button key={i} onClick={() => onDiscardIndex(i)}>
-                Discard #{i + 1}: {orbLabel(o)}
-                </button>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {(canWaterSwap || canGasRedraw) && (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 10, color: "#333" }}>
-          <b>Core Actions:</b>
-          <div style={{ marginTop: 6 }}>
-            {canWaterSwap ? (
-              <div>
-                <b>Water Swap</b> (once/turn): With no hand selection, click two <b>Terraform</b> slots to swap.
-                {waterSwapPick !== null && (
-                  <span style={{ marginLeft: 10 }}>
-                    Selected first slot: <b>{waterSwapPick}</b>
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div style={{ color: "#777" }}>Water Swap: unavailable</div>
-            )}
-          </div>
-          <div style={{ marginTop: 6 }}>
-            {canGasRedraw ? (
-              <div>
-                <b>Gas Redraw</b> (once/turn): <b>Shift-click</b> a hand orb to discard+draw.
-              </div>
-            ) : (
-              <div style={{ color: "#777" }}>Gas Redraw: unavailable</div>
-            )}
-          </div>
-        </div>
-      )}
-
-
-      <CoreStatusStrip state={state} />
-
-      <div className="game-arena-row" style={{ marginTop: 16 }}>
-        <PlayerPanel
-          title={`Player ${active} (Active)`}
-          core={activePlanet.core}
-          planetSlots={activePlanet.slots}
-          locked={activePlanet.locked}
-          terraformMin={3}
-          onClickSlot={onClickSlot}
-          selected={selected}
-          waterSwapPick={waterSwapPick}
-          waterSwapMode={canWaterSwap && selected.kind === "NONE"}
-          flashSlots={activeFlashSlots}
-        />
-        <ArenaView
-          lastEvent={arenaEvent}
-          bagCount={state.bag.length}
-          discardCount={state.discard.length}
-          activePlayer={active}
-        />
-        <PlayerPanel
-          title={`Player ${other}`}
-          core={otherPlanet.core}
-          planetSlots={otherPlanet.slots}
-          locked={otherPlanet.locked}
-          terraformMin={3}
-          selected={{ kind: "NONE" }}
-          waterSwapPick={null}
-          waterSwapMode={false}
-          flashSlots={otherFlashSlots}
-        />
-      </div>
-
-      <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-        <div style={{ padding: 12, border: "1px solid #bbb", borderRadius: 10, flex: "1 1 360px", minWidth: 320 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <h3 style={{ margin: 0 }}>Hand (P{active})</h3>
-            <div style={{ color: "#555" }}>
-              Click Terraform/Colonize then click a slot. Select an Impact to choose its target.
-              {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
+      <div className="game-content">
+        {isDev && showInspector && (
+          <div style={{ padding: 10, border: "1px solid #666", borderRadius: 10, background: "#fafafa" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <h3 style={{ margin: 0 }}>Game Inspector</h3>
+              <div style={{ fontSize: 12, color: "#666" }}>Dev-only</div>
             </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-            {activeHand.length === 0 && <div style={{ color: "#777" }}>No orbs in hand.</div>}
-            {activeHand.map((o, i) => {
-              const isSel = selected.kind === "HAND" && selected.handIndex === i;
-              const isImpact = o.kind === "IMPACT";
-              return (
-                <div
-                  key={i}
-                  style={{ display: "grid", justifyItems: "center", minWidth: 84 }}
-                  onMouseEnter={() => {
-                    if (isImpact) setHoveredImpactIndex(i);
-                  }}
-                  onMouseLeave={() => {
-                    if (isImpact) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
-                  }}
-                >
-                  <OrbToken
-                    orb={o}
-                    size="lg"
-                    selected={isSel}
-                    actionable={isImpact && canPlayImpact}
-                    title={orbTooltip(o)}
-                    onClick={(e) => onClickHand(i, e)}
-                  />
-                  <div className="orb-label">{orbShort(o)}</div>
-                  {isImpact && <div style={{ fontSize: 11, color: "#cfd5ff" }}>Select target</div>}
-                </div>
-              );
-            })}
-          </div>
-
-          {selected.kind === "HAND" && selected.orb.kind !== "IMPACT" && (
-            <div style={{ marginTop: 10, color: "#333" }}>
-              Selected: <b>{orbLabel(selected.orb)}</b> → click an empty slot on the active planet.
-              <button style={{ marginLeft: 10 }} onClick={clearSelection}>Clear</button>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginTop: 8 }}>
+              <div><b>Seed:</b> {state.seed}</div>
+              <div><b>Phase:</b> {state.phase}</div>
+              <div><b>Turn:</b> {state.turn}</div>
+              <div><b>Active:</b> P{state.active}</div>
+              <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
+              <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
             </div>
-          )}
-          {selected.kind === "HAND" && selected.orb.kind === "IMPACT" && (
-            <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "#fafafa" }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Impact Targeting</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <input
-                    type="radio"
-                    name="impact-target"
-                    value="OPPONENT"
-                    checked={impactTarget === "OPPONENT"}
-                    onChange={() => setImpactTarget("OPPONENT")}
-                  />
-                  Opponent
-                </label>
-                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <input
-                    type="radio"
-                    name="impact-target"
-                    value="SELF"
-                    checked={impactTarget === "SELF"}
-                    onChange={() => setImpactTarget("SELF")}
-                  />
-                  Self
-                </label>
-                <button onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
-                  Fire Impact
-                </button>
-                <button onClick={clearSelection}>Clear</button>
-              </div>
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontWeight: 700 }}>Last Action</div>
+              <pre style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
+                {lastAction ? JSON.stringify(lastAction, null, 2) : "None"}
+              </pre>
             </div>
-          )}
-        </div>
-
-        {impactPreview && (
-          <div style={{ flex: "0 1 320px" }}>
-            <ImpactPreviewPanel preview={impactPreview} />
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontWeight: 700 }}>State JSON</div>
+              <pre style={{ marginTop: 6, maxHeight: 200, overflow: "auto", background: "#fff", padding: 8, borderRadius: 8, border: "1px solid #ddd" }}>
+                {JSON.stringify(state, null, 2)}
+              </pre>
+            </div>
           </div>
         )}
+
+        <CoreStatusStrip
+          state={state}
+          active={active}
+          canWaterSwap={canWaterSwap}
+          canGasRedraw={canGasRedraw}
+          waterSwapPick={waterSwapPick}
+        />
+
+        <div className="game-arena-row">
+          <PlayerPanel
+            title={`Player ${active} (Active)`}
+            core={activePlanet.core}
+            planetSlots={activePlanet.slots}
+            locked={activePlanet.locked}
+            terraformMin={3}
+            onClickSlot={onClickSlot}
+            selected={selected}
+            waterSwapPick={waterSwapPick}
+            waterSwapMode={canWaterSwap && selected.kind === "NONE"}
+            flashSlots={activeFlashSlots}
+          />
+          <ArenaView
+            lastEvent={arenaEvent}
+            bagCount={state.bag.length}
+            discardCount={state.discard.length}
+            activePlayer={active}
+          />
+          <PlayerPanel
+            title={`Player ${other}`}
+            core={otherPlanet.core}
+            planetSlots={otherPlanet.slots}
+            locked={otherPlanet.locked}
+            terraformMin={3}
+            selected={{ kind: "NONE" }}
+            waterSwapPick={null}
+            waterSwapMode={false}
+            flashSlots={otherFlashSlots}
+          />
+        </div>
+
+        <div className="game-bottom-row">
+          <div className="hand-panel">
+            <div className="hand-panel__header">
+              <h3 className="hand-panel__title">Hand (P{active})</h3>
+              <div className="hand-panel__hint">
+                Click Terraform/Colonize then a slot. Select an Impact to choose its target.
+                {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
+              </div>
+            </div>
+
+            {showDiscard && (
+              <div style={{ marginTop: 6, padding: 6, borderRadius: 8, background: "rgba(150, 80, 80, 0.2)" }}>
+                <b>Hand overflow.</b> Discard until you have 3 or fewer.
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                  {activeHand.map((o, i) => (
+                    <button key={i} onClick={() => onDiscardIndex(i)}>
+                      Discard #{i + 1}: {orbLabel(o)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="hand-scroll">
+              {activeHand.length === 0 && <div style={{ color: "#777" }}>No orbs in hand.</div>}
+              {activeHand.map((o, i) => {
+                const isSel = selected.kind === "HAND" && selected.handIndex === i;
+                const isImpact = o.kind === "IMPACT";
+                return (
+                  <div
+                    key={i}
+                    className="hand-token"
+                    onMouseEnter={() => {
+                      if (isImpact) setHoveredImpactIndex(i);
+                    }}
+                    onMouseLeave={() => {
+                      if (isImpact) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
+                    }}
+                  >
+                    <OrbToken
+                      orb={o}
+                      size="md"
+                      selected={isSel}
+                      actionable={isImpact && canPlayImpact}
+                      title={orbTooltip(o)}
+                      onClick={(e) => onClickHand(i, e)}
+                    />
+                    <div className="orb-label">{orbShort(o)}</div>
+                    {isImpact && <div style={{ fontSize: 10, color: "#cfd5ff" }}>Select target</div>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {selected.kind === "HAND" && selected.orb.kind !== "IMPACT" && (
+              <div style={{ marginTop: 8, color: "#ddd", fontSize: 12 }}>
+                Selected: <b>{orbLabel(selected.orb)}</b> → click an empty slot on the active planet.
+                <button style={{ marginLeft: 8 }} onClick={clearSelection}>Clear</button>
+              </div>
+            )}
+            {selected.kind === "HAND" && selected.orb.kind === "IMPACT" && (
+              <div style={{ marginTop: 8, padding: 8, border: "1px solid #2a2f44", borderRadius: 10, background: "rgba(10,14,24,0.75)" }}>
+                <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12 }}>Impact Targeting</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 12 }}>
+                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input
+                      type="radio"
+                      name="impact-target"
+                      value="OPPONENT"
+                      checked={impactTarget === "OPPONENT"}
+                      onChange={() => setImpactTarget("OPPONENT")}
+                    />
+                    Opponent
+                  </label>
+                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input
+                      type="radio"
+                      name="impact-target"
+                      value="SELF"
+                      checked={impactTarget === "SELF"}
+                      onChange={() => setImpactTarget("SELF")}
+                    />
+                    Self
+                  </label>
+                  <button onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
+                    Fire Impact
+                  </button>
+                  <button onClick={clearSelection}>Clear</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {impactPreview && (
+            <div className="impact-panel">
+              <ImpactPreviewPanel preview={impactPreview} />
+            </div>
+          )}
+        </div>
       </div>
 
-      <div style={{ marginTop: 16, padding: 12, border: "1px solid #bbb", borderRadius: 10 }}>
-        <h3 style={{ margin: 0 }}>Action Log</h3>
-        <div style={{ marginTop: 8, maxHeight: 240, overflow: "auto", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
-          {state.log.slice(0, 120).map((line, idx) => (
-            <div key={idx} style={{ borderBottom: "1px dashed #eee", padding: "4px 0" }}>
+      <div className="log-drawer" role="region" aria-label="Action log">
+        <div className="log-drawer__header">
+          <span>{logOpen ? "Action Log" : "Recent Log"}</span>
+          <button onClick={() => setLogOpen((prev) => !prev)}>
+            {logOpen ? "Collapse" : "Expand"}
+          </button>
+        </div>
+        <div className="log-drawer__body">
+          {logLines.length === 0 && <div className="log-drawer__line">No log entries yet.</div>}
+          {logLines.map((line, idx) => (
+            <div key={idx} className="log-drawer__line">
               {line}
             </div>
           ))}
         </div>
-      </div>
-
-      <div style={{ marginTop: 16, color: "#555", fontSize: 13 }}>
-        <b>P0</b> Terraform {terraformCount(state.players[0].planet.slots)}/6 • Colonize types {colonizeTypesCount(state.players[0].planet.slots)}/4 &nbsp;&nbsp;|&nbsp;&nbsp;
-        <b>P1</b> Terraform {terraformCount(state.players[1].planet.slots)}/6 • Colonize types {colonizeTypesCount(state.players[1].planet.slots)}/4
       </div>
     </div>
   );
 }
 
 
-function CoreStatusStrip({ state }: { state: GameState }) {
+function CoreStatusStrip({
+  state,
+  active,
+  canWaterSwap,
+  canGasRedraw,
+  waterSwapPick,
+}: {
+  state: GameState;
+  active: 0 | 1;
+  canWaterSwap: boolean;
+  canGasRedraw: boolean;
+  waterSwapPick: number | null;
+}) {
   const p0 = state.players[0];
   const p1 = state.players[1];
-
-  const rowStyle: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 16,
-    marginTop: 14,
-  };
+  const showFirstTurnHint = state.turn === 1 && state.phase !== "GAME_OVER";
+  const activeCore = state.players[active].planet.core;
 
   return (
-    <div style={{ marginTop: 14, padding: 12, border: "1px solid #bbb", borderRadius: 10 }}>
-      <div style={{ fontWeight: 800, marginBottom: 8 }}>Core Status</div>
-      <div style={rowStyle}>
+    <div className="coach-strip">
+      <div className="coach-grid">
         <CoreStatusCard who="P0" state={state} p={0} />
         <CoreStatusCard who="P1" state={state} p={1} />
       </div>
-      <div style={{ marginTop: 8, color: "#666", fontSize: 12 }}>
-        Tips: Water Swap works when no hand orb is selected. Gas Redraw is Shift-click on a hand orb.
+      <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
+        {showFirstTurnHint && (
+          <div>
+            <b>Recommended first turn:</b> {getFirstTurnHint(activeCore)}
+          </div>
+        )}
+        {(canWaterSwap || canGasRedraw) && (
+          <div>
+            <b>Core actions:</b>{" "}
+            {canWaterSwap && (
+              <span>
+                Water Swap ready — click two Terraform slots
+                {waterSwapPick !== null ? ` (first: ${waterSwapPick})` : ""}.
+              </span>
+            )}
+            {canGasRedraw && <span> Gas Redraw ready — Shift-click a hand orb.</span>}
+          </div>
+        )}
+        <div>
+          <b>P0</b> Terraform {terraformCount(p0.planet.slots)}/6 • Colonize types {colonizeTypesCount(p0.planet.slots)}/4
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          <b>P1</b> Terraform {terraformCount(p1.planet.slots)}/6 • Colonize types {colonizeTypesCount(p1.planet.slots)}/4
+        </div>
       </div>
     </div>
   );
@@ -923,16 +942,14 @@ function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0
   ];
 
   return (
-    <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 10 }}>
-      <div style={{ fontWeight: 800, marginBottom: 6 }}>{who}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", rowGap: 6, columnGap: 10 }}>
-        {items.map((it) => (
-          <React.Fragment key={it.label}>
-            <div style={{ color: "#555" }}>{it.label}</div>
-            <div style={{ fontWeight: 700 }} title={it.tooltip}>{it.value}</div>
-          </React.Fragment>
-        ))}
-      </div>
+    <div className="coach-card">
+      <div style={{ fontWeight: 800 }}>{who}</div>
+      {items.map((it) => (
+        <div className="coach-row" key={it.label}>
+          <div style={{ color: "rgba(237,239,246,0.7)" }}>{it.label}</div>
+          <div style={{ fontWeight: 700 }} title={it.tooltip}>{it.value}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -955,39 +972,37 @@ function PlayerPanel(props: {
   const ok = tCount >= props.terraformMin;
 
   return (
-    <div style={{ border: "1px solid #bbb", borderRadius: 12, padding: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+    <div className="player-panel">
+      <div className="player-panel__header">
         <div>
-          <h3 style={{ margin: 0 }}>{props.title}</h3>
-          <div style={{ color: "#555", marginTop: 4 }}>
+          <h3>{props.title}</h3>
+          <div style={{ color: "rgba(237,239,246,0.7)", marginTop: 2 }}>
             Core: <CoreBadge core={props.core} />
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div className="player-panel__stats">
           <div><b>Terraform:</b> {tCount}/6 {ok ? "OK" : "LOW"}</div>
           <div><b>Colonize types:</b> {cTypes}/4</div>
         </div>
       </div>
 
-      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+      <div className="player-panel__slots">
         {props.planetSlots.map((s, i) => {
           const locked = props.locked[i];
           const clickable = !!props.onClickSlot;
           const showHint = clickable && props.selected.kind === "HAND" && props.selected.orb.kind !== "IMPACT";
           const waterPick = props.waterSwapMode && props.waterSwapPick === i;
           const flashSlot = props.flashSlots.includes(i);
+          const slotClass = `${flashSlot ? "slot-flash " : ""}player-panel__slot-btn`;
 
           return (
             <button
               key={i}
-              className={flashSlot ? "slot-flash" : undefined}
+              className={slotClass}
               onClick={() => props.onClickSlot?.(i)}
               disabled={!clickable}
               style={{
-                padding: "12px 10px",
-                borderRadius: 12,
                 border: waterPick ? "2px solid rgba(140,170,255,0.6)" : "1px solid rgba(255,255,255,0.18)",
-                minHeight: 86,
                 textAlign: "center",
                 cursor: clickable ? "pointer" : "default",
                 opacity: clickable ? 1 : 0.92,
@@ -1004,13 +1019,13 @@ function PlayerPanel(props: {
                       : "Planet slot"
               }
             >
-              <div style={{ display: "grid", justifyItems: "center", gap: 6 }}>
+              <div style={{ display: "grid", justifyItems: "center", gap: 4 }}>
                 {s ? (
-                  <OrbToken orb={s} size="md" selected={waterPick} disabled={locked} title={orbTooltip(s)} />
+                  <OrbToken orb={s} size="slot" selected={waterPick} disabled={locked} title={orbTooltip(s)} />
                 ) : (
                   <span className="slot-empty" />
                 )}
-                <div style={{ fontSize: 12, color: "rgba(237,239,246,0.7)" }}>
+                <div style={{ fontSize: 11, color: "rgba(237,239,246,0.7)" }}>
                   Slot {i}{locked ? " • Locked" : ""}
                 </div>
                 {showHint && !s && !locked && <div className="slot-hint">Place here</div>}
