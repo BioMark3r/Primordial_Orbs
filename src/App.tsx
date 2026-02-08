@@ -7,10 +7,13 @@ import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
 import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
+import { CoachStrip } from "./ui/components/CoachStrip";
 import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDiff";
 import type { PendingDiff } from "./ui/utils/pendingDiff";
 import { computeImpactPreview } from "./ui/utils/impactPreview";
 import type { ImpactPreview } from "./ui/utils/impactPreview";
+import type { CoachHint } from "./ui/utils/coach";
+import { getCoachHints } from "./ui/utils/coach";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -456,6 +459,8 @@ export default function App() {
     return null;
   }, [active, activeHand, hoveredImpactIndex, impactTarget, other, selected, state]);
 
+  const coachHints = useMemo(() => getCoachHints(state), [state]);
+
   function clearSelection() {
     setSelected({ kind: "NONE" });
     setWaterSwapPick(null);
@@ -538,6 +543,14 @@ export default function App() {
     clearSelection();
   }
 
+  function onCoachAction(hint: CoachHint) {
+    if (hint.actionLabel === "Draw 2" && canDraw) {
+      clearSelection();
+      dispatchWithLog({ type: "DRAW_2" });
+      pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
+    }
+  }
+
   const title =
     state.phase === "GAME_OVER"
       ? `Game Over — Winner: P${String(state.winner)}`
@@ -618,6 +631,12 @@ export default function App() {
           )}
         </div>
       </div>
+
+      <CoachStrip
+        hints={coachHints}
+        onAction={onCoachAction}
+        isActionDisabled={(hint) => hint.actionLabel === "Draw 2" && !canDraw}
+      />
       {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
 
       {isDev && showInspector && (
