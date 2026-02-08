@@ -6,7 +6,8 @@ import { newGame } from "./engine/setup";
 import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
-import { diffSlots } from "./ui/utils/diff";
+import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDiff";
+import type { PendingDiff } from "./ui/utils/pendingDiff";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -18,23 +19,6 @@ export type UIEvent =
   | { kind: "IMPACT_RESOLVED"; at: number; impact: string; source: 0 | 1; target: 0 | 1; affectedSlots: number[] }
   | { kind: "DRAW"; at: number; player: 0 | 1 }
   | { kind: "PLACE"; at: number; player: 0 | 1; slotIndex: number };
-type PendingDiff =
-  | null
-  | {
-      kind: "IMPACT";
-      at: number;
-      impact: string;
-      source: 0 | 1;
-      target: 0 | 1;
-      beforeTargetSlots: (Orb | null)[];
-      beforeSourceSlots: (Orb | null)[];
-    }
-  | {
-      kind: "PLACE" | "SWAP" | "REDRAW" | "VORTEX";
-      at: number;
-      player: 0 | 1;
-      beforeSlots: (Orb | null)[];
-    };
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
@@ -261,24 +245,21 @@ export default function App() {
   }
 
   useEffect(() => {
-    const pending = pendingDiffRef.current;
-    if (!pending) return;
-    if (pending.kind === "IMPACT") {
-      const targetSlotsAfter = state.players[pending.target].planet.slots;
-      const affectedSlots = diffSlots(pending.beforeTargetSlots, targetSlotsAfter);
-      const now = Date.now();
-      const resolvedEvent: UIEvent = {
-        kind: "IMPACT_RESOLVED",
-        at: now,
-        impact: pending.impact,
-        source: pending.source,
-        target: pending.target,
-        affectedSlots,
-      };
-      pushUiEvent(resolvedEvent);
-      setFlashState({ target: pending.target, slots: affectedSlots, until: now + 900 });
-      pendingDiffRef.current = null;
-    }
+    if (!pendingDiffRef.current) return;
+
+    const resolved = resolvePendingDiff(pendingDiffRef.current, state);
+    if (!resolved) return;
+
+    setArenaEvent(resolved);
+    setUiEvents((prev) => [resolved, ...prev]);
+
+    setFlashState({
+      target: resolved.target,
+      slots: resolved.affectedSlots,
+      until: Date.now() + 900,
+    });
+
+    pendingDiffRef.current = null;
   }, [state]);
 
   function resolveSeed() {
@@ -573,23 +554,14 @@ export default function App() {
 
     const target: 0 | 1 = impactTarget === "SELF" ? active : other;
     const now = Date.now();
-    pendingDiffRef.current = {
-      kind: "IMPACT",
-      at: now,
-      impact: selected.orb.i,
-      source: active,
-      target,
-      beforeTargetSlots: [...state.players[target].planet.slots],
-      beforeSourceSlots: [...state.players[active].planet.slots],
-    };
-    const castEvent: UIEvent = {
+    pendingDiffRef.current = beginPendingImpactDiff(state, selected.orb.i, active, target);
+    setArenaEvent({
       kind: "IMPACT_CAST",
       at: now,
       impact: selected.orb.i,
       source: active,
       target,
-    };
-    pushUiEvent(castEvent);
+    });
     dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
     clearSelection();
   }
