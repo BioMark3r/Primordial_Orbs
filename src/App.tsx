@@ -6,8 +6,11 @@ import { newGame } from "./engine/setup";
 import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
+import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
 import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDiff";
 import type { PendingDiff } from "./ui/utils/pendingDiff";
+import { computeImpactPreview } from "./ui/utils/impactPreview";
+import type { ImpactPreview } from "./ui/utils/impactPreview";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -52,54 +55,6 @@ function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
 }
 function hasPlant(state: GameState, p: 0 | 1): boolean {
   return state.players[p].planet.slots.some((s) => s?.kind === "COLONIZE" && s.c === "PLANT");
-}
-function hasColonize(state: GameState, p: 0 | 1): boolean {
-  return state.players[p].planet.slots.some((s) => s?.kind === "COLONIZE");
-}
-
-function impactLikelyRemoves(impact: Impact, state: GameState, target: 0 | 1): string {
-  switch (impact) {
-    case "SOLAR_FLARE":
-      return "None (disables abilities)";
-    case "TEMPORAL_VORTEX":
-      return "None (rewinds planet)";
-    case "DISEASE":
-      return "Colonize";
-    case "BLACK_HOLE":
-      return hasColonize(state, target) ? "Colonize" : "Terraform";
-    case "METEOR":
-    case "QUAKE":
-    case "TORNADO":
-      return "Terraform";
-  }
-}
-
-function impactSeverityPreview(state: GameState, impact: Impact, source: 0 | 1, target: 0 | 1) {
-  const sourcePlayer = state.players[source];
-  const targetPlayer = state.players[target];
-  const base = 1 + targetPlayer.vulnerability;
-  let severity = base;
-
-  const lavaBoost = sourcePlayer.planet.core === "LAVA" && abilitiesEnabled(state, source);
-  const waterWeakness = impact === "DISEASE" && targetPlayer.planet.core === "WATER";
-  const iceShield = targetPlayer.planet.core === "ICE" && abilitiesEnabled(state, target) && !targetPlayer.abilities.ice_shield_used_turn;
-  const plantMitigation = abilitiesEnabled(state, target) && hasPlant(state, target) && !targetPlayer.abilities.plant_block_used_round;
-  const landWeakness = targetPlayer.planet.core === "LAND";
-
-  if (lavaBoost) severity += 1;
-  if (waterWeakness) severity += 1;
-  if (iceShield) severity = Math.max(1, severity - 1);
-  if (plantMitigation) severity = Math.max(1, severity - 1);
-
-  return {
-    severity,
-    base,
-    lavaBoost,
-    waterWeakness,
-    iceShield,
-    plantMitigation,
-    landWeakness,
-  };
 }
 
 function getTerraformInfo(t: Core) {
@@ -212,6 +167,7 @@ export default function App() {
   const [p0Core, setP0Core] = useState<Core>("LAND");
   const [p1Core, setP1Core] = useState<Core>("ICE");
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
+  const [hoveredImpactIndex, setHoveredImpactIndex] = useState<number | null>(null);
   const [seedInput, setSeedInput] = useState<string>(() => String(initialSeed));
   const [showInspector, setShowInspector] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
@@ -483,6 +439,22 @@ export default function App() {
     activePlanet.core === "GAS" &&
     !state.players[active].abilities.gas_redraw_used_turn &&
     abilitiesEnabled(state, active);
+
+  const impactPreview: ImpactPreview | null = useMemo(() => {
+    if (selected.kind === "HAND" && selected.orb.kind === "IMPACT") {
+      const target = impactTarget === "SELF" ? active : other;
+      return computeImpactPreview(state, selected.orb.i, active, target);
+    }
+
+    if (hoveredImpactIndex !== null) {
+      const orb = activeHand[hoveredImpactIndex];
+      if (orb?.kind === "IMPACT") {
+        return computeImpactPreview(state, orb.i, active, other);
+      }
+    }
+
+    return null;
+  }, [active, activeHand, hoveredImpactIndex, impactTarget, other, selected, state]);
 
   function clearSelection() {
     setSelected({ kind: "NONE" });
@@ -760,96 +732,89 @@ export default function App() {
         />
       </div>
 
-      <div style={{ marginTop: 16, padding: 12, border: "1px solid #bbb", borderRadius: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <h3 style={{ margin: 0 }}>Hand (P{active})</h3>
-          <div style={{ color: "#555" }}>
-            Click Terraform/Colonize then click a slot. Select an Impact to choose its target.
-            {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-          {activeHand.length === 0 && <div style={{ color: "#777" }}>No orbs in hand.</div>}
-          {activeHand.map((o, i) => {
-            const isSel = selected.kind === "HAND" && selected.handIndex === i;
-            const isImpact = o.kind === "IMPACT";
-            return (
-              <div key={i} style={{ display: "grid", justifyItems: "center", minWidth: 84 }}>
-                <OrbToken
-                  orb={o}
-                  size="lg"
-                  selected={isSel}
-                  actionable={isImpact && canPlayImpact}
-                  title={orbTooltip(o)}
-                  onClick={(e) => onClickHand(i, e)}
-                />
-                <div className="orb-label">{orbShort(o)}</div>
-                {isImpact && <div style={{ fontSize: 11, color: "#cfd5ff" }}>Select target</div>}
-              </div>
-            );
-          })}
-        </div>
-
-        {selected.kind === "HAND" && selected.orb.kind !== "IMPACT" && (
-          <div style={{ marginTop: 10, color: "#333" }}>
-            Selected: <b>{orbLabel(selected.orb)}</b> → click an empty slot on the active planet.
-            <button style={{ marginLeft: 10 }} onClick={clearSelection}>Clear</button>
-          </div>
-        )}
-        {selected.kind === "HAND" && selected.orb.kind === "IMPACT" && (
-          <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "#fafafa" }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>Impact Targeting</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-              <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <input
-                  type="radio"
-                  name="impact-target"
-                  value="OPPONENT"
-                  checked={impactTarget === "OPPONENT"}
-                  onChange={() => setImpactTarget("OPPONENT")}
-                />
-                Opponent
-              </label>
-              <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <input
-                  type="radio"
-                  name="impact-target"
-                  value="SELF"
-                  checked={impactTarget === "SELF"}
-                  onChange={() => setImpactTarget("SELF")}
-                />
-                Self
-              </label>
-              <button onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
-                Fire Impact
-              </button>
-              <button onClick={clearSelection}>Clear</button>
+      <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div style={{ padding: 12, border: "1px solid #bbb", borderRadius: 10, flex: "1 1 360px", minWidth: 320 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h3 style={{ margin: 0 }}>Hand (P{active})</h3>
+            <div style={{ color: "#555" }}>
+              Click Terraform/Colonize then click a slot. Select an Impact to choose its target.
+              {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
             </div>
-            {(() => {
-              const target = impactTarget === "SELF" ? active : other;
-              const preview = impactSeverityPreview(state, selected.orb.i, active, target);
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+            {activeHand.length === 0 && <div style={{ color: "#777" }}>No orbs in hand.</div>}
+            {activeHand.map((o, i) => {
+              const isSel = selected.kind === "HAND" && selected.handIndex === i;
+              const isImpact = o.kind === "IMPACT";
               return (
-                <div style={{ marginTop: 10, padding: 10, borderRadius: 8, border: "1px solid #ccc", background: "#fff" }}>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Impact Preview</div>
-                  <div>Severity will be <b>{preview.severity}</b> (base {preview.base}).</div>
-                  <div style={{ marginTop: 4 }}>
-                    Likely removes: <b>{impactLikelyRemoves(selected.orb.i, state, target)}</b>
-                  </div>
-                  <div style={{ marginTop: 4 }}>
-                    Effect: <b>{getImpactInfo(selected.orb.i)}</b>
-                  </div>
-                  <div style={{ marginTop: 8, fontSize: 12, color: "#333" }}>
-                    <div><b>Core Modifiers</b></div>
-                    <div>Ice Shield: {preview.iceShield ? "−1 (ready)" : "—"}</div>
-                    <div>Lava boost: {preview.lavaBoost ? "+1" : "—"}</div>
-                    <div>Land weakness: {preview.landWeakness ? "+1 terraform removed" : "—"}</div>
-                    <div>Plant mitigation: {preview.plantMitigation ? "−1 (ready)" : "—"}</div>
-                    {preview.waterWeakness && <div>Water weakness: +1 (Disease)</div>}
-                  </div>
+                <div
+                  key={i}
+                  style={{ display: "grid", justifyItems: "center", minWidth: 84 }}
+                  onMouseEnter={() => {
+                    if (isImpact) setHoveredImpactIndex(i);
+                  }}
+                  onMouseLeave={() => {
+                    if (isImpact) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
+                  }}
+                >
+                  <OrbToken
+                    orb={o}
+                    size="lg"
+                    selected={isSel}
+                    actionable={isImpact && canPlayImpact}
+                    title={orbTooltip(o)}
+                    onClick={(e) => onClickHand(i, e)}
+                  />
+                  <div className="orb-label">{orbShort(o)}</div>
+                  {isImpact && <div style={{ fontSize: 11, color: "#cfd5ff" }}>Select target</div>}
                 </div>
               );
-            })()}
+            })}
+          </div>
+
+          {selected.kind === "HAND" && selected.orb.kind !== "IMPACT" && (
+            <div style={{ marginTop: 10, color: "#333" }}>
+              Selected: <b>{orbLabel(selected.orb)}</b> → click an empty slot on the active planet.
+              <button style={{ marginLeft: 10 }} onClick={clearSelection}>Clear</button>
+            </div>
+          )}
+          {selected.kind === "HAND" && selected.orb.kind === "IMPACT" && (
+            <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "#fafafa" }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Impact Targeting</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    type="radio"
+                    name="impact-target"
+                    value="OPPONENT"
+                    checked={impactTarget === "OPPONENT"}
+                    onChange={() => setImpactTarget("OPPONENT")}
+                  />
+                  Opponent
+                </label>
+                <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    type="radio"
+                    name="impact-target"
+                    value="SELF"
+                    checked={impactTarget === "SELF"}
+                    onChange={() => setImpactTarget("SELF")}
+                  />
+                  Self
+                </label>
+                <button onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
+                  Fire Impact
+                </button>
+                <button onClick={clearSelection}>Clear</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {impactPreview && (
+          <div style={{ flex: "0 1 320px" }}>
+            <ImpactPreviewPanel preview={impactPreview} />
           </div>
         )}
       </div>
