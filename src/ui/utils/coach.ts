@@ -56,6 +56,16 @@ export function getCoachHints(state: GameState): CoachHint[] {
         title: "Hand overflow: discard down to 3.",
       });
     }
+  } else if (state.phase === "PLAY") {
+    hints.push({
+      tone: "info",
+      title: "Play orbs and impacts, then end play.",
+    });
+  } else if (state.phase === "RESOLVE") {
+    hints.push({
+      tone: "info",
+      title: "Resolve impacts, then advance.",
+    });
   }
 
   if (!abilitiesOn) {
@@ -95,7 +105,7 @@ export function getCoachHints(state: GameState): CoachHint[] {
     });
   }
 
-  if (terraformCount(state, active) <= MVP_TERRAFORM_MIN) {
+  if (state.phase !== "DRAW" && terraformCount(state, active) <= MVP_TERRAFORM_MIN) {
     hints.push({
       tone: "warn",
       title: "Terraform minimum is 3. If you drop below, instability strikes apply.",
