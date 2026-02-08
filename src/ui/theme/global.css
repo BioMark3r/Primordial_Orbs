@@ -95,8 +95,8 @@ body {
 }
 
 .slot-empty {
-  width: 48px;
-  height: 48px;
+  width: var(--slot);
+  height: var(--slot);
   border-radius: 50%;
   border: 1px dashed rgba(255, 255, 255, 0.2);
   box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.35);

@@ -4,6 +4,7 @@ import App from "./App";
 import "./styles.css";
 import "./ui/theme/global.css";
 import "./ui/theme/arena.css";
+import "./ui/theme/layout.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

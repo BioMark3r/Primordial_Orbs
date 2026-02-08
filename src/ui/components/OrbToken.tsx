@@ -2,9 +2,9 @@ import React from "react";
 import type { Orb } from "../../engine/types";
 import { orbIcon } from "../theme/assets";
 
-type Size = "sm" | "md" | "lg";
+type Size = "sm" | "md" | "lg" | "slot";
 
-const px: Record<Size, number> = { sm: 34, md: 52, lg: 74 };
+const px: Record<Size, number | string> = { sm: 34, md: 52, lg: 74, slot: "var(--slot)" };
 
 export function OrbToken(props: {
   orb: Orb;
