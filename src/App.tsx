@@ -1,6 +1,6 @@
 import React, { useMemo, useReducer, useState } from "react";
 import logoUrl from "./assets/logo.png";
-import type { Action, Core, GameState, Mode, Orb } from "./engine/types";
+import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
 
@@ -8,6 +8,7 @@ type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
 type HistoryState = { past: GameState[]; present: GameState };
 type AppAction = Action | { type: "UNDO" };
+type ImpactTargetChoice = "OPPONENT" | "SELF";
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
@@ -41,6 +42,57 @@ function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
   const until = state.players[p].abilities.disabled_until_turn;
   return until === undefined || state.turn > until;
 }
+function hasPlant(state: GameState, p: 0 | 1): boolean {
+  return state.players[p].planet.slots.some((s) => s?.kind === "COLONIZE" && s.c === "PLANT");
+}
+function hasColonize(state: GameState, p: 0 | 1): boolean {
+  return state.players[p].planet.slots.some((s) => s?.kind === "COLONIZE");
+}
+
+function impactLikelyRemoves(impact: Impact, state: GameState, target: 0 | 1): string {
+  switch (impact) {
+    case "SOLAR_FLARE":
+      return "None (disables abilities)";
+    case "TEMPORAL_VORTEX":
+      return "None (rewinds planet)";
+    case "DISEASE":
+      return "Colonize";
+    case "BLACK_HOLE":
+      return hasColonize(state, target) ? "Colonize" : "Terraform";
+    case "METEOR":
+    case "QUAKE":
+    case "TORNADO":
+      return "Terraform";
+  }
+}
+
+function impactSeverityPreview(state: GameState, impact: Impact, source: 0 | 1, target: 0 | 1) {
+  const sourcePlayer = state.players[source];
+  const targetPlayer = state.players[target];
+  const base = 1 + targetPlayer.vulnerability;
+  let severity = base;
+
+  const lavaBoost = sourcePlayer.planet.core === "LAVA" && abilitiesEnabled(state, source);
+  const waterWeakness = impact === "DISEASE" && targetPlayer.planet.core === "WATER";
+  const iceShield = targetPlayer.planet.core === "ICE" && abilitiesEnabled(state, target) && !targetPlayer.abilities.ice_shield_used_turn;
+  const plantMitigation = abilitiesEnabled(state, target) && hasPlant(state, target) && !targetPlayer.abilities.plant_block_used_round;
+  const landWeakness = targetPlayer.planet.core === "LAND";
+
+  if (lavaBoost) severity += 1;
+  if (waterWeakness) severity += 1;
+  if (iceShield) severity = Math.max(1, severity - 1);
+  if (plantMitigation) severity = Math.max(1, severity - 1);
+
+  return {
+    severity,
+    base,
+    lavaBoost,
+    waterWeakness,
+    iceShield,
+    plantMitigation,
+    landWeakness,
+  };
+}
 
 export default function App() {
   const initialSeed = useMemo(() => Date.now(), []);
@@ -69,6 +121,7 @@ export default function App() {
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
   const [seedInput, setSeedInput] = useState<string>(() => String(initialSeed));
   const [showInspector, setShowInspector] = useState(false);
+  const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -274,6 +327,7 @@ export default function App() {
   const canDraw = state.phase === "DRAW";
   const canEndPlay = state.phase === "PLAY";
   const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
+  const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
   const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
   const canUndo = mode === "LOCAL_2P" && history.past.length > 0;
 
@@ -292,6 +346,7 @@ export default function App() {
   function clearSelection() {
     setSelected({ kind: "NONE" });
     setWaterSwapPick(null);
+    setImpactTarget("OPPONENT");
   }
 
   function onClickHand(i: number, e: React.MouseEvent) {
@@ -305,15 +360,11 @@ export default function App() {
       return;
     }
 
-    // Impacts auto-target opponent
-    if (state.phase === "PLAY" && orb.kind === "IMPACT") {
-      dispatchWithLog({ type: "PLAY_IMPACT", handIndex: i });
-      clearSelection();
-      return;
-    }
-
     // Selecting a hand orb exits water swap mode
     setWaterSwapPick(null);
+    if (orb.kind === "IMPACT") {
+      setImpactTarget("OPPONENT");
+    }
     setSelected({ kind: "HAND", handIndex: i, orb });
   }
 
@@ -349,6 +400,17 @@ export default function App() {
 
   function onDiscardIndex(i: number) {
     dispatchWithLog({ type: "DISCARD_FROM_HAND", index: i });
+    clearSelection();
+  }
+
+  function onPlaySelectedImpact() {
+    if (selected.kind !== "HAND") return;
+    if (selected.orb.kind !== "IMPACT") return;
+    if (state.phase !== "PLAY") return;
+    if (state.counters.playsRemaining <= 0 || state.counters.impactsRemaining <= 0) return;
+
+    const target: 0 | 1 = impactTarget === "SELF" ? active : other;
+    dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
     clearSelection();
   }
 
@@ -521,7 +583,7 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h3 style={{ margin: 0 }}>Hand (P{active})</h3>
           <div style={{ color: "#555" }}>
-            Click Terraform/Colonize then click a slot. Click Impact to fire at opponent.
+            Click Terraform/Colonize then click a slot. Select an Impact to choose its target.
             {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
           </div>
         </div>
@@ -547,7 +609,7 @@ export default function App() {
               >
                 <div style={{ fontWeight: 700 }}>{orbShort(o)}</div>
                 <div style={{ fontSize: 12, color: "#444" }}>{o.kind}</div>
-                {isImpact && <div style={{ fontSize: 12, marginTop: 4 }}>Targets Opponent</div>}
+                {isImpact && <div style={{ fontSize: 12, marginTop: 4 }}>Select target</div>}
               </button>
             );
           })}
@@ -557,6 +619,58 @@ export default function App() {
           <div style={{ marginTop: 10, color: "#333" }}>
             Selected: <b>{orbLabel(selected.orb)}</b> → click an empty slot on the active planet.
             <button style={{ marginLeft: 10 }} onClick={clearSelection}>Clear</button>
+          </div>
+        )}
+        {selected.kind === "HAND" && selected.orb.kind === "IMPACT" && (
+          <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "#fafafa" }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Impact Targeting</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+              <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  type="radio"
+                  name="impact-target"
+                  value="OPPONENT"
+                  checked={impactTarget === "OPPONENT"}
+                  onChange={() => setImpactTarget("OPPONENT")}
+                />
+                Opponent
+              </label>
+              <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  type="radio"
+                  name="impact-target"
+                  value="SELF"
+                  checked={impactTarget === "SELF"}
+                  onChange={() => setImpactTarget("SELF")}
+                />
+                Self
+              </label>
+              <button onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
+                Fire Impact
+              </button>
+              <button onClick={clearSelection}>Clear</button>
+            </div>
+            {(() => {
+              const target = impactTarget === "SELF" ? active : other;
+              const preview = impactSeverityPreview(state, selected.orb.i, active, target);
+              return (
+                <div style={{ marginTop: 10, padding: 10, borderRadius: 8, border: "1px solid #ccc", background: "#fff" }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Impact Preview</div>
+                  <div>Severity will be <b>{preview.severity}</b> (base {preview.base}).</div>
+                  <div style={{ marginTop: 4 }}>
+                    Likely removes: <b>{impactLikelyRemoves(selected.orb.i, state, target)}</b>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#333" }}>
+                    <div><b>Core Modifiers</b></div>
+                    <div>Ice Shield: {preview.iceShield ? "−1 (ready)" : "—"}</div>
+                    <div>Lava boost: {preview.lavaBoost ? "+1" : "—"}</div>
+                    <div>Land weakness: {preview.landWeakness ? "+1 terraform removed" : "—"}</div>
+                    <div>Plant mitigation: {preview.plantMitigation ? "−1 (ready)" : "—"}</div>
+                    {preview.waterWeakness && <div>Water weakness: +1 (Disease)</div>}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

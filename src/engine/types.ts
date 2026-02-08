@@ -74,7 +74,7 @@ export type Action =
   | { type: "DISCARD_FROM_HAND"; index: number }
   | { type: "PLAY_TERRAFORM"; handIndex: number; slotIndex: number }
   | { type: "PLAY_COLONIZE"; handIndex: number; slotIndex: number }
-  | { type: "PLAY_IMPACT"; handIndex: number } // default target is opponent
+  | { type: "PLAY_IMPACT"; handIndex: number; target: 0 | 1 }
   | { type: "WATER_SWAP"; slotA: number; slotB: number }
   | { type: "GAS_REDRAW"; handIndex: number }
   | { type: "END_PLAY" }
