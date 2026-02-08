@@ -6,8 +6,11 @@ import { newGame } from "./engine/setup";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
+type HistoryState = { past: GameState[]; present: GameState };
+type AppAction = Action | { type: "UNDO" };
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
+const HISTORY_LIMIT = 30;
 
 function orbLabel(o: Orb): string {
   if (o.kind === "TERRAFORM") return `Terraform: ${o.t}`;
@@ -42,7 +45,21 @@ function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
 export default function App() {
   const initialSeed = useMemo(() => Date.now(), []);
   const initial = useMemo(() => newGame("LOCAL_2P", "LAND", "ICE", initialSeed), [initialSeed]);
-  const [state, dispatch] = useReducer(reducer, initial);
+  const [history, dispatch] = useReducer((state: HistoryState, action: AppAction): HistoryState => {
+    if (action.type === "UNDO") {
+      if (state.past.length === 0) return state;
+      const previous = state.past[state.past.length - 1];
+      return { past: state.past.slice(0, -1), present: previous };
+    }
+    const next = reducer(state.present, action);
+    if (next === state.present) return state;
+    if (action.type === "NEW_GAME") {
+      return { past: [], present: next };
+    }
+    const past = [...state.past, state.present].slice(-HISTORY_LIMIT);
+    return { past, present: next };
+  }, { past: [], present: initial });
+  const state = history.present;
   const [lastAction, setLastAction] = useState<Action | null>(null);
 
   const [screen, setScreen] = useState<Screen>("SPLASH");
@@ -71,8 +88,12 @@ export default function App() {
     return Number.isFinite(parsed) ? parsed : Date.now();
   }
 
-  function dispatchWithLog(action: Action) {
-    setLastAction(action);
+  function dispatchWithLog(action: AppAction) {
+    if (action.type === "UNDO") {
+      setLastAction(null);
+    } else {
+      setLastAction(action);
+    }
     dispatch(action);
   }
 
@@ -254,6 +275,7 @@ export default function App() {
   const canEndPlay = state.phase === "PLAY";
   const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
   const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
+  const canUndo = mode === "LOCAL_2P" && history.past.length > 0;
 
   const canWaterSwap =
     state.phase === "PLAY" &&
@@ -360,6 +382,18 @@ export default function App() {
         >
           New Game
         </button>
+
+        {mode === "LOCAL_2P" && (
+          <button
+            disabled={!canUndo}
+            onClick={() => {
+              clearSelection();
+              dispatchWithLog({ type: "UNDO" });
+            }}
+          >
+            Undo
+          </button>
+        )}
 
         <button disabled={!canDraw} onClick={() => { clearSelection(); dispatchWithLog({ type: "DRAW_2" }); }}>
           Draw 2
