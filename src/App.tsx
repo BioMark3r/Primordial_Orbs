@@ -1,16 +1,22 @@
-import React, { useMemo, useReducer, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useState } from "react";
 import logoUrl from "./assets/logo.png";
 import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
 import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
+import { ArenaView } from "./ui/components/ArenaView";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
 type HistoryState = { past: GameState[]; present: GameState };
 type AppAction = Action | { type: "UNDO" };
 type ImpactTargetChoice = "OPPONENT" | "SELF";
+export type UIEvent =
+  | { kind: "IMPACT_CAST"; at: number; impact: string; source: 0 | 1; target: 0 | 1 }
+  | { kind: "IMPACT_RESOLVED"; at: number; impact: string; source: 0 | 1; target: 0 | 1; affectedSlots: number[] }
+  | { kind: "DRAW"; at: number; player: 0 | 1 }
+  | { kind: "PLACE"; at: number; player: 0 | 1; slotIndex: number };
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
@@ -64,6 +70,10 @@ function impactLikelyRemoves(impact: Impact, state: GameState, target: 0 | 1): s
     case "TORNADO":
       return "Terraform";
   }
+}
+
+function orbKey(o: Orb | null): string {
+  return o ? JSON.stringify(o) : "null";
 }
 
 function impactSeverityPreview(state: GameState, impact: Impact, source: 0 | 1, target: 0 | 1) {
@@ -208,6 +218,9 @@ export default function App() {
   const [showInspector, setShowInspector] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
   const [showHowTo, setShowHowTo] = useState(false);
+  const [uiEvents, setUiEvents] = useState<UIEvent[]>([]);
+  const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
+  const [flashState, setFlashState] = useState<{ target: 0 | 1; slots: number[] } | null>(null);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -219,6 +232,18 @@ export default function App() {
     maxWidth: 1100,
     margin: "0 auto",
   };
+
+  useEffect(() => {
+    if (arenaEvent?.kind !== "IMPACT_RESOLVED") return;
+    setFlashState({ target: arenaEvent.target, slots: arenaEvent.affectedSlots });
+    const timer = window.setTimeout(() => setFlashState(null), 900);
+    return () => window.clearTimeout(timer);
+  }, [arenaEvent]);
+
+  function pushUiEvent(event: UIEvent) {
+    setUiEvents((prev) => [...prev.slice(-24), event]);
+    setArenaEvent(event);
+  }
 
   function resolveSeed() {
     const trimmed = seedInput.trim();
@@ -487,11 +512,13 @@ export default function App() {
 
     if (orb.kind === "TERRAFORM") {
       dispatchWithLog({ type: "PLAY_TERRAFORM", handIndex, slotIndex });
+      pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
       clearSelection();
       return;
     }
     if (orb.kind === "COLONIZE") {
       dispatchWithLog({ type: "PLAY_COLONIZE", handIndex, slotIndex });
+      pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
       clearSelection();
       return;
     }
@@ -509,6 +536,32 @@ export default function App() {
     if (state.counters.playsRemaining <= 0 || state.counters.impactsRemaining <= 0) return;
 
     const target: 0 | 1 = impactTarget === "SELF" ? active : other;
+    const now = Date.now();
+    const castEvent: UIEvent = {
+      kind: "IMPACT_CAST",
+      at: now,
+      impact: selected.orb.i,
+      source: active,
+      target,
+    };
+    pushUiEvent(castEvent);
+    const priorSlots = state.players[target].planet.slots.map((s) => orbKey(s));
+    const nextState = reducer(state, { type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
+    const nextSlots = nextState.players[target].planet.slots.map((s) => orbKey(s));
+    const affectedSlots = nextSlots
+      .map((slot, index) => (slot !== priorSlots[index] ? index : -1))
+      .filter((index) => index !== -1);
+    const resolvedEvent: UIEvent = {
+      kind: "IMPACT_RESOLVED",
+      at: now + 1,
+      impact: selected.orb.i,
+      source: active,
+      target,
+      affectedSlots,
+    };
+    window.setTimeout(() => {
+      pushUiEvent(resolvedEvent);
+    }, 580);
     dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
     clearSelection();
   }
@@ -518,8 +571,11 @@ export default function App() {
       ? `Game Over — Winner: P${String(state.winner)}`
       : `Turn ${state.turn} • Phase: ${state.phase} • Active: P${active}`;
 
+  const activeFlashSlots = flashState?.target === active ? flashState.slots : [];
+  const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
+
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="app-shell">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h2 style={{ margin: 0 }}>{title}</h2>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -557,7 +613,14 @@ export default function App() {
           </button>
         )}
 
-        <button disabled={!canDraw} onClick={() => { clearSelection(); dispatchWithLog({ type: "DRAW_2" }); }}>
+        <button
+          disabled={!canDraw}
+          onClick={() => {
+            clearSelection();
+            dispatchWithLog({ type: "DRAW_2" });
+            pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
+          }}
+        >
           Draw 2
         </button>
 
@@ -665,7 +728,7 @@ export default function App() {
 
       <CoreStatusStrip state={state} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+      <div className="game-arena-row" style={{ marginTop: 16 }}>
         <PlayerPanel
           title={`Player ${active} (Active)`}
           core={activePlanet.core}
@@ -676,6 +739,13 @@ export default function App() {
           selected={selected}
           waterSwapPick={waterSwapPick}
           waterSwapMode={canWaterSwap && selected.kind === "NONE"}
+          flashSlots={activeFlashSlots}
+        />
+        <ArenaView
+          lastEvent={arenaEvent}
+          bagCount={state.bag.length}
+          discardCount={state.discard.length}
+          activePlayer={active}
         />
         <PlayerPanel
           title={`Player ${other}`}
@@ -686,6 +756,7 @@ export default function App() {
           selected={{ kind: "NONE" }}
           waterSwapPick={null}
           waterSwapMode={false}
+          flashSlots={otherFlashSlots}
         />
       </div>
 
@@ -869,6 +940,7 @@ function PlayerPanel(props: {
   selected: Selected;
   waterSwapMode: boolean;
   waterSwapPick: number | null;
+  flashSlots: number[];
 }) {
   const tCount = terraformCount(props.planetSlots);
   const cTypes = colonizeTypesCount(props.planetSlots);
@@ -895,10 +967,12 @@ function PlayerPanel(props: {
           const clickable = !!props.onClickSlot;
           const showHint = clickable && props.selected.kind === "HAND" && props.selected.orb.kind !== "IMPACT";
           const waterPick = props.waterSwapMode && props.waterSwapPick === i;
+          const flashSlot = props.flashSlots.includes(i);
 
           return (
             <button
               key={i}
+              className={flashSlot ? "slot-flash" : undefined}
               onClick={() => props.onClickSlot?.(i)}
               disabled={!clickable}
               style={{
