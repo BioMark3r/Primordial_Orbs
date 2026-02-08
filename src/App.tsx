@@ -567,7 +567,6 @@ export default function App() {
     clearSelection();
   }
 
-  const topbarTitle =
   function onCoachAction(hint: CoachHint) {
     if (hint.actionLabel === "Draw 2" && canDraw) {
       clearSelection();
@@ -576,7 +575,7 @@ export default function App() {
     }
   }
 
-  const title =
+  const topbarTitle =
     state.phase === "GAME_OVER"
       ? `Game Over — Winner: P${String(state.winner)}`
       : `Turn ${state.turn} • Phase: ${state.phase}`;
@@ -600,59 +599,61 @@ export default function App() {
         </div>
 
         <div className="game-topbar-center">
-      <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-        <button
-          onClick={() => {
-            resetTransientUi();
-            const seed = resolveSeed();
-            setSeedInput(String(seed));
-            dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
-          }}
-        >
-          New Game
-        </button>
-
-        {mode === "LOCAL_2P" && (
-          <button
-            onClick={() => {
-              clearSelection();
-              const seed = resolveSeed();
-              setSeedInput(String(seed));
-              dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
-              resetTransientUi();
-              setLastAction(null);
-              setHistory((prev) => undo(prev));
-            }}
-          >
-            New Game
-          </button>
-          <button
-            disabled={!canDraw}
-            onClick={() => {
-              clearSelection();
-              dispatchWithLog({ type: "DRAW_2" });
-              pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
-            }}
-          >
-            Draw 2
-          </button>
-          <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatchWithLog({ type: "END_PLAY" }); }}>
-            End Play
-          </button>
-          <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatchWithLog({ type: "ADVANCE" }); }}>
-            Advance
-          </button>
-          {mode === "LOCAL_2P" && (
+          <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
             <button
-              disabled={!canUndo}
               onClick={() => {
-                clearSelection();
-                dispatchWithLog({ type: "UNDO" });
+                resetTransientUi();
+                const seed = resolveSeed();
+                setSeedInput(String(seed));
+                dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
               }}
             >
-              Undo
+              New Game
             </button>
-          )}
+
+            {mode === "LOCAL_2P" && (
+              <>
+                <button
+                  onClick={() => {
+                    clearSelection();
+                    const seed = resolveSeed();
+                    setSeedInput(String(seed));
+                    dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
+                    resetTransientUi();
+                    setLastAction(null);
+                    setHistory((prev) => undo(prev));
+                  }}
+                >
+                  New Game
+                </button>
+                <button
+                  disabled={!canDraw}
+                  onClick={() => {
+                    clearSelection();
+                    dispatchWithLog({ type: "DRAW_2" });
+                    pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
+                  }}
+                >
+                  Draw 2
+                </button>
+                <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatchWithLog({ type: "END_PLAY" }); }}>
+                  End Play
+                </button>
+                <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatchWithLog({ type: "ADVANCE" }); }}>
+                  Advance
+                </button>
+                <button
+                  disabled={!canUndo}
+                  onClick={() => {
+                    clearSelection();
+                    dispatchWithLog({ type: "UNDO" });
+                  }}
+                >
+                  Undo
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="game-topbar-right">
