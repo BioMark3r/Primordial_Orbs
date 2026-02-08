@@ -204,6 +204,35 @@ export default function App() {
     margin: "0 auto",
   };
 
+  const active = state.active;
+  const other: 0 | 1 = active === 0 ? 1 : 0;
+
+  const activeHand = state.players[active].hand;
+  const activePlanet = state.players[active].planet;
+  const otherPlanet = state.players[other].planet;
+
+  const playsRemaining = state.counters.playsRemaining;
+  const impactsRemaining = state.counters.impactsRemaining;
+
+  const canDraw = state.phase === "DRAW";
+  const canEndPlay = state.phase === "PLAY";
+  const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
+  const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
+  const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
+  const canUndo = mode === "LOCAL_2P" && history.past.length > 0 && state.phase !== "GAME_OVER";
+
+  const canWaterSwap =
+    state.phase === "PLAY" &&
+    activePlanet.core === "WATER" &&
+    !state.players[active].abilities.water_swap_used_turn &&
+    abilitiesEnabled(state, active);
+
+  const canGasRedraw =
+    state.phase === "PLAY" &&
+    activePlanet.core === "GAS" &&
+    !state.players[active].abilities.gas_redraw_used_turn &&
+    abilitiesEnabled(state, active);
+
   useEffect(() => {
     if (!flashState) return;
     const ms = Math.max(0, flashState.until - Date.now());
@@ -233,6 +262,29 @@ export default function App() {
 
     pendingDiffRef.current = null;
   }, [state]);
+
+  const impactPreview: ImpactPreview | null = useMemo(() => {
+    if (screen !== "GAME") return null;
+
+    if (selected.kind === "HAND" && selected.orb.kind === "IMPACT") {
+      const target = impactTarget === "SELF" ? active : other;
+      return computeImpactPreview(state, selected.orb.i, active, target);
+    }
+
+    if (hoveredImpactIndex !== null) {
+      const orb = activeHand[hoveredImpactIndex];
+      if (orb?.kind === "IMPACT") {
+        return computeImpactPreview(state, orb.i, active, other);
+      }
+    }
+
+    return null;
+  }, [active, activeHand, hoveredImpactIndex, impactTarget, other, screen, selected, state]);
+
+  const coachHints = useMemo(() => {
+    if (screen !== "GAME") return [];
+    return getCoachHints(state);
+  }, [screen, state]);
 
   function resolveSeed() {
     const trimmed = seedInput.trim();
@@ -430,54 +482,6 @@ export default function App() {
       </div>
     );
   }
-
-  // GAME screen
-  const active = state.active;
-  const other: 0 | 1 = active === 0 ? 1 : 0;
-
-  const activeHand = state.players[active].hand;
-  const activePlanet = state.players[active].planet;
-  const otherPlanet = state.players[other].planet;
-
-  const playsRemaining = state.counters.playsRemaining;
-  const impactsRemaining = state.counters.impactsRemaining;
-
-  const canDraw = state.phase === "DRAW";
-  const canEndPlay = state.phase === "PLAY";
-  const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
-  const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
-  const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
-  const canUndo = mode === "LOCAL_2P" && history.past.length > 0 && state.phase !== "GAME_OVER";
-
-  const canWaterSwap =
-    state.phase === "PLAY" &&
-    activePlanet.core === "WATER" &&
-    !state.players[active].abilities.water_swap_used_turn &&
-    abilitiesEnabled(state, active);
-
-  const canGasRedraw =
-    state.phase === "PLAY" &&
-    activePlanet.core === "GAS" &&
-    !state.players[active].abilities.gas_redraw_used_turn &&
-    abilitiesEnabled(state, active);
-
-  const impactPreview: ImpactPreview | null = useMemo(() => {
-    if (selected.kind === "HAND" && selected.orb.kind === "IMPACT") {
-      const target = impactTarget === "SELF" ? active : other;
-      return computeImpactPreview(state, selected.orb.i, active, target);
-    }
-
-    if (hoveredImpactIndex !== null) {
-      const orb = activeHand[hoveredImpactIndex];
-      if (orb?.kind === "IMPACT") {
-        return computeImpactPreview(state, orb.i, active, other);
-      }
-    }
-
-    return null;
-  }, [active, activeHand, hoveredImpactIndex, impactTarget, other, selected, state]);
-
-  const coachHints = useMemo(() => getCoachHints(state), [state]);
 
   function clearSelection() {
     setSelected({ kind: "NONE" });
