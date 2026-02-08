@@ -1,6 +1,6 @@
 import React, { useMemo, useReducer, useState } from "react";
 import logoUrl from "./assets/logo.png";
-import type { Core, GameState, Mode, Orb } from "./engine/types";
+import type { Action, Core, GameState, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
 
@@ -40,17 +40,22 @@ function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
 }
 
 export default function App() {
-  const initial = useMemo(() => newGame("LOCAL_2P", "LAND", "ICE", Date.now()), []);
+  const initialSeed = useMemo(() => Date.now(), []);
+  const initial = useMemo(() => newGame("LOCAL_2P", "LAND", "ICE", initialSeed), [initialSeed]);
   const [state, dispatch] = useReducer(reducer, initial);
+  const [lastAction, setLastAction] = useState<Action | null>(null);
 
   const [screen, setScreen] = useState<Screen>("SPLASH");
   const [mode] = useState<Mode>("LOCAL_2P"); // Local 2P wired
   const [p0Core, setP0Core] = useState<Core>("LAND");
   const [p1Core, setP1Core] = useState<Core>("ICE");
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
+  const [seedInput, setSeedInput] = useState<string>(() => String(initialSeed));
+  const [showInspector, setShowInspector] = useState(false);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
+  const isDev = import.meta.env.DEV;
 
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
@@ -59,10 +64,24 @@ export default function App() {
     margin: "0 auto",
   };
 
+  function resolveSeed() {
+    const trimmed = seedInput.trim();
+    if (!trimmed) return Date.now();
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : Date.now();
+  }
+
+  function dispatchWithLog(action: Action) {
+    setLastAction(action);
+    dispatch(action);
+  }
+
   function startGame() {
     setSelected({ kind: "NONE" });
     setWaterSwapPick(null);
-    dispatch({ type: "NEW_GAME", mode, coreP0: p0Core, coreP1: p1Core, seed: Date.now() });
+    const seed = resolveSeed();
+    setSeedInput(String(seed));
+    dispatchWithLog({ type: "NEW_GAME", mode, coreP0: p0Core, coreP1: p1Core, seed });
     setScreen("GAME");
   }
 
@@ -180,6 +199,29 @@ export default function App() {
               <div style={{ marginTop: 6 }}><b>Turn:</b> Draw 2 • Hand cap 3 • Play 2 • Impact 1</div>
             </div>
 
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Seed (for reproducible games)</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  value={seedInput}
+                  onChange={(e) => setSeedInput(e.target.value)}
+                  placeholder="e.g. 12345"
+                  style={{ flex: "1 1 180px", padding: 10, borderRadius: 10, border: "1px solid #bbb" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSeedInput(String(Date.now()))}
+                  style={{ padding: "10px 12px", borderRadius: 10 }}
+                >
+                  Randomize
+                </button>
+              </div>
+              <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
+                Use the same seed to replay a game flow.
+              </div>
+            </div>
+
             <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button onClick={startGame} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Start Game
@@ -236,14 +278,14 @@ export default function App() {
 
     // GAS passive: Shift-click any hand orb to redraw it (once per turn)
     if (canGasRedraw && e.shiftKey) {
-      dispatch({ type: "GAS_REDRAW", handIndex: i });
+      dispatchWithLog({ type: "GAS_REDRAW", handIndex: i });
       clearSelection();
       return;
     }
 
     // Impacts auto-target opponent
     if (state.phase === "PLAY" && orb.kind === "IMPACT") {
-      dispatch({ type: "PLAY_IMPACT", handIndex: i });
+      dispatchWithLog({ type: "PLAY_IMPACT", handIndex: i });
       clearSelection();
       return;
     }
@@ -261,7 +303,7 @@ export default function App() {
       if (waterSwapPick === null) {
         setWaterSwapPick(slotIndex);
       } else {
-        dispatch({ type: "WATER_SWAP", slotA: waterSwapPick, slotB: slotIndex });
+        dispatchWithLog({ type: "WATER_SWAP", slotA: waterSwapPick, slotB: slotIndex });
         setWaterSwapPick(null);
       }
       return;
@@ -272,19 +314,19 @@ export default function App() {
     const { handIndex, orb } = selected;
 
     if (orb.kind === "TERRAFORM") {
-      dispatch({ type: "PLAY_TERRAFORM", handIndex, slotIndex });
+      dispatchWithLog({ type: "PLAY_TERRAFORM", handIndex, slotIndex });
       clearSelection();
       return;
     }
     if (orb.kind === "COLONIZE") {
-      dispatch({ type: "PLAY_COLONIZE", handIndex, slotIndex });
+      dispatchWithLog({ type: "PLAY_COLONIZE", handIndex, slotIndex });
       clearSelection();
       return;
     }
   }
 
   function onDiscardIndex(i: number) {
-    dispatch({ type: "DISCARD_FROM_HAND", index: i });
+    dispatchWithLog({ type: "DISCARD_FROM_HAND", index: i });
     clearSelection();
   }
 
@@ -297,28 +339,37 @@ export default function App() {
     <div style={containerStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h2 style={{ margin: 0 }}>{title}</h2>
-        <button onClick={() => setScreen("SETUP")}>Setup</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {isDev && (
+            <button onClick={() => setShowInspector((prev) => !prev)}>
+              {showInspector ? "Hide" : "Show"} Game Inspector
+            </button>
+          )}
+          <button onClick={() => setScreen("SETUP")}>Setup</button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
         <button
           onClick={() => {
             clearSelection();
-            dispatch({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed: Date.now() });
+            const seed = resolveSeed();
+            setSeedInput(String(seed));
+            dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
           }}
         >
           New Game
         </button>
 
-        <button disabled={!canDraw} onClick={() => { clearSelection(); dispatch({ type: "DRAW_2" }); }}>
+        <button disabled={!canDraw} onClick={() => { clearSelection(); dispatchWithLog({ type: "DRAW_2" }); }}>
           Draw 2
         </button>
 
-        <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatch({ type: "END_PLAY" }); }}>
+        <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatchWithLog({ type: "END_PLAY" }); }}>
           End Play
         </button>
 
-        <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatch({ type: "ADVANCE" }); }}>
+        <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatchWithLog({ type: "ADVANCE" }); }}>
           Advance
         </button>
 
@@ -333,6 +384,35 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {isDev && showInspector && (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #666", borderRadius: 10, background: "#fafafa" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <h3 style={{ margin: 0 }}>Game Inspector</h3>
+            <div style={{ fontSize: 12, color: "#666" }}>Dev-only</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginTop: 10 }}>
+            <div><b>Seed:</b> {state.seed}</div>
+            <div><b>Phase:</b> {state.phase}</div>
+            <div><b>Turn:</b> {state.turn}</div>
+            <div><b>Active:</b> P{state.active}</div>
+            <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
+            <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 700 }}>Last Action</div>
+            <pre style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
+              {lastAction ? JSON.stringify(lastAction, null, 2) : "None"}
+            </pre>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 700 }}>State JSON</div>
+            <pre style={{ marginTop: 6, maxHeight: 240, overflow: "auto", background: "#fff", padding: 10, borderRadius: 8, border: "1px solid #ddd" }}>
+              {JSON.stringify(state, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
 
       {showDiscard && (
         <div style={{ marginTop: 12, padding: 12, border: "1px solid #999", borderRadius: 8 }}>
@@ -448,7 +528,7 @@ export default function App() {
       </div>
 
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #bbb", borderRadius: 10 }}>
-        <h3 style={{ margin: 0 }}>Event Log</h3>
+        <h3 style={{ margin: 0 }}>Action Log</h3>
         <div style={{ marginTop: 8, maxHeight: 240, overflow: "auto", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
           {state.log.slice(0, 120).map((line, idx) => (
             <div key={idx} style={{ borderBottom: "1px dashed #eee", padding: "4px 0" }}>

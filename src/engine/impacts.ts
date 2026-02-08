@@ -171,7 +171,7 @@ export function applyImpactDeterministic(state: GameState, impact: Impact, sourc
     if (impact === "BLACK_HOLE" || impact === "METEOR") {
       const players = [...next.players] as GameState["players"];
       players[target] = { ...tgt, abilities: { ...tgt.abilities, hightech_redirect_used: true } };
-      next = pushLog({ ...next, players }, `High-Tech redirected ${impact}!`);
+      next = pushLog({ ...next, players }, `High-Tech redirected ${impact}! (Passive: High-Tech Redirect)`);
       return applyImpactDeterministic(next, impact, source, source);
     }
   }
@@ -182,7 +182,7 @@ export function applyImpactDeterministic(state: GameState, impact: Impact, sourc
   // Lava passive: outgoing impacts +1 severity
   if (next.players[source].planet.core === "LAVA" && abilitiesEnabled(next, source)) {
     severity += 1;
-    next = pushLog(next, `Lava core increased impact severity by 1.`);
+    next = pushLog(next, `Lava core increased impact severity by 1. (Passive: Lava core bonus)`);
   }
 
   // Water weakness: disease severity +1
@@ -196,14 +196,14 @@ export function applyImpactDeterministic(state: GameState, impact: Impact, sourc
     severity = Math.max(1, severity - 1);
     const players = [...next.players] as GameState["players"];
     players[target] = { ...tgt, abilities: { ...tgt.abilities, ice_shield_used_turn: true } };
-    next = pushLog({ ...next, players }, `Ice core reduced impact severity by 1.`);
+    next = pushLog({ ...next, players }, `Ice core reduced impact severity by 1. (Passive: Ice Shield)`);
   }
 
   // Plant mitigation once per round
   if (abilitiesEnabled(next, target) && hasPlant(tgt) && !tgt.abilities.plant_block_used_round) {
     const players = [...next.players] as GameState["players"];
     players[target] = { ...tgt, abilities: { ...tgt.abilities, plant_block_used_round: true } };
-    next = pushLog({ ...next, players }, `Plant reduced impact severity by 1.`);
+    next = pushLog({ ...next, players }, `Plant reduced impact severity by 1. (Passive: Plant mitigation)`);
     severity = Math.max(1, severity - 1);
   }
 

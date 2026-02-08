@@ -55,6 +55,7 @@ export interface TurnCounters {
 
 export interface GameState {
   mode: Mode;
+  seed: number;
   phase: Phase;
   turn: number;          // increments each player turn
   active: 0 | 1;

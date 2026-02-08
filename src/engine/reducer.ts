@@ -128,13 +128,13 @@ export function reducer(state: GameState, action: Action): GameState {
             counters: { ...state.counters, playsRemaining: state.counters.playsRemaining - cost },
           };
           next = recordPlanet(next, p);
-          return pushLog(next, `P${p} terraformed LAVA → melted ICE at slot ${iceIdx}.${landFree ? " (Land free terraform)" : ""}`);
+          return pushLog(next, `P${p} terraformed LAVA → melted ICE at slot ${iceIdx}.${landFree ? " (Passive: Land free terraform)" : ""}`);
         }
       }
 
       let next = { ...state, players, counters: { ...state.counters, playsRemaining: state.counters.playsRemaining - cost } };
       next = recordPlanet(next, p);
-      return pushLog(next, `P${p} terraformed ${orb.t} → slot ${action.slotIndex}.${landFree ? " (Land free terraform)" : ""}`);
+      return pushLog(next, `P${p} terraformed ${orb.t} → slot ${action.slotIndex}.${landFree ? " (Passive: Land free terraform)" : ""}`);
     }
 
     case "PLAY_COLONIZE": {
@@ -221,7 +221,7 @@ export function reducer(state: GameState, action: Action): GameState {
 
       let next = { ...state, players };
       next = recordPlanet(next, p);
-      return pushLog(next, `P${p} used Water Swap: slots ${slotA} and ${slotB}.`);
+      return pushLog(next, `P${p} used Water Swap: slots ${slotA} and ${slotB}. (Passive: Water Swap)`);
     }
 
     case "GAS_REDRAW": {
@@ -245,7 +245,7 @@ export function reducer(state: GameState, action: Action): GameState {
       const players = [...next.players] as GameState["players"];
       players[p] = { ...ps, hand, abilities: { ...ps.abilities, gas_redraw_used_turn: true } };
 
-      return pushLog({ ...next, players }, `P${p} used Gas Redraw (discarded 1, drew 1).`);
+      return pushLog({ ...next, players }, `P${p} used Gas Redraw (discarded 1, drew 1). (Passive: Gas Redraw)`);
     }
 
     case "END_PLAY":
