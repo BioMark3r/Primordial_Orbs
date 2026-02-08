@@ -19,8 +19,7 @@
   flex-direction: column;
   gap: 8px;
   min-height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .game-topbar {
