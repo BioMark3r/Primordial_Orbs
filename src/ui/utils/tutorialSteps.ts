@@ -21,7 +21,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "controls",
     title: "Turn Flow Controls",
     body: "Your turn flows: Draw → Play → End Play → Advance. Use Undo while testing.",
-    targetId: "ui-topbar-controls",
+    targetId: "ui-player-controls",
     placement: "bottom",
   },
   {

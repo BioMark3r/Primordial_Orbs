@@ -245,7 +245,7 @@ export function reducer(state: GameState, action: Action): GameState {
       const players = [...next.players] as GameState["players"];
       players[p] = { ...ps, hand, abilities: { ...ps.abilities, gas_redraw_used_turn: true } };
 
-      return pushLog({ ...next, players }, `P${p} used Gas Redraw (discarded 1, drew 1). (Passive: Gas Redraw)`);
+      return pushLog({ ...next, players }, `Player ${p + 1} used Gas Redraw (discarded 1, drew 1). (Passive: Gas Redraw)`);
     }
 
     case "END_PLAY":
@@ -267,14 +267,14 @@ export function reducer(state: GameState, action: Action): GameState {
           return set.size >= 4;
         };
 
-        if (hasAscended(0)) return { ...next, phase: "GAME_OVER", winner: 0, log: [`P0 Ascended!`, ...next.log] };
-        if (hasAscended(1)) return { ...next, phase: "GAME_OVER", winner: 1, log: [`P1 Ascended!`, ...next.log] };
+        if (hasAscended(0)) return { ...next, phase: "GAME_OVER", winner: 0, log: [`Player 1 Ascended!`, ...next.log] };
+        if (hasAscended(1)) return { ...next, phase: "GAME_OVER", winner: 1, log: [`Player 2 Ascended!`, ...next.log] };
 
         const nextActive: 0 | 1 = next.active === 0 ? 1 : 0;
 
         next = resetRoundFlags(next);
         next = { ...next, active: nextActive, turn: next.turn + 1, phase: "DRAW", counters: { playsRemaining: PLAY_CAP, impactsRemaining: IMPACT_CAP } };
-        return pushLog(next, `Turn ${next.turn} → P${nextActive} DRAW.`);
+        return pushLog(next, `Turn ${next.turn} → Player ${nextActive + 1} DRAW.`);
       }
 
       return next;

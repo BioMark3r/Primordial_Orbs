@@ -59,7 +59,7 @@ export function newGame(
     players: [makePlayer(coreP0), makePlayer(coreP1)],
     planetHistory: [[], []],
     counters: { playsRemaining: PLAY_CAP, impactsRemaining: IMPACT_CAP },
-    log: [`Game start (${mode}). P0 core ${coreP0}. P1 core ${coreP1}. Seed ${seed}.`],
+    log: [`Game start (${mode}). Player 1 core ${coreP0}. Player 2 core ${coreP1}. Seed ${seed}.`],
   };
 
 

@@ -61,7 +61,7 @@ export function ArenaView({
     <div className="arena-view">
       <div className="arena-view__header">
         <div className="arena-view__title">Cataclysm Arena</div>
-        <div className="arena-view__subtitle">Active: Player {activePlayer}</div>
+        <div className="arena-view__subtitle">Active: Player {activePlayer + 1}</div>
       </div>
       <div className="arena-view__body">
         <div className="arena-view__bowl-wrap">
