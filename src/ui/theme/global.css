@@ -1,0 +1,110 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: radial-gradient(1200px 700px at 20% 10%, rgba(90, 120, 255, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 70% 80%, rgba(80, 210, 255, 0.08), transparent 65%),
+    #070a12;
+  color: #edf0f6;
+}
+
+.marble {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+  user-select: none;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.marble::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background:
+    radial-gradient(70% 70% at 30% 25%, rgba(255, 255, 255, 0.6), transparent 55%),
+    radial-gradient(120% 120% at 70% 80%, rgba(0, 0, 0, 0.3), transparent 60%),
+    radial-gradient(80% 80% at 50% 55%, rgba(255, 255, 255, 0.1), transparent 60%);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.marble::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.06),
+    inset 0 -10px 24px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.marble-selected {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18), 0 0 26px rgba(140, 170, 255, 0.45);
+}
+
+.marble-disabled {
+  opacity: 0.45;
+  filter: grayscale(0.25);
+}
+
+.marble-actionable {
+  animation: marblePulse 1.35s ease-in-out infinite;
+}
+
+@keyframes marblePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 0 14px rgba(140, 170, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18), 0 0 24px rgba(140, 170, 255, 0.4);
+  }
+}
+
+.etch {
+  position: relative;
+  width: 62%;
+  height: 62%;
+  opacity: 0.72;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.38));
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.etch-impact {
+  opacity: 0.9;
+}
+
+.etch img {
+  width: 100%;
+  height: 100%;
+}
+
+.orb-label {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: rgba(237, 239, 246, 0.7);
+  text-align: center;
+}
+
+.slot-empty {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.35);
+  opacity: 0.6;
+}
+
+.slot-hint {
+  font-size: 11px;
+  margin-top: 6px;
+  color: rgba(237, 239, 246, 0.7);
+}
