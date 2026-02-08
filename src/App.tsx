@@ -589,7 +589,7 @@ export default function App() {
   const activeFlashSlots = flashState?.target === active ? flashState.slots : [];
   const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
 
-  const logLines = logOpen ? state.log.slice(0, 120) : state.log.slice(0, 2);
+  const logLines = state.log.slice(0, 120);
 
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
@@ -861,22 +861,24 @@ export default function App() {
           </div>
         </div>
 
-        <div className="log-drawer" role="region" aria-label="Action log">
-          <div className="log-drawer__header">
-            <span>{logOpen ? "Action Log" : "Recent Log"}</span>
-            <button onClick={() => setLogOpen((prev) => !prev)}>
-              {logOpen ? "Collapse" : "Expand"}
-            </button>
+        {logOpen && (
+          <div className="log-drawer" role="region" aria-label="Action log">
+            <div className="log-drawer__header">
+              <span>Action Log</span>
+              <button onClick={() => setLogOpen(false)}>
+                Collapse
+              </button>
+            </div>
+            <div className="log-drawer__body">
+              {logLines.length === 0 && <div className="log-drawer__line">No log entries yet.</div>}
+              {logLines.map((line, idx) => (
+                <div key={idx} className="log-drawer__line">
+                  {line}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="log-drawer__body">
-            {logLines.length === 0 && <div className="log-drawer__line">No log entries yet.</div>}
-            {logLines.map((line, idx) => (
-              <div key={idx} className="log-drawer__line">
-                {line}
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
     </GameErrorBoundary>
   );
