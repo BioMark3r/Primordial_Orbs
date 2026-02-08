@@ -6,6 +6,13 @@ type Size = "sm" | "md" | "lg" | "slot";
 
 const px: Record<Size, number | string> = { sm: 34, md: 52, lg: 74, slot: "var(--slot)" };
 
+function orbColorClass(orb: Orb): string {
+  const slug = (value: string) => value.toLowerCase().replace(/_/g, "-");
+  if (orb.kind === "TERRAFORM") return `marble--terraform-${slug(orb.t)}`;
+  if (orb.kind === "COLONIZE") return `marble--colonize-${slug(orb.c)}`;
+  return `marble--impact-${slug(orb.i)}`;
+}
+
 export function OrbToken(props: {
   orb: Orb;
   size?: Size;
@@ -21,6 +28,7 @@ export function OrbToken(props: {
 
   const cls = [
     "marble",
+    orbColorClass(props.orb),
     props.selected ? "marble-selected" : "",
     props.disabled ? "marble-disabled" : "",
     props.actionable ? "marble-actionable" : "",

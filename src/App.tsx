@@ -429,7 +429,7 @@ export default function App() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Player 0 Core</div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Player 1 Core</div>
                 <select
                   value={p0Core}
                   onChange={(e) => setP0Core(e.target.value as Core)}
@@ -441,11 +441,11 @@ export default function App() {
                     </option>
                   ))}
                 </select>
-                <CoreTooltip title="P0" core={p0Core} />
+                <CoreTooltip title="Player 1" core={p0Core} />
               </div>
 
               <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Player 1 Core</div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Player 2 Core</div>
                 <select
                   value={p1Core}
                   onChange={(e) => setP1Core(e.target.value as Core)}
@@ -457,7 +457,7 @@ export default function App() {
                     </option>
                   ))}
                 </select>
-                <CoreTooltip title="P1" core={p1Core} />
+                <CoreTooltip title="Player 2" core={p1Core} />
               </div>
             </div>
           </div>
@@ -621,9 +621,40 @@ export default function App() {
     }
   }
 
+  function handleNewGame() {
+    resetTransientUi();
+    const seed = resolveSeed();
+    setSeedInput(String(seed));
+    dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
+  }
+
+  function handleDraw2() {
+    clearSelection();
+    dispatchWithLog({ type: "DRAW_2" });
+    emitActionEvent({ type: "DRAW_2", at: Date.now(), player: active });
+    pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
+  }
+
+  function handleEndPlay() {
+    clearSelection();
+    dispatchWithLog({ type: "END_PLAY" });
+    emitActionEvent({ type: "END_PLAY", at: Date.now(), player: active });
+  }
+
+  function handleAdvance() {
+    clearSelection();
+    dispatchWithLog({ type: "ADVANCE" });
+    emitActionEvent({ type: "ADVANCE", at: Date.now(), player: active });
+  }
+
+  function handleUndo() {
+    clearSelection();
+    dispatchWithLog({ type: "UNDO" });
+  }
+
   const topbarTitle =
     state.phase === "GAME_OVER"
-      ? `Game Over — Winner: P${String(state.winner)}`
+      ? `Game Over — Winner: Player ${String((state.winner ?? 0) + 1)}`
       : `Turn ${state.turn} • Phase: ${state.phase}`;
 
   const activeFlashSlots = flashState?.target === active ? flashState.slots : [];
@@ -638,74 +669,14 @@ export default function App() {
           <div className="game-topbar-left">
             <div className="game-topbar-title">{topbarTitle}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span className="game-status-pill">Active: P{active}</span>
+              <span className="game-status-pill">Active: Player {active + 1}</span>
               {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
                 <span className="game-status-pill" title="Solar Flare">Abilities Disabled</span>
               )}
             </div>
           </div>
 
-          <div className="game-topbar-center">
-            <div id="ui-topbar-controls" style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-              <button
-                onClick={() => {
-                  resetTransientUi();
-                  const seed = resolveSeed();
-                  setSeedInput(String(seed));
-                  dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
-                }}
-              >
-                New Game
-              </button>
-
-              {mode === "LOCAL_2P" && (
-                <>
-                  <button
-                    disabled={!canDraw}
-                    onClick={() => {
-                      clearSelection();
-                      dispatchWithLog({ type: "DRAW_2" });
-                      emitActionEvent({ type: "DRAW_2", at: Date.now(), player: active });
-                      pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
-                    }}
-                  >
-                    Draw 2
-                  </button>
-                  <button
-                    id="ui-btn-endplay"
-                    disabled={!canEndPlay}
-                    onClick={() => {
-                      clearSelection();
-                      dispatchWithLog({ type: "END_PLAY" });
-                      emitActionEvent({ type: "END_PLAY", at: Date.now(), player: active });
-                    }}
-                  >
-                    End Play
-                  </button>
-                  <button
-                    id="ui-btn-advance"
-                    disabled={!canAdvance}
-                    onClick={() => {
-                      clearSelection();
-                      dispatchWithLog({ type: "ADVANCE" });
-                      emitActionEvent({ type: "ADVANCE", at: Date.now(), player: active });
-                    }}
-                  >
-                    Advance
-                  </button>
-                  <button
-                    disabled={!canUndo}
-                    onClick={() => {
-                      clearSelection();
-                      dispatchWithLog({ type: "UNDO" });
-                    }}
-                  >
-                    Undo
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+          <div className="game-topbar-center" />
 
           <div className="game-topbar-right">
             <span className="game-status-pill">Plays {playsRemaining}/2</span>
@@ -729,6 +700,7 @@ export default function App() {
               ?
             </button>
             <button onClick={() => setScreen("SETUP")}>Setup</button>
+            <button onClick={handleNewGame}>New Game</button>
             <button
               onClick={() => {
                 clearSelection();
@@ -746,11 +718,6 @@ export default function App() {
           </div>
         </div>
 
-        <CoachStrip
-          hints={coachHints}
-          onAction={onCoachAction}
-          isActionDisabled={(hint) => hint.actionLabel === "Draw 2" && !canDraw}
-        />
         {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
         <TutorialOverlay
           open={tutorialOpen}
@@ -781,7 +748,7 @@ export default function App() {
                 <div><b>Seed:</b> {state.seed}</div>
                 <div><b>Phase:</b> {state.phase}</div>
                 <div><b>Turn:</b> {state.turn}</div>
-                <div><b>Active:</b> P{state.active}</div>
+                <div><b>Active:</b> Player {state.active + 1}</div>
                 <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
                 <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
               </div>
@@ -807,10 +774,15 @@ export default function App() {
             canGasRedraw={canGasRedraw}
             waterSwapPick={waterSwapPick}
           />
+          <CoachStrip
+            hints={coachHints}
+            onAction={onCoachAction}
+            isActionDisabled={(hint) => hint.actionLabel === "Draw 2" && !canDraw}
+          />
 
           <div className="game-arena-row">
             <PlayerPanel
-              title={`Player 0${active === 0 ? " (Active)" : ""}`}
+              title={`Player 1${active === 0 ? " (Active)" : ""}`}
               core={state.players[0].planet.core}
               planetSlots={state.players[0].planet.slots}
               locked={state.players[0].planet.locked}
@@ -821,6 +793,21 @@ export default function App() {
               waterSwapMode={active === 0 && canWaterSwap && selected.kind === "NONE"}
               flashSlots={active === 0 ? activeFlashSlots : otherFlashSlots}
               isActive={active === 0}
+              showTurnControls={mode === "LOCAL_2P"}
+              turnControls={{
+                canDraw: canDraw && active === 0,
+                canEndPlay: canEndPlay && active === 0,
+                canAdvance: canAdvance && active === 0,
+                canUndo: canUndo && active === 0,
+                onDraw2: handleDraw2,
+                onEndPlay: handleEndPlay,
+                onAdvance: handleAdvance,
+                onUndo: handleUndo,
+              }}
+              controlsId={active === 0 ? "ui-player-controls" : undefined}
+              drawId={active === 0 ? "ui-btn-draw" : undefined}
+              endPlayId={active === 0 ? "ui-btn-endplay" : undefined}
+              advanceId={active === 0 ? "ui-btn-advance" : undefined}
             />
             <div id="ui-arena" style={{ display: "contents" }}>
               <ArenaView
@@ -831,7 +818,7 @@ export default function App() {
               />
             </div>
             <PlayerPanel
-              title={`Player 1${active === 1 ? " (Active)" : ""}`}
+              title={`Player 2${active === 1 ? " (Active)" : ""}`}
               core={state.players[1].planet.core}
               planetSlots={state.players[1].planet.slots}
               locked={state.players[1].planet.locked}
@@ -842,13 +829,28 @@ export default function App() {
               waterSwapMode={active === 1 && canWaterSwap && selected.kind === "NONE"}
               flashSlots={active === 1 ? activeFlashSlots : otherFlashSlots}
               isActive={active === 1}
+              showTurnControls={mode === "LOCAL_2P"}
+              turnControls={{
+                canDraw: canDraw && active === 1,
+                canEndPlay: canEndPlay && active === 1,
+                canAdvance: canAdvance && active === 1,
+                canUndo: canUndo && active === 1,
+                onDraw2: handleDraw2,
+                onEndPlay: handleEndPlay,
+                onAdvance: handleAdvance,
+                onUndo: handleUndo,
+              }}
+              controlsId={active === 1 ? "ui-player-controls" : undefined}
+              drawId={active === 1 ? "ui-btn-draw" : undefined}
+              endPlayId={active === 1 ? "ui-btn-endplay" : undefined}
+              advanceId={active === 1 ? "ui-btn-advance" : undefined}
             />
           </div>
 
           <div className="game-bottom-row">
             <div className="hand-panel" id="ui-hand-panel">
               <div className="hand-panel__header">
-                <h3 className="hand-panel__title">Hand (P{active})</h3>
+                <h3 className="hand-panel__title">Hand (Player {active + 1})</h3>
                 <div className="hand-panel__hint">
                   Click Terraform/Colonize then a slot. Select an Impact to choose its target.
                   {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
@@ -991,8 +993,8 @@ function CoreStatusStrip({
   return (
     <div className="coach-strip" id="ui-core-status">
       <div className="coach-grid">
-        <CoreStatusCard who="P0" state={state} p={0} />
-        <CoreStatusCard who="P1" state={state} p={1} />
+        <CoreStatusCard who="Player 1" state={state} p={0} />
+        <CoreStatusCard who="Player 2" state={state} p={1} />
       </div>
       <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
         {showFirstTurnHint && (
@@ -1013,9 +1015,9 @@ function CoreStatusStrip({
           </div>
         )}
         <div>
-          <b>P0</b> Terraform {terraformCount(p0.planet.slots)}/6 • Colonize types {colonizeTypesCount(p0.planet.slots)}/4
+          <b>Player 1</b> Terraform {terraformCount(p0.planet.slots)}/6 • Colonize types {colonizeTypesCount(p0.planet.slots)}/4
           &nbsp;&nbsp;|&nbsp;&nbsp;
-          <b>P1</b> Terraform {terraformCount(p1.planet.slots)}/6 • Colonize types {colonizeTypesCount(p1.planet.slots)}/4
+          <b>Player 2</b> Terraform {terraformCount(p1.planet.slots)}/6 • Colonize types {colonizeTypesCount(p1.planet.slots)}/4
         </div>
       </div>
     </div>
@@ -1064,6 +1066,21 @@ function PlayerPanel(props: {
   waterSwapPick: number | null;
   flashSlots: number[];
   isActive?: boolean;
+  showTurnControls?: boolean;
+  turnControls?: {
+    canDraw: boolean;
+    canEndPlay: boolean;
+    canAdvance: boolean;
+    canUndo: boolean;
+    onDraw2: () => void;
+    onEndPlay: () => void;
+    onAdvance: () => void;
+    onUndo: () => void;
+  };
+  controlsId?: string;
+  drawId?: string;
+  endPlayId?: string;
+  advanceId?: string;
 }) {
   const tCount = terraformCount(props.planetSlots);
   const cTypes = colonizeTypesCount(props.planetSlots);
@@ -1083,6 +1100,38 @@ function PlayerPanel(props: {
           <div><b>Colonize types:</b> {cTypes}/4</div>
         </div>
       </div>
+
+      {props.showTurnControls && props.turnControls && (
+        <div className="player-panel__controls" id={props.controlsId}>
+          <button
+            id={props.drawId}
+            disabled={!props.turnControls.canDraw}
+            onClick={props.turnControls.onDraw2}
+          >
+            Draw 2
+          </button>
+          <button
+            id={props.endPlayId}
+            disabled={!props.turnControls.canEndPlay}
+            onClick={props.turnControls.onEndPlay}
+          >
+            End Play
+          </button>
+          <button
+            id={props.advanceId}
+            disabled={!props.turnControls.canAdvance}
+            onClick={props.turnControls.onAdvance}
+          >
+            Advance
+          </button>
+          <button
+            disabled={!props.turnControls.canUndo}
+            onClick={props.turnControls.onUndo}
+          >
+            Undo
+          </button>
+        </div>
+      )}
 
       <div className="player-panel__slots">
         {props.planetSlots.map((s, i) => {

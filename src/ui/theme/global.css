@@ -21,6 +21,70 @@ body {
   color: rgba(255, 255, 255, 0.55);
 }
 
+.marble--terraform-land {
+  color: #7fe08a;
+}
+
+.marble--terraform-water {
+  color: #6fb7ff;
+}
+
+.marble--terraform-ice {
+  color: #f5faff;
+}
+
+.marble--terraform-lava {
+  color: #ff6b5c;
+}
+
+.marble--terraform-gas {
+  color: #c7a7ff;
+}
+
+.marble--colonize-plant {
+  color: #78d97a;
+}
+
+.marble--colonize-animal {
+  color: #ffbf6a;
+}
+
+.marble--colonize-sentient {
+  color: #d1a2ff;
+}
+
+.marble--colonize-high-tech {
+  color: #6fe7ff;
+}
+
+.marble--impact-meteor {
+  color: #ff9b4a;
+}
+
+.marble--impact-tornado {
+  color: #c7d0df;
+}
+
+.marble--impact-quake {
+  color: #ffd166;
+}
+
+.marble--impact-solar-flare {
+  color: #ffdd6e;
+}
+
+.marble--impact-disease {
+  color: #8ce08b;
+}
+
+.marble--impact-temporal-vortex {
+  color: #b58cff;
+}
+
+.marble--impact-black-hole {
+  color: #9fb3ff;
+}
+
 .marble::before {
   content: "";
   position: absolute;
