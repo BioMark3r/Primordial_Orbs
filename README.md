@@ -53,3 +53,8 @@ Open the local URL printed by Vite (commonly http://localhost:5173).
 - Planet size is fixed to **Medium (6 slots)** for MVP.
 - Impacts are deterministic (no physics arena yet).
 - Solo/AI files are included for future expansion but not wired.
+
+
+## Splash Screen
+- A short splash screen displays the logo on load.
+- Click **Enter** to skip, or **Quick Start** to jump to Setup.

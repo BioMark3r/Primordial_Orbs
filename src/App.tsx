@@ -1,9 +1,10 @@
-import React, { useMemo, useReducer, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useState } from "react";
+import logoUrl from "./assets/logo.png";
 import type { Core, GameState, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
 
-type Screen = "TITLE" | "SETUP" | "GAME";
+type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
@@ -42,7 +43,7 @@ export default function App() {
   const initial = useMemo(() => newGame("LOCAL_2P", "LAND", "ICE", Date.now()), []);
   const [state, dispatch] = useReducer(reducer, initial);
 
-  const [screen, setScreen] = useState<Screen>("TITLE");
+  const [screen, setScreen] = useState<Screen>("SPLASH");
   const [mode] = useState<Mode>("LOCAL_2P"); // Local 2P wired
   const [p0Core, setP0Core] = useState<Core>("LAND");
   const [p1Core, setP1Core] = useState<Core>("ICE");
@@ -63,6 +64,49 @@ export default function App() {
     setWaterSwapPick(null);
     dispatch({ type: "NEW_GAME", mode, coreP0: p0Core, coreP1: p1Core, seed: Date.now() });
     setScreen("GAME");
+  }
+
+
+  useEffect(() => {
+    if (screen !== "SPLASH") return;
+    const t = window.setTimeout(() => setScreen("TITLE"), 1200);
+    return () => window.clearTimeout(t);
+  }, [screen]);
+
+  if (screen === "SPLASH") {
+    return (
+      <div style={{ ...containerStyle, display: "grid", placeItems: "center", minHeight: "100vh" }}>
+        <div style={{ width: "100%", maxWidth: 720, textAlign: "center" }}>
+          <img
+            src={logoUrl}
+            alt="Primordial Orbs"
+            style={{ width: "min(520px, 90vw)", height: "auto", borderRadius: 18, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
+          />
+          <div style={{ marginTop: 16, fontWeight: 800, letterSpacing: 2 }}>PRIMORDIAL ORBS</div>
+          <div style={{ marginTop: 6, color: "#666" }}>Terraform • Evolve • Destabilize</div>
+
+          <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setScreen("TITLE")}
+              style={{ padding: "10px 14px", borderRadius: 10 }}
+            >
+              Enter
+            </button>
+            <button
+              onClick={() => setScreen("SETUP")}
+              style={{ padding: "10px 14px", borderRadius: 10 }}
+              title="Skip to setup"
+            >
+              Quick Start
+            </button>
+          </div>
+
+          <div style={{ marginTop: 14, fontSize: 12, color: "#777" }}>
+            Auto-continues in ~1 second • Click Enter to skip
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (screen === "TITLE") {

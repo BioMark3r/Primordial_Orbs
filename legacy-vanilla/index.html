@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Primordial Orbs</title>
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="preload" as="image" href="assets/logo.png" />
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+  <noscript>This game requires JavaScript enabled.</noscript>
+
+  <div id="app" class="app" aria-live="polite">
+    <!-- Splash -->
+    <section id="screen-splash" class="screen screen--active" role="region" aria-label="Splash screen">
+      <div class="splash">
+        <div class="splash__bg"></div>
+        <div class="splash__content">
+          <img class="splash__logo" src="assets/logo.png" alt="Primordial Orbs" />
+
+          <div class="splash__actions">
+            <button id="btn-start" class="btn btn--primary" type="button">Start</button>
+            <button id="btn-rulebook" class="btn" type="button">Rulebook</button>
+          </div>
+
+          <div class="splash__footer">
+            <span class="hint">Tip: Press <kbd>Enter</kbd> to start</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Setup -->
+    <section id="screen-setup" class="screen" role="region" aria-label="Setup">
+      <header class="topbar">
+        <h1 class="title">Setup</h1>
+        <div class="topbar__right">
+          <button id="btn-back-to-splash" class="btn" type="button">Back</button>
+        </div>
+      </header>
+
+      <main class="panel">
+        <div class="grid">
+          <div class="card">
+            <h2>Mode</h2>
+            <label class="radio"><input type="radio" name="mode" value="solo" checked /> Solo</label>
+            <label class="radio"><input type="radio" name="mode" value="local2" /> Local 2-Player</label>
+          </div>
+
+          <div class="card">
+            <h2>Difficulty (Solo)</h2>
+            <label class="radio"><input type="radio" name="difficulty" value="easy" checked /> Easy</label>
+            <label class="radio"><input type="radio" name="difficulty" value="standard" /> Standard</label>
+            <label class="radio"><input type="radio" name="difficulty" value="hard" /> Hard</label>
+          </div>
+
+          <div class="card">
+            <h2>Core Selection</h2>
+            <p class="muted">(Placeholder UI — hook your existing core passives & arena rules here.)</p>
+            <div class="row">
+              <select id="p1-core" class="select">
+                <option value="ember">Ember Core</option>
+                <option value="tide">Tide Core</option>
+                <option value="gale">Gale Core</option>
+                <option value="stone">Stone Core</option>
+                <option value="void">Void Core</option>
+              </select>
+              <select id="p2-core" class="select">
+                <option value="tide">Tide Core</option>
+                <option value="ember">Ember Core</option>
+                <option value="gale">Gale Core</option>
+                <option value="stone">Stone Core</option>
+                <option value="void">Void Core</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="btn-begin" class="btn btn--primary" type="button">Begin Match</button>
+        </div>
+      </main>
+    </section>
+
+    <!-- Game -->
+    <section id="screen-game" class="screen" role="region" aria-label="Match">
+      <header class="topbar">
+        <h1 class="title">Match</h1>
+        <div class="topbar__right">
+          <button id="btn-exit" class="btn" type="button">Exit</button>
+        </div>
+      </header>
+
+      <main class="panel">
+        <div class="hud">
+          <div class="hud__side">
+            <div class="hud__name">Player 1</div>
+            <div class="status">
+              <span class="pill">Core: <strong id="hud-p1-core">—</strong></span>
+              <span class="pill">HP: <strong id="hud-p1-hp">20</strong></span>
+              <span class="pill">Shield: <strong id="hud-p1-shield">0</strong></span>
+              <span class="pill">Vortex: <strong id="hud-p1-vortex">0</strong></span>
+            </div>
+          </div>
+
+          <div class="hud__center">
+            <div class="turn">
+              <div class="turn__label">Turn</div>
+              <div class="turn__value" id="hud-turn">1</div>
+            </div>
+            <div class="phase" id="hud-phase">Planning</div>
+          </div>
+
+          <div class="hud__side hud__side--right">
+            <div class="hud__name">Player 2</div>
+            <div class="status">
+              <span class="pill">Core: <strong id="hud-p2-core">—</strong></span>
+              <span class="pill">HP: <strong id="hud-p2-hp">20</strong></span>
+              <span class="pill">Shield: <strong id="hud-p2-shield">0</strong></span>
+              <span class="pill">Vortex: <strong id="hud-p2-vortex">0</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="arena">
+          <div class="arena__placeholder">
+            <p><strong>Arena UI Placeholder</strong></p>
+            <p class="muted">Wire your existing board / orb placement / targeting UI here.</p>
+          </div>
+        </div>
+
+        <div class="actions actions--between">
+          <button id="btn-advance" class="btn btn--primary" type="button">Advance Phase</button>
+          <button id="btn-reset" class="btn" type="button">Reset Match</button>
+        </div>
+      </main>
+    </section>
+
+    <!-- Rulebook Modal -->
+    <div id="modal" class="modal" aria-hidden="true">
+      <div class="modal__backdrop" data-close="1"></div>
+      <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Rulebook">
+        <header class="modal__header">
+          <h2>Rulebook (Quick View)</h2>
+          <button class="btn" type="button" data-close="1">Close</button>
+        </header>
+        <div class="modal__body">
+          <p class="muted">This is a placeholder viewer. Link your full RULEBOOK.md (or render it) when ready.</p>
+          <ul>
+            <li>Goal: reduce opponent Core HP to 0.</li>
+            <li>Each turn: Planning → Resolution.</li>
+            <li>Core passives apply as defined by the chosen Core.</li>
+            <li>Temporal Vortex: tracked per player; resolves when triggered by rules.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
