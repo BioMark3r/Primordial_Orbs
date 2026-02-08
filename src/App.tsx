@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import logoUrl from "./assets/logo.png";
 import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
@@ -11,11 +11,11 @@ import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDi
 import type { PendingDiff } from "./ui/utils/pendingDiff";
 import { computeImpactPreview } from "./ui/utils/impactPreview";
 import type { ImpactPreview } from "./ui/utils/impactPreview";
+import { pushHistory, undo } from "./ui/utils/history";
+import type { HistoryState } from "./ui/utils/history";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
-type HistoryState = { past: GameState[]; present: GameState };
-type AppAction = Action | { type: "UNDO" };
 type ImpactTargetChoice = "OPPONENT" | "SELF";
 export type UIEvent =
   | { kind: "IMPACT_CAST"; at: number; impact: string; source: 0 | 1; target: 0 | 1 }
@@ -55,6 +55,25 @@ function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
 }
 function hasPlant(state: GameState, p: 0 | 1): boolean {
   return state.players[p].planet.slots.some((s) => s?.kind === "COLONIZE" && s.c === "PLANT");
+}
+
+function shouldRecordHistory(action: Action): boolean {
+  switch (action.type) {
+    case "DRAW_2":
+    case "DISCARD_FROM_HAND":
+    case "PLAY_TERRAFORM":
+    case "PLAY_COLONIZE":
+    case "PLAY_IMPACT":
+    case "WATER_SWAP":
+    case "GAS_REDRAW":
+    case "END_PLAY":
+    case "ADVANCE":
+      return true;
+    case "NEW_GAME":
+      return false;
+    default:
+      return false;
+  }
 }
 
 function getTerraformInfo(t: Core) {
@@ -145,20 +164,11 @@ function getFirstTurnHint(core: Core) {
 export default function App() {
   const initialSeed = useMemo(() => Date.now(), []);
   const initial = useMemo(() => newGame("LOCAL_2P", "LAND", "ICE", initialSeed), [initialSeed]);
-  const [history, dispatch] = useReducer((state: HistoryState, action: AppAction): HistoryState => {
-    if (action.type === "UNDO") {
-      if (state.past.length === 0) return state;
-      const previous = state.past[state.past.length - 1];
-      return { past: state.past.slice(0, -1), present: previous };
-    }
-    const next = reducer(state.present, action);
-    if (next === state.present) return state;
-    if (action.type === "NEW_GAME") {
-      return { past: [], present: next };
-    }
-    const past = [...state.past, state.present].slice(-HISTORY_LIMIT);
-    return { past, present: next };
-  }, { past: [], present: initial });
+  const [history, setHistory] = useState<HistoryState<GameState>>({
+    past: [],
+    present: initial,
+    future: [],
+  });
   const state = history.present;
   const [lastAction, setLastAction] = useState<Action | null>(null);
 
@@ -225,18 +235,23 @@ export default function App() {
     return Number.isFinite(parsed) ? parsed : Date.now();
   }
 
-  function dispatchWithLog(action: AppAction) {
-    if (action.type === "UNDO") {
-      setLastAction(null);
-    } else {
-      setLastAction(action);
-    }
-    dispatch(action);
+  function dispatchWithLog(action: Action) {
+    setLastAction(action);
+    setHistory((prev) => {
+      const nextPresent = reducer(prev.present, action);
+      if (nextPresent === prev.present) return prev;
+      if (action.type === "NEW_GAME") {
+        return { past: [], present: nextPresent, future: [] };
+      }
+      if (!shouldRecordHistory(action)) {
+        return { ...prev, present: nextPresent, future: [] };
+      }
+      return pushHistory(prev, nextPresent, HISTORY_LIMIT);
+    });
   }
 
   function startGame() {
-    setSelected({ kind: "NONE" });
-    setWaterSwapPick(null);
+    resetTransientUi();
     const seed = resolveSeed();
     setSeedInput(String(seed));
     dispatchWithLog({ type: "NEW_GAME", mode, coreP0: p0Core, coreP1: p1Core, seed });
@@ -426,7 +441,7 @@ export default function App() {
   const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
   const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
   const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
-  const canUndo = mode === "LOCAL_2P" && history.past.length > 0;
+  const canUndo = mode === "LOCAL_2P" && history.past.length > 0 && state.phase !== "GAME_OVER";
 
   const canWaterSwap =
     state.phase === "PLAY" &&
@@ -460,6 +475,14 @@ export default function App() {
     setSelected({ kind: "NONE" });
     setWaterSwapPick(null);
     setImpactTarget("OPPONENT");
+  }
+
+  function resetTransientUi() {
+    clearSelection();
+    setHoveredImpactIndex(null);
+    setArenaEvent(null);
+    setFlashState(null);
+    pendingDiffRef.current = null;
   }
 
   function onClickHand(i: number, e: React.MouseEvent) {
@@ -564,7 +587,7 @@ export default function App() {
       <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
         <button
           onClick={() => {
-            clearSelection();
+            resetTransientUi();
             const seed = resolveSeed();
             setSeedInput(String(seed));
             dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
@@ -577,8 +600,9 @@ export default function App() {
           <button
             disabled={!canUndo}
             onClick={() => {
-              clearSelection();
-              dispatchWithLog({ type: "UNDO" });
+              resetTransientUi();
+              setLastAction(null);
+              setHistory((prev) => undo(prev));
             }}
           >
             Undo
