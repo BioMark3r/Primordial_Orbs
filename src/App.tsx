@@ -12,6 +12,7 @@ type ImpactTargetChoice = "OPPONENT" | "SELF";
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
+const RULEBOOK_URL = "/RULEBOOK.md";
 
 function orbLabel(o: Orb): string {
   if (o.kind === "TERRAFORM") return `Terraform: ${o.t}`;
@@ -94,6 +95,91 @@ function impactSeverityPreview(state: GameState, impact: Impact, source: 0 | 1, 
   };
 }
 
+function getTerraformInfo(t: Core) {
+  switch (t) {
+    case "LAND":
+      return "Land: stable terraform. Core passive grants a free Terraform each turn.";
+    case "WATER":
+      return "Water: adaptive terraform. Core passive swaps two Terraform orbs each turn.";
+    case "ICE":
+      return "Ice: defensive terraform. Core passive shields the first impact against you.";
+    case "LAVA":
+      return "Lava: volatile terraform. Core passive boosts your impacts by +1 severity.";
+    case "GAS":
+      return "Gas: flexible terraform. Core passive lets you Shift-click a hand orb to redraw.";
+    default:
+      return "Terraform: build your planet.";
+  }
+}
+
+function getColonizeInfoText(c: "PLANT" | "ANIMAL" | "SENTIENT" | "HIGH_TECH") {
+  switch (c) {
+    case "PLANT":
+      return "Plant: enables Plant mitigation when abilities are ready.";
+    case "ANIMAL":
+      return "Animal: standard colonization type toward victory.";
+    case "SENTIENT":
+      return "Sentient: unlocks higher-tier colonization.";
+    case "HIGH_TECH":
+      return "High-Tech: enables redirect once per game.";
+    default:
+      return "Colonize: contributes toward victory.";
+  }
+}
+
+function getImpactInfo(impact: Impact) {
+  switch (impact) {
+    case "METEOR":
+      return "Meteor: remove Terraform (severity determines count).";
+    case "TORNADO":
+      return "Tornado: strip Terraform from a planet.";
+    case "QUAKE":
+      return "Quake: destabilize, removing Terraform.";
+    case "SOLAR_FLARE":
+      return "Solar Flare: disables abilities for the target's next turn.";
+    case "DISEASE":
+      return "Disease: removes Colonize (Water planets are more vulnerable).";
+    case "TEMPORAL_VORTEX":
+      return "Temporal Vortex: rewinds the planet to an earlier state.";
+    case "BLACK_HOLE":
+      return "Black Hole: removes Colonize if present, otherwise Terraform.";
+    default:
+      return "Impact: disruptive effect.";
+  }
+}
+
+function orbTooltip(o: Orb): string {
+  if (o.kind === "TERRAFORM") {
+    return `${orbLabel(o)} — Terraform orbs build your planet. ${getTerraformInfo(o.t)}`;
+  }
+  if (o.kind === "COLONIZE") {
+    return `${orbLabel(o)} — Colonize on Terraform slots. ${getColonizeInfoText(o.c)}`;
+  }
+  return `${orbLabel(o)} — ${getImpactInfo(o.i)}`;
+}
+
+function corePassiveTooltip(core: Core): string {
+  const info = getCoreInfo(core);
+  return `Passive: ${info.passive} Weakness: ${info.weakness}`;
+}
+
+function getFirstTurnHint(core: Core) {
+  switch (core) {
+    case "LAND":
+      return "Recommended first turn: play a Terraform early to trigger the free Land terraform and aim for 3 total.";
+    case "WATER":
+      return "Recommended first turn: build Terraform, then consider a Water Swap to align your best slots.";
+    case "ICE":
+      return "Recommended first turn: focus on Terraform while your Ice Shield is ready; impacts are safer to absorb.";
+    case "LAVA":
+      return "Recommended first turn: consider an early impact to leverage +1 severity pressure.";
+    case "GAS":
+      return "Recommended first turn: Shift-click redraw once to fish for key Terraform or Colonize.";
+    default:
+      return "Recommended first turn: establish Terraform and set up for Colonize types.";
+  }
+}
+
 export default function App() {
   const initialSeed = useMemo(() => Date.now(), []);
   const initial = useMemo(() => newGame("LOCAL_2P", "LAND", "ICE", initialSeed), [initialSeed]);
@@ -122,6 +208,7 @@ export default function App() {
   const [seedInput, setSeedInput] = useState<string>(() => String(initialSeed));
   const [showInspector, setShowInspector] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
+  const [showHowTo, setShowHowTo] = useState(false);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -207,12 +294,16 @@ export default function App() {
             <button onClick={() => setScreen("SETUP")} style={{ padding: "10px 14px", borderRadius: 10 }}>
               Local 2P
             </button>
+            <button onClick={() => setShowHowTo(true)} style={{ padding: "10px 14px", borderRadius: 10 }}>
+              How to Play
+            </button>
           </div>
 
           <div style={{ marginTop: 16, color: "#666", fontSize: 13 }}>
             MVP defaults: Medium planet (6 slots) • Terraform min 3 • Draw 2 • Hand cap 3 • Play 2 • Impact 1
           </div>
         </div>
+        {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
       </div>
     );
   }
@@ -306,9 +397,18 @@ export default function App() {
               >
                 Swap Cores
               </button>
+              <button onClick={() => setShowHowTo(true)} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                How to Play
+              </button>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12 }}>
+              <a href={RULEBOOK_URL} target="_blank" rel="noreferrer">
+                Read the full rulebook
+              </a>
             </div>
           </div>
         </div>
+        {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
       </div>
     );
   }
@@ -429,6 +529,7 @@ export default function App() {
               {showInspector ? "Hide" : "Show"} Game Inspector
             </button>
           )}
+          <button onClick={() => setShowHowTo(true)}>How to Play</button>
           <button onClick={() => setScreen("SETUP")}>Setup</button>
         </div>
       </div>
@@ -473,6 +574,9 @@ export default function App() {
           <div><b>Plays:</b> {playsRemaining}/2</div>
           <div><b>Impacts:</b> {impactsRemaining}/1</div>
           <div><b>Hand:</b> {activeHand.length}/3</div>
+          <a href={RULEBOOK_URL} target="_blank" rel="noreferrer">
+            Full rulebook
+          </a>
           {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
             <div style={{ color: "#a00" }} title="Solar Flare">
               <b>Abilities Disabled</b>
@@ -480,6 +584,7 @@ export default function App() {
           )}
         </div>
       </div>
+      {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
 
       {isDev && showInspector && (
         <div style={{ marginTop: 12, padding: 12, border: "1px solid #666", borderRadius: 10, background: "#fafafa" }}>
@@ -510,15 +615,21 @@ export default function App() {
         </div>
       )}
 
+      {state.turn === 1 && state.phase !== "GAME_OVER" && (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #c7d7ff", borderRadius: 10, background: "#f4f7ff" }}>
+          <b>Recommended first turn:</b> {getFirstTurnHint(activePlanet.core)}
+        </div>
+      )}
+
       {showDiscard && (
         <div style={{ marginTop: 12, padding: 12, border: "1px solid #999", borderRadius: 8 }}>
           <b>Hand overflow.</b> Discard until you have 3 or fewer.
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-            {activeHand.map((o, i) => (
-              <button key={i} onClick={() => onDiscardIndex(i)}>
+              {activeHand.map((o, i) => (
+                <button key={i} onClick={() => onDiscardIndex(i)}>
                 Discard #{i + 1}: {orbLabel(o)}
-              </button>
-            ))}
+                </button>
+              ))}
           </div>
         </div>
       )}
@@ -605,7 +716,7 @@ export default function App() {
                   minWidth: 150,
                   textAlign: "left",
                 }}
-                title={orbLabel(o)}
+                title={orbTooltip(o)}
               >
                 <div style={{ fontWeight: 700 }}>{orbShort(o)}</div>
                 <div style={{ fontSize: 12, color: "#444" }}>{o.kind}</div>
@@ -659,6 +770,9 @@ export default function App() {
                   <div>Severity will be <b>{preview.severity}</b> (base {preview.base}).</div>
                   <div style={{ marginTop: 4 }}>
                     Likely removes: <b>{impactLikelyRemoves(selected.orb.i, state, target)}</b>
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    Effect: <b>{getImpactInfo(selected.orb.i)}</b>
                   </div>
                   <div style={{ marginTop: 8, fontSize: 12, color: "#333" }}>
                     <div><b>Core Modifiers</b></div>
@@ -724,15 +838,15 @@ function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0
   const ps = state.players[p];
   const enabled = abilitiesEnabled(state, p);
 
-  const items: Array<{ label: string; value: string }> = [
-    { label: "Core", value: ps.planet.core },
+  const items: Array<{ label: string; value: string; tooltip?: string }> = [
+    { label: "Core", value: ps.planet.core, tooltip: corePassiveTooltip(ps.planet.core) },
     { label: "Abilities", value: enabled ? "Enabled" : `Disabled (until turn ${ps.abilities.disabled_until_turn})` },
-    { label: "Land free Terraform", value: ps.planet.core === "LAND" ? (ps.abilities.land_free_terraform_used_turn ? "Used" : "Ready") : "—" },
-    { label: "Water Swap", value: ps.planet.core === "WATER" ? (ps.abilities.water_swap_used_turn ? "Used" : "Ready") : "—" },
-    { label: "Ice Shield", value: ps.planet.core === "ICE" ? (ps.abilities.ice_shield_used_turn ? "Used" : "Ready") : "—" },
-    { label: "Gas Redraw", value: ps.planet.core === "GAS" ? (ps.abilities.gas_redraw_used_turn ? "Used" : "Ready") : "—" },
-    { label: "Plant Mitigation", value: ps.abilities.plant_block_used_round ? "Used" : "Ready (if you have Plant)" },
-    { label: "High-Tech Redirect", value: ps.abilities.hightech_redirect_used ? "Used" : "Ready (if you have High-Tech)" },
+    { label: "Land free Terraform", value: ps.planet.core === "LAND" ? (ps.abilities.land_free_terraform_used_turn ? "Used" : "Ready") : "—", tooltip: getCoreInfo("LAND").passive },
+    { label: "Water Swap", value: ps.planet.core === "WATER" ? (ps.abilities.water_swap_used_turn ? "Used" : "Ready") : "—", tooltip: getCoreInfo("WATER").passive },
+    { label: "Ice Shield", value: ps.planet.core === "ICE" ? (ps.abilities.ice_shield_used_turn ? "Used" : "Ready") : "—", tooltip: getCoreInfo("ICE").passive },
+    { label: "Gas Redraw", value: ps.planet.core === "GAS" ? (ps.abilities.gas_redraw_used_turn ? "Used" : "Ready") : "—", tooltip: getCoreInfo("GAS").passive },
+    { label: "Plant Mitigation", value: ps.abilities.plant_block_used_round ? "Used" : "Ready (if you have Plant)", tooltip: getColonizeInfoText("PLANT") },
+    { label: "High-Tech Redirect", value: ps.abilities.hightech_redirect_used ? "Used" : "Ready (if you have High-Tech)", tooltip: getColonizeInfoText("HIGH_TECH") },
   ];
 
   return (
@@ -742,7 +856,7 @@ function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0
         {items.map((it) => (
           <React.Fragment key={it.label}>
             <div style={{ color: "#555" }}>{it.label}</div>
-            <div style={{ fontWeight: 700 }}>{it.value}</div>
+            <div style={{ fontWeight: 700 }} title={it.tooltip}>{it.value}</div>
           </React.Fragment>
         ))}
       </div>
@@ -802,7 +916,15 @@ function PlayerPanel(props: {
                 cursor: clickable ? "pointer" : "default",
                 opacity: clickable ? 1 : 0.92,
               }}
-              title={locked ? "Locked slot" : props.waterSwapMode ? "Water Swap: click terraform slots" : "Planet slot"}
+              title={
+                s
+                  ? orbTooltip(s)
+                  : locked
+                    ? "Locked slot"
+                    : props.waterSwapMode
+                      ? "Water Swap: click terraform slots"
+                      : "Planet slot"
+              }
             >
               <div style={{ fontWeight: 800, fontSize: 13 }}>{slotText(s)}</div>
               <div style={{ fontSize: 12, color: "#555" }}>
@@ -817,6 +939,65 @@ function PlayerPanel(props: {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function HowToOverlay({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="overlay-backdrop" role="dialog" aria-modal="true">
+      <div className="overlay-panel">
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>How to Play</h2>
+          <button onClick={onClose}>Close</button>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <h3>Objective</h3>
+          <p>
+            Build your planet by placing Terraform orbs, then Colonize with four different types to win.
+            Impacts can destabilize your opponent or protect yourself.
+          </p>
+
+          <h3>Turn Flow</h3>
+          <ul>
+            <li>Draw 2 cards.</li>
+            <li>Play up to 2 orbs (Terraform/Colonize) and up to 1 Impact.</li>
+            <li>End Play, then Advance to resolve impacts and check for victory.</li>
+          </ul>
+
+          <h3>Orb Types (hover for tooltips)</h3>
+          <ul>
+            <li><b>Terraform:</b> builds your planet. You need at least 3 Terraform on a planet before Colonizing.</li>
+            <li><b>Colonize:</b> place on Terraform slots. Collect 4 different types to win.</li>
+            <li><b>Impact:</b> attack or disrupt. Target yourself or your opponent.</li>
+          </ul>
+
+          <h3>Core Passives</h3>
+          <ul>
+            <li><b>Land:</b> first Terraform each turn is free.</li>
+            <li><b>Water:</b> swap two Terraform orbs once per turn.</li>
+            <li><b>Ice:</b> first impact against you each turn is reduced by 1 severity.</li>
+            <li><b>Lava:</b> your impacts gain +1 severity.</li>
+            <li><b>Gas:</b> Shift-click a hand orb to discard+draw once per turn.</li>
+          </ul>
+
+          <h3>Recommended First Turn</h3>
+          <ul>
+            <li><b>Land:</b> lean into the free Terraform for quick setup.</li>
+            <li><b>Water:</b> build Terraform, then align with Water Swap.</li>
+            <li><b>Ice:</b> Terraform while your shield is ready.</li>
+            <li><b>Lava:</b> consider early pressure with an Impact.</li>
+            <li><b>Gas:</b> use your redraw to fish for key orbs.</li>
+          </ul>
+
+          <div style={{ marginTop: 12 }}>
+            <a href={RULEBOOK_URL} target="_blank" rel="noreferrer">
+              Read the full rulebook
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );
