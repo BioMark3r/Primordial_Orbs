@@ -1,0 +1,20 @@
+export const tokens = {
+  radius: 999,
+  shadow: "0 10px 30px rgba(0,0,0,0.25)",
+  panelShadow: "0 10px 40px rgba(0,0,0,0.35)",
+  border: "1px solid rgba(255,255,255,0.10)",
+  text: "#EDEFF6",
+  textMuted: "rgba(237,239,246,0.70)",
+  bg: "#070A12",
+  panel: "rgba(14,18,32,0.72)",
+  glow: "0 0 0 2px rgba(255,255,255,0.12), 0 0 18px rgba(140,170,255,0.25)",
+  glowStrong: "0 0 0 2px rgba(255,255,255,0.18), 0 0 26px rgba(140,170,255,0.45)",
+  marble: {
+    rim: "rgba(255,255,255,0.14)",
+    rimDark: "rgba(0,0,0,0.25)",
+    shine: "rgba(255,255,255,0.65)",
+    coreShadow: "rgba(0,0,0,0.35)",
+    etch: "rgba(255,255,255,0.26)",
+    etchStrong: "rgba(255,255,255,0.36)",
+  },
+} as const;

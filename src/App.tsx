@@ -3,6 +3,8 @@ import logoUrl from "./assets/logo.png";
 import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
+import { CoreBadge } from "./ui/components/CoreBadge";
+import { OrbToken } from "./ui/components/OrbToken";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -23,9 +25,6 @@ function orbShort(o: Orb): string {
   if (o.kind === "TERRAFORM") return o.t;
   if (o.kind === "COLONIZE") return o.c;
   return o.i;
-}
-function slotText(o: Orb | null): string {
-  return o ? orbShort(o) : "—";
 }
 function terraformCount(planet: (Orb | null)[]): number {
   return planet.filter((s) => s?.kind === "TERRAFORM").length;
@@ -705,23 +704,18 @@ export default function App() {
             const isSel = selected.kind === "HAND" && selected.handIndex === i;
             const isImpact = o.kind === "IMPACT";
             return (
-              <button
-                key={i}
-                onClick={(e) => onClickHand(i, e)}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: isSel ? "2px solid #222" : "1px solid #999",
-                  cursor: "pointer",
-                  minWidth: 150,
-                  textAlign: "left",
-                }}
-                title={orbTooltip(o)}
-              >
-                <div style={{ fontWeight: 700 }}>{orbShort(o)}</div>
-                <div style={{ fontSize: 12, color: "#444" }}>{o.kind}</div>
-                {isImpact && <div style={{ fontSize: 12, marginTop: 4 }}>Select target</div>}
-              </button>
+              <div key={i} style={{ display: "grid", justifyItems: "center", minWidth: 84 }}>
+                <OrbToken
+                  orb={o}
+                  size="lg"
+                  selected={isSel}
+                  actionable={isImpact && canPlayImpact}
+                  title={orbTooltip(o)}
+                  onClick={(e) => onClickHand(i, e)}
+                />
+                <div className="orb-label">{orbShort(o)}</div>
+                {isImpact && <div style={{ fontSize: 11, color: "#cfd5ff" }}>Select target</div>}
+              </div>
             );
           })}
         </div>
@@ -867,7 +861,7 @@ function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0
 
 function PlayerPanel(props: {
   title: string;
-  core: any;
+  core: Core;
   planetSlots: (Orb | null)[];
   locked: boolean[];
   terraformMin: number;
@@ -886,7 +880,7 @@ function PlayerPanel(props: {
         <div>
           <h3 style={{ margin: 0 }}>{props.title}</h3>
           <div style={{ color: "#555", marginTop: 4 }}>
-            Core: <b>{String(props.core)}</b>
+            Core: <CoreBadge core={props.core} />
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -908,13 +902,15 @@ function PlayerPanel(props: {
               onClick={() => props.onClickSlot?.(i)}
               disabled={!clickable}
               style={{
-                padding: "14px 10px",
+                padding: "12px 10px",
                 borderRadius: 12,
-                border: waterPick ? "2px solid #005" : "1px solid #999",
-                minHeight: 64,
+                border: waterPick ? "2px solid rgba(140,170,255,0.6)" : "1px solid rgba(255,255,255,0.18)",
+                minHeight: 86,
                 textAlign: "center",
                 cursor: clickable ? "pointer" : "default",
                 opacity: clickable ? 1 : 0.92,
+                background: "rgba(10,14,24,0.5)",
+                color: "#EDEFF6",
               }}
               title={
                 s
@@ -926,16 +922,20 @@ function PlayerPanel(props: {
                       : "Planet slot"
               }
             >
-              <div style={{ fontWeight: 800, fontSize: 13 }}>{slotText(s)}</div>
-              <div style={{ fontSize: 12, color: "#555" }}>
-                Slot {i}{locked ? " • Locked" : ""}
+              <div style={{ display: "grid", justifyItems: "center", gap: 6 }}>
+                {s ? (
+                  <OrbToken orb={s} size="md" selected={waterPick} disabled={locked} title={orbTooltip(s)} />
+                ) : (
+                  <span className="slot-empty" />
+                )}
+                <div style={{ fontSize: 12, color: "rgba(237,239,246,0.7)" }}>
+                  Slot {i}{locked ? " • Locked" : ""}
+                </div>
+                {showHint && !s && !locked && <div className="slot-hint">Place here</div>}
+                {props.waterSwapMode && s?.kind === "TERRAFORM" && !locked && (
+                  <div className="slot-hint">Swap</div>
+                )}
               </div>
-              {showHint && !s && !locked && (
-                <div style={{ fontSize: 11, marginTop: 6, color: "#333" }}>Place here</div>
-              )}
-              {props.waterSwapMode && s?.kind === "TERRAFORM" && !locked && (
-                <div style={{ fontSize: 11, marginTop: 6, color: "#333" }}>Swap</div>
-              )}
             </button>
           );
         })}
