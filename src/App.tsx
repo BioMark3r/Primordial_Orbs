@@ -621,19 +621,6 @@ export default function App() {
               {mode === "LOCAL_2P" && (
                 <>
                   <button
-                    onClick={() => {
-                      clearSelection();
-                      const seed = resolveSeed();
-                      setSeedInput(String(seed));
-                      dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
-                      resetTransientUi();
-                      setLastAction(null);
-                      setHistory((prev) => undo(prev));
-                    }}
-                  >
-                    New Game
-                  </button>
-                  <button
                     disabled={!canDraw}
                     onClick={() => {
                       clearSelection();
@@ -675,6 +662,15 @@ export default function App() {
             </button>
             <button onClick={() => setShowHowTo(true)}>How to Play</button>
             <button onClick={() => setScreen("SETUP")}>Setup</button>
+            <button
+              onClick={() => {
+                clearSelection();
+                resetTransientUi();
+                setScreen("SETUP");
+              }}
+            >
+              Quit Game
+            </button>
             {isDev && (
               <button onClick={() => setShowInspector((prev) => !prev)}>
                 {showInspector ? "Hide" : "Show"} Inspector
@@ -730,16 +726,17 @@ export default function App() {
 
           <div className="game-arena-row">
             <PlayerPanel
-              title={`Player ${active} (Active)`}
-              core={activePlanet.core}
-              planetSlots={activePlanet.slots}
-              locked={activePlanet.locked}
+              title={`Player 0${active === 0 ? " (Active)" : ""}`}
+              core={state.players[0].planet.core}
+              planetSlots={state.players[0].planet.slots}
+              locked={state.players[0].planet.locked}
               terraformMin={3}
-              onClickSlot={onClickSlot}
-              selected={selected}
-              waterSwapPick={waterSwapPick}
-              waterSwapMode={canWaterSwap && selected.kind === "NONE"}
-              flashSlots={activeFlashSlots}
+              onClickSlot={active === 0 ? onClickSlot : undefined}
+              selected={active === 0 ? selected : { kind: "NONE" }}
+              waterSwapPick={active === 0 ? waterSwapPick : null}
+              waterSwapMode={active === 0 && canWaterSwap && selected.kind === "NONE"}
+              flashSlots={active === 0 ? activeFlashSlots : otherFlashSlots}
+              isActive={active === 0}
             />
             <ArenaView
               lastEvent={arenaEvent}
@@ -748,15 +745,17 @@ export default function App() {
               activePlayer={active}
             />
             <PlayerPanel
-              title={`Player ${other}`}
-              core={otherPlanet.core}
-              planetSlots={otherPlanet.slots}
-              locked={otherPlanet.locked}
+              title={`Player 1${active === 1 ? " (Active)" : ""}`}
+              core={state.players[1].planet.core}
+              planetSlots={state.players[1].planet.slots}
+              locked={state.players[1].planet.locked}
               terraformMin={3}
-              selected={{ kind: "NONE" }}
-              waterSwapPick={null}
-              waterSwapMode={false}
-              flashSlots={otherFlashSlots}
+              onClickSlot={active === 1 ? onClickSlot : undefined}
+              selected={active === 1 ? selected : { kind: "NONE" }}
+              waterSwapPick={active === 1 ? waterSwapPick : null}
+              waterSwapMode={active === 1 && canWaterSwap && selected.kind === "NONE"}
+              flashSlots={active === 1 ? activeFlashSlots : otherFlashSlots}
+              isActive={active === 1}
             />
           </div>
 
@@ -977,13 +976,14 @@ function PlayerPanel(props: {
   waterSwapMode: boolean;
   waterSwapPick: number | null;
   flashSlots: number[];
+  isActive?: boolean;
 }) {
   const tCount = terraformCount(props.planetSlots);
   const cTypes = colonizeTypesCount(props.planetSlots);
   const ok = tCount >= props.terraformMin;
 
   return (
-    <div className="player-panel">
+    <div className={`player-panel${props.isActive ? " player-panel--active" : ""}`}>
       <div className="player-panel__header">
         <div>
           <h3>{props.title}</h3>

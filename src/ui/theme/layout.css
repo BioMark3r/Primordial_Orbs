@@ -119,6 +119,12 @@
   background: rgba(8, 12, 20, 0.65);
 }
 
+.player-panel--active {
+  background: rgba(120, 220, 140, 0.18);
+  border-color: rgba(160, 255, 190, 0.45);
+  box-shadow: 0 0 0 1px rgba(160, 255, 190, 0.2);
+}
+
 .player-panel__header {
   display: flex;
   justify-content: space-between;
