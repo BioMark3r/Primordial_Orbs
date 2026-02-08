@@ -50,6 +50,7 @@ export function newGame(
 
   let state: GameState = {
     mode,
+    seed,
     phase: "DRAW",
     turn: 1,
     active: 0,
