@@ -1,78 +1,55 @@
-# Primordial Orbs — Browser Prototype (Local 2 Player)
+# Primordial Orbs — Local 2P (Browser MVP)
 
-Primordial Orbs is a two‑player competitive strategy game where players act as terraformers,
-building planets while destabilizing their opponent through catastrophic events.
+This is a playable Local 2-player prototype of **Primordial Orbs**, built with **Vite + React + TypeScript**.
 
-This repository contains a **browser‑based Local 2 Player MVP**, built with **Vite + React + TypeScript**.
-
----
-
-## Requirements
-
-- Node.js **18+** recommended
-- npm (comes with Node)
-
----
-
-## Installation & Run
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open the local URL shown in your terminal (usually http://localhost:5173).
+Open the local URL printed by Vite (commonly http://localhost:5173).
 
----
+## How to Play (MVP)
 
-## Game Flow (Browser)
+1. **Title → Setup**
+   - Choose Player 0 and Player 1 planet cores.
+   - Click **Start Game**.
 
-1. **Title Screen**
-   - Select *Local 2 Player*
+2. **Turn Loop**
+   - **DRAW**: Click **Draw 2**.
+     - If your hand exceeds 3, discard down to 3.
+   - **PLAY**: You have **2 plays** and **1 impact** max per turn.
+     - Terraform / Colonize: click a hand orb, then click a slot to place.
+     - Impact: click an Impact orb (auto-targets opponent).
+     - Core actions:
+       - **Water**: with no hand selected, click two Terraform slots to swap (once/turn).
+       - **Gas**: **Shift-click** a hand orb to discard+draw (once/turn).
+   - **End Play**
+   - **Advance** (Resolve → Check Win → next player)
 
-2. **Setup Screen**
-   - Choose a Planet Core for Player 0 and Player 1
-   - Start Game
+3. **Win**
+   - First player to have **4 different colonization types** (Plant, Animal, Sentient, High-Tech) wins.
 
-3. **Gameplay Loop**
-   - **DRAW phase**: Click *Draw 2*
-   - **PLAY phase**:
-     - Click a Terraform or Colonize orb, then click a slot to place it
-     - Click an Impact orb to automatically target the opponent
-     - Maximum per turn:
-       - 2 total plays
-       - 1 impact
-   - **END PLAY**
-   - **ADVANCE** to resolve effects and pass turn
+## Core Passives (Wired)
 
-4. **Win Condition**
-   - First player to achieve **4 different Colonization types** wins
-
----
+- **Land**: First Terraform each turn is free (does not consume a play).  
+  Weakness: Terraform-destroying impacts remove +1 Terraform.
+- **Water**: Once per turn, swap two Terraform slots.  
+  Weakness: Disease impacts have +1 severity.
+- **Ice**: First impact against you each turn has -1 severity (min 1).  
+  Weakness: On an Ice-core planet, placing Lava melts one Ice terraform.
+- **Lava**: Your impacts have +1 severity (if abilities enabled).  
+  Weakness: If unstable, you take 2 instability strikes instead of 1.
+- **Gas**: Once per turn, Shift-click a hand orb to discard+draw.  
+  Weakness: Cannot place Ice terraform.
 
 ## Notes
 
-- Planet size is fixed to **Medium (6 slots)** in this MVP
-- Core passives are displayed but not yet mechanically enforced
-- Impact resolution is deterministic (no physics yet)
-- Solo and AI files are included for future expansion but not wired
+- **Temporal Vortex** is implemented: it rewinds the target planet by **one recorded step** (the most recent planet change).
 
----
 
-## Folder Structure
-
-```
-src/
-  engine/      // Game rules & logic
-  App.tsx      // UI + setup flow
-  main.tsx     // React entry
-```
-
----
-
-## Next Recommended Steps
-
-- Wire Core passives into the engine
-- Add planet size selection
-- Add Solo: Entropy mode
-- Replace click‑to‑play with drag‑and‑drop
+- Planet size is fixed to **Medium (6 slots)** for MVP.
+- Impacts are deterministic (no physics arena yet).
+- Solo/AI files are included for future expansion but not wired.

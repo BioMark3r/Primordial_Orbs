@@ -33,16 +33,23 @@ function isHandOverflow(state: GameState): boolean {
   const p = state.active;
   return state.players[p].hand.length > 3;
 }
+function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
+  const until = state.players[p].abilities.disabled_until_turn;
+  return until === undefined || state.turn > until;
+}
 
 export default function App() {
   const initial = useMemo(() => newGame("LOCAL_2P", "LAND", "ICE", Date.now()), []);
   const [state, dispatch] = useReducer(reducer, initial);
 
   const [screen, setScreen] = useState<Screen>("TITLE");
-  const [mode] = useState<Mode>("LOCAL_2P"); // A1: Local 2P only wired
+  const [mode] = useState<Mode>("LOCAL_2P"); // Local 2P wired
   const [p0Core, setP0Core] = useState<Core>("LAND");
   const [p1Core, setP1Core] = useState<Core>("ICE");
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
+
+  // Water swap (two-click) selection; only active if selected.kind === NONE
+  const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
 
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
@@ -53,6 +60,7 @@ export default function App() {
 
   function startGame() {
     setSelected({ kind: "NONE" });
+    setWaterSwapPick(null);
     dispatch({ type: "NEW_GAME", mode, coreP0: p0Core, coreP1: p1Core, seed: Date.now() });
     setScreen("GAME");
   }
@@ -165,28 +173,62 @@ export default function App() {
   const canDraw = state.phase === "DRAW";
   const canEndPlay = state.phase === "PLAY";
   const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
-
   const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
+
+  const canWaterSwap =
+    state.phase === "PLAY" &&
+    activePlanet.core === "WATER" &&
+    !state.players[active].abilities.water_swap_used_turn &&
+    abilitiesEnabled(state, active);
+
+  const canGasRedraw =
+    state.phase === "PLAY" &&
+    activePlanet.core === "GAS" &&
+    !state.players[active].abilities.gas_redraw_used_turn &&
+    abilitiesEnabled(state, active);
 
   function clearSelection() {
     setSelected({ kind: "NONE" });
+    setWaterSwapPick(null);
   }
 
-  function onClickHand(i: number) {
+  function onClickHand(i: number, e: React.MouseEvent) {
     const orb = activeHand[i];
     if (!orb) return;
 
-    if (state.phase === "PLAY" && orb.kind === "IMPACT") {
-      dispatch({ type: "PLAY_IMPACT", handIndex: i }); // default target opponent
+    // GAS passive: Shift-click any hand orb to redraw it (once per turn)
+    if (canGasRedraw && e.shiftKey) {
+      dispatch({ type: "GAS_REDRAW", handIndex: i });
       clearSelection();
       return;
     }
 
+    // Impacts auto-target opponent
+    if (state.phase === "PLAY" && orb.kind === "IMPACT") {
+      dispatch({ type: "PLAY_IMPACT", handIndex: i });
+      clearSelection();
+      return;
+    }
+
+    // Selecting a hand orb exits water swap mode
+    setWaterSwapPick(null);
     setSelected({ kind: "HAND", handIndex: i, orb });
   }
 
   function onClickSlot(slotIndex: number) {
     if (state.phase !== "PLAY") return;
+
+    // WATER passive: when nothing selected from hand, allow swap by clicking two terraform slots
+    if (canWaterSwap && selected.kind === "NONE") {
+      if (waterSwapPick === null) {
+        setWaterSwapPick(slotIndex);
+      } else {
+        dispatch({ type: "WATER_SWAP", slotA: waterSwapPick, slotB: slotIndex });
+        setWaterSwapPick(null);
+      }
+      return;
+    }
+
     if (selected.kind !== "HAND") return;
 
     const { handIndex, orb } = selected;
@@ -242,10 +284,15 @@ export default function App() {
           Advance
         </button>
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <div><b>Plays:</b> {playsRemaining}/2</div>
           <div><b>Impacts:</b> {impactsRemaining}/1</div>
           <div><b>Hand:</b> {activeHand.length}/3</div>
+          {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
+            <div style={{ color: "#a00" }} title="Solar Flare">
+              <b>Abilities Disabled</b>
+            </div>
+          )}
         </div>
       </div>
 
@@ -262,6 +309,38 @@ export default function App() {
         </div>
       )}
 
+      {(canWaterSwap || canGasRedraw) && (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 10, color: "#333" }}>
+          <b>Core Actions:</b>
+          <div style={{ marginTop: 6 }}>
+            {canWaterSwap ? (
+              <div>
+                <b>Water Swap</b> (once/turn): With no hand selection, click two <b>Terraform</b> slots to swap.
+                {waterSwapPick !== null && (
+                  <span style={{ marginLeft: 10 }}>
+                    Selected first slot: <b>{waterSwapPick}</b>
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: "#777" }}>Water Swap: unavailable</div>
+            )}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            {canGasRedraw ? (
+              <div>
+                <b>Gas Redraw</b> (once/turn): <b>Shift-click</b> a hand orb to discard+draw.
+              </div>
+            ) : (
+              <div style={{ color: "#777" }}>Gas Redraw: unavailable</div>
+            )}
+          </div>
+        </div>
+      )}
+
+
+      <CoreStatusStrip state={state} />
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
         <PlayerPanel
           title={`Player ${active} (Active)`}
@@ -271,6 +350,8 @@ export default function App() {
           terraformMin={3}
           onClickSlot={onClickSlot}
           selected={selected}
+          waterSwapPick={waterSwapPick}
+          waterSwapMode={canWaterSwap && selected.kind === "NONE"}
         />
         <PlayerPanel
           title={`Player ${other}`}
@@ -279,6 +360,8 @@ export default function App() {
           locked={otherPlanet.locked}
           terraformMin={3}
           selected={{ kind: "NONE" }}
+          waterSwapPick={null}
+          waterSwapMode={false}
         />
       </div>
 
@@ -287,6 +370,7 @@ export default function App() {
           <h3 style={{ margin: 0 }}>Hand (P{active})</h3>
           <div style={{ color: "#555" }}>
             Click Terraform/Colonize then click a slot. Click Impact to fire at opponent.
+            {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
           </div>
         </div>
 
@@ -298,7 +382,7 @@ export default function App() {
             return (
               <button
                 key={i}
-                onClick={() => onClickHand(i)}
+                onClick={(e) => onClickHand(i, e)}
                 style={{
                   padding: "10px 12px",
                   borderRadius: 10,
@@ -328,7 +412,7 @@ export default function App() {
       <div style={{ marginTop: 16, padding: 12, border: "1px solid #bbb", borderRadius: 10 }}>
         <h3 style={{ margin: 0 }}>Event Log</h3>
         <div style={{ marginTop: 8, maxHeight: 240, overflow: "auto", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
-          {state.log.slice(0, 80).map((line, idx) => (
+          {state.log.slice(0, 120).map((line, idx) => (
             <div key={idx} style={{ borderBottom: "1px dashed #eee", padding: "4px 0" }}>
               {line}
             </div>
@@ -344,6 +428,63 @@ export default function App() {
   );
 }
 
+
+function CoreStatusStrip({ state }: { state: GameState }) {
+  const p0 = state.players[0];
+  const p1 = state.players[1];
+
+  const rowStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 16,
+    marginTop: 14,
+  };
+
+  return (
+    <div style={{ marginTop: 14, padding: 12, border: "1px solid #bbb", borderRadius: 10 }}>
+      <div style={{ fontWeight: 800, marginBottom: 8 }}>Core Status</div>
+      <div style={rowStyle}>
+        <CoreStatusCard who="P0" state={state} p={0} />
+        <CoreStatusCard who="P1" state={state} p={1} />
+      </div>
+      <div style={{ marginTop: 8, color: "#666", fontSize: 12 }}>
+        Tips: Water Swap works when no hand orb is selected. Gas Redraw is Shift-click on a hand orb.
+      </div>
+    </div>
+  );
+}
+
+function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0 | 1 }) {
+  const ps = state.players[p];
+  const enabled = abilitiesEnabled(state, p);
+
+  const items: Array<{ label: string; value: string }> = [
+    { label: "Core", value: ps.planet.core },
+    { label: "Abilities", value: enabled ? "Enabled" : `Disabled (until turn ${ps.abilities.disabled_until_turn})` },
+    { label: "Land free Terraform", value: ps.planet.core === "LAND" ? (ps.abilities.land_free_terraform_used_turn ? "Used" : "Ready") : "—" },
+    { label: "Water Swap", value: ps.planet.core === "WATER" ? (ps.abilities.water_swap_used_turn ? "Used" : "Ready") : "—" },
+    { label: "Ice Shield", value: ps.planet.core === "ICE" ? (ps.abilities.ice_shield_used_turn ? "Used" : "Ready") : "—" },
+    { label: "Gas Redraw", value: ps.planet.core === "GAS" ? (ps.abilities.gas_redraw_used_turn ? "Used" : "Ready") : "—" },
+    { label: "Plant Mitigation", value: ps.abilities.plant_block_used_round ? "Used" : "Ready (if you have Plant)" },
+    { label: "High-Tech Redirect", value: ps.abilities.hightech_redirect_used ? "Used" : "Ready (if you have High-Tech)" },
+  ];
+
+  return (
+    <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 10 }}>
+      <div style={{ fontWeight: 800, marginBottom: 6 }}>{who}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "170px 1fr", rowGap: 6, columnGap: 10 }}>
+        {items.map((it) => (
+          <React.Fragment key={it.label}>
+            <div style={{ color: "#555" }}>{it.label}</div>
+            <div style={{ fontWeight: 700 }}>{it.value}</div>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 function PlayerPanel(props: {
   title: string;
   core: any;
@@ -352,6 +493,8 @@ function PlayerPanel(props: {
   terraformMin: number;
   onClickSlot?: (i: number) => void;
   selected: Selected;
+  waterSwapMode: boolean;
+  waterSwapPick: number | null;
 }) {
   const tCount = terraformCount(props.planetSlots);
   const cTypes = colonizeTypesCount(props.planetSlots);
@@ -377,6 +520,7 @@ function PlayerPanel(props: {
           const locked = props.locked[i];
           const clickable = !!props.onClickSlot;
           const showHint = clickable && props.selected.kind === "HAND" && props.selected.orb.kind !== "IMPACT";
+          const waterPick = props.waterSwapMode && props.waterSwapPick === i;
 
           return (
             <button
@@ -386,20 +530,23 @@ function PlayerPanel(props: {
               style={{
                 padding: "14px 10px",
                 borderRadius: 12,
-                border: "1px solid #999",
+                border: waterPick ? "2px solid #005" : "1px solid #999",
                 minHeight: 64,
                 textAlign: "center",
                 cursor: clickable ? "pointer" : "default",
                 opacity: clickable ? 1 : 0.92,
               }}
-              title={locked ? "Locked slot" : "Planet slot"}
+              title={locked ? "Locked slot" : props.waterSwapMode ? "Water Swap: click terraform slots" : "Planet slot"}
             >
               <div style={{ fontWeight: 800, fontSize: 13 }}>{slotText(s)}</div>
               <div style={{ fontSize: 12, color: "#555" }}>
-                Slot {i + 1}{locked ? " • Locked" : ""}
+                Slot {i}{locked ? " • Locked" : ""}
               </div>
               {showHint && !s && !locked && (
                 <div style={{ fontSize: 11, marginTop: 6, color: "#333" }}>Place here</div>
+              )}
+              {props.waterSwapMode && s?.kind === "TERRAFORM" && !locked && (
+                <div style={{ fontSize: 11, marginTop: 6, color: "#333" }}>Swap</div>
               )}
             </button>
           );
@@ -424,14 +571,14 @@ function CoreTooltip({ title, core }: { title: string; core: Core }) {
 function getCoreInfo(core: Core) {
   switch (core) {
     case "LAND":
-      return { passive: "First terraform placed each turn is free (future wiring).", weakness: "Impacts affect adjacent slots (future wiring).", style: "Stable builder." };
+      return { passive: "First Terraform each turn is free (does not consume a play).", weakness: "Terraform-destroying impacts remove +1 extra Terraform.", style: "Stable builder." };
     case "WATER":
-      return { passive: "Once per turn, swap two terraform orbs (future wiring).", weakness: "Disease impacts hit twice (future wiring).", style: "Adaptive control." };
+      return { passive: "Once per turn, swap two Terraform orbs on your planet.", weakness: "Disease impacts have +1 severity.", style: "Adaptive control." };
     case "ICE":
-      return { passive: "First impact against you each round reduced (future wiring).", weakness: "Lava removes Ice automatically (future wiring).", style: "Defensive fortress." };
+      return { passive: "First impact against you each turn has -1 severity (min 1).", weakness: "On an Ice-core planet, placing Lava melts one Ice terraform.", style: "Defensive fortress." };
     case "LAVA":
-      return { passive: "Your impacts gain +1 effect (future wiring).", weakness: "Destabilizes faster (future wiring).", style: "Aggressive pressure." };
+      return { passive: "Your impacts have +1 severity (if abilities enabled).", weakness: "When unstable, you take 2 instability strikes instead of 1.", style: "Aggressive pressure." };
     case "GAS":
-      return { passive: "Once per turn, redraw one drawn orb (future wiring).", weakness: "Cannot place Ice naturally (future wiring).", style: "Wildcard, hand control." };
+      return { passive: "Once per turn, Shift-click a hand orb to discard+draw.", weakness: "Cannot place Ice terraform.", style: "Wildcard hand control." };
   }
 }

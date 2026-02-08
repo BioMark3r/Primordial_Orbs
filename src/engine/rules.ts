@@ -3,17 +3,13 @@ import { COLONIZE_REQ, HAND_CAP, MVP_PLANET_SLOTS, MVP_TERRAFORM_MIN } from "./c
 
 export function planetTerraformSet(state: GameState, p: 0 | 1): Set<Terraform> {
   const set = new Set<Terraform>();
-  for (const s of state.players[p].planet.slots) {
-    if (s?.kind === "TERRAFORM") set.add(s.t);
-  }
+  for (const s of state.players[p].planet.slots) if (s?.kind === "TERRAFORM") set.add(s.t);
   return set;
 }
 
 export function planetColonizeSet(state: GameState, p: 0 | 1): Set<Colonize> {
   const set = new Set<Colonize>();
-  for (const s of state.players[p].planet.slots) {
-    if (s?.kind === "COLONIZE") set.add(s.c);
-  }
+  for (const s of state.players[p].planet.slots) if (s?.kind === "COLONIZE") set.add(s.c);
   return set;
 }
 

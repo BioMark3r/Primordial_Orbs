@@ -1,168 +1,242 @@
-# Primordial Orbs — Official Rulebook (v1.0)
+# Primordial Orbs — Rulebook (2-Player)
 
-## 1. Overview
+## 1. What is Primordial Orbs?
 
-Primordial Orbs is a two‑player strategy game where players terraform planets,
-develop life, and unleash disasters to destabilize their opponent.
+**Primordial Orbs** is a head-to-head planet-building game for two players.  
+You are rival terraformers shaping newborn worlds—laying down land, water, ice, lava, and gas—then seeding life and guiding it from the primordial ooze to advanced civilizations.
 
-Players win by successfully guiding life to planetary ascension while preventing
-their opponent from doing the same.
+But growth comes with risk. As life flourishes, your planet becomes more **vulnerable**… and your opponent gains stronger tools to destabilize you through disasters, cosmic events, and time-warping anomalies.
+
+**Win by achieving Ascension:** have **4 different Colonization types** on your planet at the same time:
+- Plant
+- Animal
+- Sentient
+- High-Tech
 
 ---
 
 ## 2. Components
 
-- Terraforming Orbs:
-  - Land, Water, Ice, Lava, Gas
-- Colonization Orbs:
-  - Plant, Animal, Sentient, High‑Tech
-- Impact Orbs:
-  - Meteor
-  - Tornado
-  - Earthquake
-  - Solar Flare
-  - Disease
-  - Temporal Vortex
-  - Black Hole (1 per game)
-- Planet Tray (Medium size in MVP: 6 slots)
+This browser MVP represents the physical game pieces digitally.
+
+### Orbs (Marbles)
+**Terraforming Orbs**
+- Land, Water, Ice, Lava, Gas
+
+**Colonizing Orbs**
+- Plant, Animal, Sentient, High-Tech
+
+**Planetary Impact Orbs**
+- Meteor
+- Tornado
+- Earthquake
+- Solar Flare
+- Disease
+- Temporal Vortex
+- Black Hole (unique)
+
+### Planet Board
+Each player has a planet with:
+- **6 slots** (MVP “Medium” planet)
+- Slot 0 starts with your **Core Terraform** orb
 
 ---
 
-## 3. Planet Rules
+## 3. Key Ideas
 
-- Each planet has a fixed number of slots
-- At least **50% of slots must contain Terraforming orbs**
-- If a planet drops below this minimum, it gains an **Instability Strike**
-- Two Instability Strikes result in planetary collapse (loss)
+### 3.1 Planet Core
+At setup, you choose a **Core** (one Terraform type). It defines:
+- Your starting world
+- Your **core passive ability**
+- Your **core weakness**
 
----
+### 3.2 Terraform Minimum
+A planet must remain stable to support life.
 
-## 4. Planet Cores
+In the MVP:
+- You must keep at least **3 Terraform orbs** on your planet.
+- If you fall below this, you gain an **Instability Strike** during Resolve.
+- **Lava core** is volatile: it gains **2 strikes** instead of 1 when unstable.
 
-Each player selects a Planet Core:
-- Land
-- Water
-- Ice
-- Lava
-- Gas
+### 3.3 Vulnerability
+The more colonization you have, the more fragile your world becomes.
 
-Cores define thematic strengths and weaknesses.
-(Core abilities are displayed in the UI; full effects are implemented in later versions.)
-
----
-
-## 5. Setup
-
-1. Each player chooses a Planet Core
-2. Place one Terraforming orb of that type in the first slot
-3. Shuffle all remaining orbs into the Anomaly (draw pile)
-4. Determine starting player (Player 0 in browser MVP)
+In the MVP:
+- **Vulnerability = total number of Colonization orbs on your planet**
+- Many impacts scale in severity using vulnerability.
 
 ---
 
-## 6. Turn Structure
+## 4. Setup
 
-Each turn follows this sequence:
+1. Place the planet boards (one per player).
+2. Each player chooses a **Core Terraform type** and places it in **slot 0**.
+3. Shuffle all remaining orbs into the Anomaly (draw bag).
 
-### A. DRAW
-- Draw **2 orbs**
-- Hand limit: **3**
-- Excess cards must be discarded before continuing
-
-### B. PLAY
-- Up to **2 total plays**
-- Up to **1 Impact**
-- Play options:
-  - Place Terraform orb
-  - Place Colonization orb
-  - Play Impact orb (targets opponent by default)
-
-### C. RESOLVE
-- Impacts apply immediately
-- Instability is checked
-
-### D. CHECK WIN
-- If a player has all 4 Colonization types, they win
+You are ready to begin.
 
 ---
 
-## 7. Terraforming
+## 5. Turn Structure
 
-Terraforming orbs define planetary conditions.
-They enable Colonization and protect against Instability.
+Players alternate turns. Each turn follows the same flow:
 
----
+### Phase A — DRAW
+- Draw **2** orbs.
+- Your hand limit is **3**.
+- If you exceed 3, discard down to 3 before you can proceed.
 
-## 8. Colonization
+### Phase B — PLAY
+You have:
+- **2 Plays** total, and
+- **1 Impact** maximum per turn.
 
-Colonization represents the development of life.
+A Play can be:
+- Place a Terraform orb
+- Place a Colonization orb
+- Play an Impact orb
 
-Requirements:
-- Plant → Land + Water
-- Animal → Plant
-- Sentient → Animal
-- High‑Tech → Sentient + 3 Terraform types
+You may end Play early.
 
-Each Colonization increases **planetary vulnerability**, amplifying future impacts.
+### Phase C — RESOLVE
+- If your Terraform count is below the minimum (3), you gain **Instability Strike(s)**.
 
----
-
-## 9. Impacts
-
-Impacts target the opponent by default.
-
-Severity = 1 + number of Colonizations on target planet.
-
-Effects include:
-- Meteor: Removes Terraforming
-- Tornado: Disrupts Terraforming
-- Earthquake: Removes Terraforming
-- Disease: Downgrades Colonization
-- Solar Flare: Disables abilities
-- Temporal Vortex: Time distortion (future expansion)
-- Black Hole: Removes highest Colonization or Terraform
+### Phase D — CHECK WIN
+- If you have **all 4 colonization types**, you win immediately.
+- Otherwise, the next player begins their turn.
 
 ---
 
-## 10. Instability
+## 6. Playing Orbs
 
-If Terraform count falls below the minimum:
-- Gain 1 Instability Strike
-- At 2 strikes, the planet collapses
+### 6.1 Terraform Orbs
+Terraform orbs fill empty slots on your planet.
 
----
+**Land Core Passive (MVP):**  
+Your **first Terraform placement each turn is free** (does not consume a Play).
 
-## 11. Winning the Game
+**Gas Core Weakness (MVP):**  
+A Gas-core planet **cannot place Ice Terraform**.
 
-A player immediately wins by achieving:
-- Plant
-- Animal
-- Sentient
-- High‑Tech
+### 6.2 Colonization Orbs
+Colonization represents life and civilization. Each type has prerequisites:
 
-All four Colonization types must be present simultaneously.
+- **Plant:** requires Land + Water present
+- **Animal:** requires Plant
+- **Sentient:** requires Animal
+- **High-Tech:** requires Sentient and at least 3 Terraform types present
 
----
-
-## 12. Browser MVP Notes
-
-- Medium planets only
-- Deterministic impacts
-- No physics simulation
-- Default opponent targeting
-- Local 2 Player only
+Colonization increases your vulnerability, which makes many impacts hit harder.
 
 ---
 
-## 13. Future Expansions
+## 7. Impact Orbs (Disasters)
 
-- Solo: Entropy Mode
-- AI Opponent
-- Variable planet sizes
-- Core passive enforcement
-- Physics‑based impact arena
-- Online multiplayer
+When you play an Impact, it targets your opponent by default.
+
+### 7.1 Severity
+Impacts have a **severity** value:
+
+**Severity = 1 + target vulnerability**
+
+Some effects modify severity (core passives/weaknesses, mitigation).
+
+### 7.2 Plant Mitigation (if you have Plant)
+If you have a Plant colonization orb:
+- The first time each turn you are hit by an Impact, Plant reduces severity by **1** (minimum 1).
+
+### 7.3 High-Tech Redirect (if you have High-Tech)
+If you have High-Tech colonization:
+- Once per game, you may automatically redirect a **Meteor** or **Black Hole** back at the attacker.
+
+(MVP: it triggers automatically the first time it applies.)
 
 ---
 
-Primordial Orbs © 2026
+## 8. The Impacts
+
+### Meteor
+A direct strike that tears away Terraform.
+
+- Removes Terraform equal to **severity**  
+- **Land weakness:** removes **+1** additional Terraform
+
+### Tornado
+Localized chaos.
+
+- Removes Terraform equal to **max(1, floor(severity/2))**  
+- **Land weakness:** removes **+1** additional Terraform
+
+### Earthquake
+Planetwide disruption.
+
+- Removes Terraform equal to **severity**  
+- **Land weakness:** removes **+1** additional Terraform
+
+### Disease
+Degrades life step-by-step (repeated by severity):
+
+- Sentient → Animal  
+- Animal → Plant  
+- Plant → removed
+
+**Water weakness:** Disease severity is **+1**.
+
+### Solar Flare
+Disables advanced systems.
+
+- The target’s **abilities are disabled through the next turn**.
+- This shuts off: core passives, Plant mitigation, High-Tech redirect.
+
+### Black Hole (unique)
+The most dangerous impact.
+
+- If the target has any Colonization, it removes **one Colonization** (prioritizing High-Tech first).
+- If there is no Colonization to remove, it removes **1 Terraform** (Land weakness adds +1).
+
+### Temporal Vortex
+Time bends… and reality rewrites itself.
+
+**MVP implementation (deterministic):**
+- Rewinds the target planet by **one recorded step** (the most recent planet change).
+- This can undo placements, swaps, or impact damage—whatever changed the planet last.
+
+If there’s nothing to rewind, the Vortex fizzles.
+
+---
+
+## 9. Planet Cores — Passives & Weaknesses
+
+Each core gives you a personality and a pressure point.
+
+### LAND
+- **Passive:** First Terraform each turn is free.
+- **Weakness:** Terraform-destroying impacts remove **+1** Terraform.
+
+### WATER
+- **Passive:** Once per turn, swap two Terraform slots on your planet.
+- **Weakness:** Disease severity **+1**.
+
+### ICE
+- **Passive:** First impact against you each turn is **-1 severity** (min 1).
+- **Weakness:** On an Ice-core planet, placing Lava melts one Ice Terraform.
+
+### LAVA
+- **Passive:** Your impacts have **+1 severity**.
+- **Weakness:** If unstable, you take **2 instability strikes** instead of 1.
+
+### GAS
+- **Passive:** Once per turn, discard+draw from hand (Gas Redraw).
+- **Weakness:** Cannot place Ice Terraform.
+
+---
+
+## 10. Browser MVP Notes
+
+This build is designed for fast playtesting:
+- Impacts are deterministic (no physical arena randomness yet).
+- Planet size is fixed at 6 slots (Medium).
+- All effects are logged so you can validate balance.
+
+If you want the physical version to feel more “tactile chaos,” the next step is to map impacts to a physics bowl / marble collision resolution.
+

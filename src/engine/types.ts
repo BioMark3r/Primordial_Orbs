@@ -29,6 +29,14 @@ export interface Planet {
 export interface AbilityState {
   plant_block_used_round: boolean;
   hightech_redirect_used: boolean;
+
+  // Core passives (per-turn)
+  land_free_terraform_used_turn: boolean;
+  water_swap_used_turn: boolean;
+  gas_redraw_used_turn: boolean;
+  ice_shield_used_turn: boolean;
+
+  // Solar Flare disables abilities through this turn number
   disabled_until_turn?: number;
 }
 
@@ -53,6 +61,7 @@ export interface GameState {
   bag: Orb[];
   discard: Orb[];
   players: [PlayerState, PlayerState];
+  planetHistory: [Planet[], Planet[]];
   counters: TurnCounters;
   log: string[];
   winner?: 0 | 1;
@@ -65,5 +74,7 @@ export type Action =
   | { type: "PLAY_TERRAFORM"; handIndex: number; slotIndex: number }
   | { type: "PLAY_COLONIZE"; handIndex: number; slotIndex: number }
   | { type: "PLAY_IMPACT"; handIndex: number } // default target is opponent
+  | { type: "WATER_SWAP"; slotA: number; slotB: number }
+  | { type: "GAS_REDRAW"; handIndex: number }
   | { type: "END_PLAY" }
   | { type: "ADVANCE" };
