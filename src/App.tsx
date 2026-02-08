@@ -198,9 +198,40 @@ export default function App() {
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
     padding: 12,
+    width: "100%",
     maxWidth: 1200,
+    boxSizing: "border-box",
     margin: "0 auto",
   };
+
+  const active = state.active;
+  const other: 0 | 1 = active === 0 ? 1 : 0;
+
+  const activeHand = state.players[active].hand;
+  const activePlanet = state.players[active].planet;
+  const otherPlanet = state.players[other].planet;
+
+  const playsRemaining = state.counters.playsRemaining;
+  const impactsRemaining = state.counters.impactsRemaining;
+
+  const canDraw = state.phase === "DRAW";
+  const canEndPlay = state.phase === "PLAY";
+  const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
+  const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
+  const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
+  const canUndo = mode === "LOCAL_2P" && history.past.length > 0 && state.phase !== "GAME_OVER";
+
+  const canWaterSwap =
+    state.phase === "PLAY" &&
+    activePlanet.core === "WATER" &&
+    !state.players[active].abilities.water_swap_used_turn &&
+    abilitiesEnabled(state, active);
+
+  const canGasRedraw =
+    state.phase === "PLAY" &&
+    activePlanet.core === "GAS" &&
+    !state.players[active].abilities.gas_redraw_used_turn &&
+    abilitiesEnabled(state, active);
 
   useEffect(() => {
     if (!flashState) return;
@@ -231,6 +262,29 @@ export default function App() {
 
     pendingDiffRef.current = null;
   }, [state]);
+
+  const impactPreview: ImpactPreview | null = useMemo(() => {
+    if (screen !== "GAME") return null;
+
+    if (selected.kind === "HAND" && selected.orb.kind === "IMPACT") {
+      const target = impactTarget === "SELF" ? active : other;
+      return computeImpactPreview(state, selected.orb.i, active, target);
+    }
+
+    if (hoveredImpactIndex !== null) {
+      const orb = activeHand[hoveredImpactIndex];
+      if (orb?.kind === "IMPACT") {
+        return computeImpactPreview(state, orb.i, active, other);
+      }
+    }
+
+    return null;
+  }, [active, activeHand, hoveredImpactIndex, impactTarget, other, screen, selected, state]);
+
+  const coachHints = useMemo(() => {
+    if (screen !== "GAME") return [];
+    return getCoachHints(state);
+  }, [screen, state]);
 
   function resolveSeed() {
     const trimmed = seedInput.trim();
@@ -429,54 +483,6 @@ export default function App() {
     );
   }
 
-  // GAME screen
-  const active = state.active;
-  const other: 0 | 1 = active === 0 ? 1 : 0;
-
-  const activeHand = state.players[active].hand;
-  const activePlanet = state.players[active].planet;
-  const otherPlanet = state.players[other].planet;
-
-  const playsRemaining = state.counters.playsRemaining;
-  const impactsRemaining = state.counters.impactsRemaining;
-
-  const canDraw = state.phase === "DRAW";
-  const canEndPlay = state.phase === "PLAY";
-  const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
-  const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
-  const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
-  const canUndo = mode === "LOCAL_2P" && history.past.length > 0 && state.phase !== "GAME_OVER";
-
-  const canWaterSwap =
-    state.phase === "PLAY" &&
-    activePlanet.core === "WATER" &&
-    !state.players[active].abilities.water_swap_used_turn &&
-    abilitiesEnabled(state, active);
-
-  const canGasRedraw =
-    state.phase === "PLAY" &&
-    activePlanet.core === "GAS" &&
-    !state.players[active].abilities.gas_redraw_used_turn &&
-    abilitiesEnabled(state, active);
-
-  const impactPreview: ImpactPreview | null = useMemo(() => {
-    if (selected.kind === "HAND" && selected.orb.kind === "IMPACT") {
-      const target = impactTarget === "SELF" ? active : other;
-      return computeImpactPreview(state, selected.orb.i, active, target);
-    }
-
-    if (hoveredImpactIndex !== null) {
-      const orb = activeHand[hoveredImpactIndex];
-      if (orb?.kind === "IMPACT") {
-        return computeImpactPreview(state, orb.i, active, other);
-      }
-    }
-
-    return null;
-  }, [active, activeHand, hoveredImpactIndex, impactTarget, other, selected, state]);
-
-  const coachHints = useMemo(() => getCoachHints(state), [state]);
-
   function clearSelection() {
     setSelected({ kind: "NONE" });
     setWaterSwapPick(null);
@@ -586,291 +592,293 @@ export default function App() {
   const logLines = logOpen ? state.log.slice(0, 120) : state.log.slice(0, 2);
 
   return (
-    <div style={containerStyle} className="app-shell game-shell">
-      <div className="game-topbar">
-        <div className="game-topbar-left">
-          <div className="game-topbar-title">{topbarTitle}</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <span className="game-status-pill">Active: P{active}</span>
-            {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
-              <span className="game-status-pill" title="Solar Flare">Abilities Disabled</span>
-            )}
-          </div>
-        </div>
-
-        <div className="game-topbar-center">
-          <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-            <button
-              onClick={() => {
-                resetTransientUi();
-                const seed = resolveSeed();
-                setSeedInput(String(seed));
-                dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
-              }}
-            >
-              New Game
-            </button>
-
-            {mode === "LOCAL_2P" && (
-              <>
-                <button
-                  onClick={() => {
-                    clearSelection();
-                    const seed = resolveSeed();
-                    setSeedInput(String(seed));
-                    dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
-                    resetTransientUi();
-                    setLastAction(null);
-                    setHistory((prev) => undo(prev));
-                  }}
-                >
-                  New Game
-                </button>
-                <button
-                  disabled={!canDraw}
-                  onClick={() => {
-                    clearSelection();
-                    dispatchWithLog({ type: "DRAW_2" });
-                    pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
-                  }}
-                >
-                  Draw 2
-                </button>
-                <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatchWithLog({ type: "END_PLAY" }); }}>
-                  End Play
-                </button>
-                <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatchWithLog({ type: "ADVANCE" }); }}>
-                  Advance
-                </button>
-                <button
-                  disabled={!canUndo}
-                  onClick={() => {
-                    clearSelection();
-                    dispatchWithLog({ type: "UNDO" });
-                  }}
-                >
-                  Undo
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="game-topbar-right">
-          <span className="game-status-pill">Plays {playsRemaining}/2</span>
-          <span className="game-status-pill">Impacts {impactsRemaining}/1</span>
-          <span className="game-status-pill">Hand {activeHand.length}/3</span>
-          <a className="game-status-pill" href={RULEBOOK_URL} target="_blank" rel="noreferrer">
-            Rulebook
-          </a>
-          <button onClick={() => setLogOpen((prev) => !prev)} aria-expanded={logOpen}>
-            Log
-          </button>
-          <button onClick={() => setShowHowTo(true)}>How to Play</button>
-          <button onClick={() => setScreen("SETUP")}>Setup</button>
-          {isDev && (
-            <button onClick={() => setShowInspector((prev) => !prev)}>
-              {showInspector ? "Hide" : "Show"} Inspector
-            </button>
-          )}
-        </div>
-      </div>
-
-      <CoachStrip
-        hints={coachHints}
-        onAction={onCoachAction}
-        isActionDisabled={(hint) => hint.actionLabel === "Draw 2" && !canDraw}
-      />
-      {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
-
-      <div className="game-content">
-        {isDev && showInspector && (
-          <div style={{ padding: 10, border: "1px solid #666", borderRadius: 10, background: "#fafafa" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <h3 style={{ margin: 0 }}>Game Inspector</h3>
-              <div style={{ fontSize: 12, color: "#666" }}>Dev-only</div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginTop: 8 }}>
-              <div><b>Seed:</b> {state.seed}</div>
-              <div><b>Phase:</b> {state.phase}</div>
-              <div><b>Turn:</b> {state.turn}</div>
-              <div><b>Active:</b> P{state.active}</div>
-              <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
-              <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <div style={{ fontWeight: 700 }}>Last Action</div>
-              <pre style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
-                {lastAction ? JSON.stringify(lastAction, null, 2) : "None"}
-              </pre>
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <div style={{ fontWeight: 700 }}>State JSON</div>
-              <pre style={{ marginTop: 6, maxHeight: 200, overflow: "auto", background: "#fff", padding: 8, borderRadius: 8, border: "1px solid #ddd" }}>
-                {JSON.stringify(state, null, 2)}
-              </pre>
+    <GameErrorBoundary onReset={() => setScreen("SETUP")}>
+      <div style={containerStyle} className="app-shell game-shell">
+        <div className="game-topbar">
+          <div className="game-topbar-left">
+            <div className="game-topbar-title">{topbarTitle}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span className="game-status-pill">Active: P{active}</span>
+              {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
+                <span className="game-status-pill" title="Solar Flare">Abilities Disabled</span>
+              )}
             </div>
           </div>
-        )}
 
-        <CoreStatusStrip
-          state={state}
-          active={active}
-          canWaterSwap={canWaterSwap}
-          canGasRedraw={canGasRedraw}
-          waterSwapPick={waterSwapPick}
-        />
+          <div className="game-topbar-center">
+            <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+              <button
+                onClick={() => {
+                  resetTransientUi();
+                  const seed = resolveSeed();
+                  setSeedInput(String(seed));
+                  dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
+                }}
+              >
+                New Game
+              </button>
 
-        <div className="game-arena-row">
-          <PlayerPanel
-            title={`Player ${active} (Active)`}
-            core={activePlanet.core}
-            planetSlots={activePlanet.slots}
-            locked={activePlanet.locked}
-            terraformMin={3}
-            onClickSlot={onClickSlot}
-            selected={selected}
-            waterSwapPick={waterSwapPick}
-            waterSwapMode={canWaterSwap && selected.kind === "NONE"}
-            flashSlots={activeFlashSlots}
-          />
-          <ArenaView
-            lastEvent={arenaEvent}
-            bagCount={state.bag.length}
-            discardCount={state.discard.length}
-            activePlayer={active}
-          />
-          <PlayerPanel
-            title={`Player ${other}`}
-            core={otherPlanet.core}
-            planetSlots={otherPlanet.slots}
-            locked={otherPlanet.locked}
-            terraformMin={3}
-            selected={{ kind: "NONE" }}
-            waterSwapPick={null}
-            waterSwapMode={false}
-            flashSlots={otherFlashSlots}
-          />
-        </div>
-
-        <div className="game-bottom-row">
-          <div className="hand-panel">
-            <div className="hand-panel__header">
-              <h3 className="hand-panel__title">Hand (P{active})</h3>
-              <div className="hand-panel__hint">
-                Click Terraform/Colonize then a slot. Select an Impact to choose its target.
-                {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
-              </div>
-            </div>
-
-            {showDiscard && (
-              <div style={{ marginTop: 6, padding: 6, borderRadius: 8, background: "rgba(150, 80, 80, 0.2)" }}>
-                <b>Hand overflow.</b> Discard until you have 3 or fewer.
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                  {activeHand.map((o, i) => (
-                    <button key={i} onClick={() => onDiscardIndex(i)}>
-                      Discard #{i + 1}: {orbLabel(o)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="hand-scroll">
-              {activeHand.length === 0 && <div style={{ color: "#777" }}>No orbs in hand.</div>}
-              {activeHand.map((o, i) => {
-                const isSel = selected.kind === "HAND" && selected.handIndex === i;
-                const isImpact = o.kind === "IMPACT";
-                return (
-                  <div
-                    key={i}
-                    className="hand-token"
-                    onMouseEnter={() => {
-                      if (isImpact) setHoveredImpactIndex(i);
-                    }}
-                    onMouseLeave={() => {
-                      if (isImpact) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
+              {mode === "LOCAL_2P" && (
+                <>
+                  <button
+                    onClick={() => {
+                      clearSelection();
+                      const seed = resolveSeed();
+                      setSeedInput(String(seed));
+                      dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
+                      resetTransientUi();
+                      setLastAction(null);
+                      setHistory((prev) => undo(prev));
                     }}
                   >
-                    <OrbToken
-                      orb={o}
-                      size="md"
-                      selected={isSel}
-                      actionable={isImpact && canPlayImpact}
-                      title={orbTooltip(o)}
-                      onClick={(e) => onClickHand(i, e)}
-                    />
-                    <div className="orb-label">{orbShort(o)}</div>
-                    {isImpact && <div style={{ fontSize: 10, color: "#cfd5ff" }}>Select target</div>}
+                    New Game
+                  </button>
+                  <button
+                    disabled={!canDraw}
+                    onClick={() => {
+                      clearSelection();
+                      dispatchWithLog({ type: "DRAW_2" });
+                      pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
+                    }}
+                  >
+                    Draw 2
+                  </button>
+                  <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatchWithLog({ type: "END_PLAY" }); }}>
+                    End Play
+                  </button>
+                  <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatchWithLog({ type: "ADVANCE" }); }}>
+                    Advance
+                  </button>
+                  <button
+                    disabled={!canUndo}
+                    onClick={() => {
+                      clearSelection();
+                      dispatchWithLog({ type: "UNDO" });
+                    }}
+                  >
+                    Undo
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="game-topbar-right">
+            <span className="game-status-pill">Plays {playsRemaining}/2</span>
+            <span className="game-status-pill">Impacts {impactsRemaining}/1</span>
+            <span className="game-status-pill">Hand {activeHand.length}/3</span>
+            <a className="game-status-pill" href={RULEBOOK_URL} target="_blank" rel="noreferrer">
+              Rulebook
+            </a>
+            <button onClick={() => setLogOpen((prev) => !prev)} aria-expanded={logOpen}>
+              Log
+            </button>
+            <button onClick={() => setShowHowTo(true)}>How to Play</button>
+            <button onClick={() => setScreen("SETUP")}>Setup</button>
+            {isDev && (
+              <button onClick={() => setShowInspector((prev) => !prev)}>
+                {showInspector ? "Hide" : "Show"} Inspector
+              </button>
+            )}
+          </div>
+        </div>
+
+        <CoachStrip
+          hints={coachHints}
+          onAction={onCoachAction}
+          isActionDisabled={(hint) => hint.actionLabel === "Draw 2" && !canDraw}
+        />
+        {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
+
+        <div className="game-content">
+          {isDev && showInspector && (
+            <div style={{ padding: 10, border: "1px solid #666", borderRadius: 10, background: "#fafafa" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <h3 style={{ margin: 0 }}>Game Inspector</h3>
+                <div style={{ fontSize: 12, color: "#666" }}>Dev-only</div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginTop: 8 }}>
+                <div><b>Seed:</b> {state.seed}</div>
+                <div><b>Phase:</b> {state.phase}</div>
+                <div><b>Turn:</b> {state.turn}</div>
+                <div><b>Active:</b> P{state.active}</div>
+                <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
+                <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 700 }}>Last Action</div>
+                <pre style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
+                  {lastAction ? JSON.stringify(lastAction, null, 2) : "None"}
+                </pre>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 700 }}>State JSON</div>
+                <pre style={{ marginTop: 6, maxHeight: 200, overflow: "auto", background: "#fff", padding: 8, borderRadius: 8, border: "1px solid #ddd" }}>
+                  {JSON.stringify(state, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          <CoreStatusStrip
+            state={state}
+            active={active}
+            canWaterSwap={canWaterSwap}
+            canGasRedraw={canGasRedraw}
+            waterSwapPick={waterSwapPick}
+          />
+
+          <div className="game-arena-row">
+            <PlayerPanel
+              title={`Player ${active} (Active)`}
+              core={activePlanet.core}
+              planetSlots={activePlanet.slots}
+              locked={activePlanet.locked}
+              terraformMin={3}
+              onClickSlot={onClickSlot}
+              selected={selected}
+              waterSwapPick={waterSwapPick}
+              waterSwapMode={canWaterSwap && selected.kind === "NONE"}
+              flashSlots={activeFlashSlots}
+            />
+            <ArenaView
+              lastEvent={arenaEvent}
+              bagCount={state.bag.length}
+              discardCount={state.discard.length}
+              activePlayer={active}
+            />
+            <PlayerPanel
+              title={`Player ${other}`}
+              core={otherPlanet.core}
+              planetSlots={otherPlanet.slots}
+              locked={otherPlanet.locked}
+              terraformMin={3}
+              selected={{ kind: "NONE" }}
+              waterSwapPick={null}
+              waterSwapMode={false}
+              flashSlots={otherFlashSlots}
+            />
+          </div>
+
+          <div className="game-bottom-row">
+            <div className="hand-panel">
+              <div className="hand-panel__header">
+                <h3 className="hand-panel__title">Hand (P{active})</h3>
+                <div className="hand-panel__hint">
+                  Click Terraform/Colonize then a slot. Select an Impact to choose its target.
+                  {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
+                </div>
+              </div>
+
+              {showDiscard && (
+                <div style={{ marginTop: 6, padding: 6, borderRadius: 8, background: "rgba(150, 80, 80, 0.2)" }}>
+                  <b>Hand overflow.</b> Discard until you have 3 or fewer.
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                    {activeHand.map((o, i) => (
+                      <button key={i} onClick={() => onDiscardIndex(i)}>
+                        Discard #{i + 1}: {orbLabel(o)}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              )}
+
+              <div className="hand-scroll">
+                {activeHand.length === 0 && <div style={{ color: "#777" }}>No orbs in hand.</div>}
+                {activeHand.map((o, i) => {
+                  const isSel = selected.kind === "HAND" && selected.handIndex === i;
+                  const isImpact = o.kind === "IMPACT";
+                  return (
+                    <div
+                      key={i}
+                      className="hand-token"
+                      onMouseEnter={() => {
+                        if (isImpact) setHoveredImpactIndex(i);
+                      }}
+                      onMouseLeave={() => {
+                        if (isImpact) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
+                      }}
+                    >
+                      <OrbToken
+                        orb={o}
+                        size="md"
+                        selected={isSel}
+                        actionable={isImpact && canPlayImpact}
+                        title={orbTooltip(o)}
+                        onClick={(e) => onClickHand(i, e)}
+                      />
+                      <div className="orb-label">{orbShort(o)}</div>
+                      {isImpact && <div style={{ fontSize: 10, color: "#cfd5ff" }}>Select target</div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {selected.kind === "HAND" && selected.orb.kind !== "IMPACT" && (
+                <div style={{ marginTop: 8, color: "#ddd", fontSize: 12 }}>
+                  Selected: <b>{orbLabel(selected.orb)}</b> → click an empty slot on the active planet.
+                  <button style={{ marginLeft: 8 }} onClick={clearSelection}>Clear</button>
+                </div>
+              )}
+              {selected.kind === "HAND" && selected.orb.kind === "IMPACT" && (
+                <div style={{ marginTop: 8, padding: 8, border: "1px solid #2a2f44", borderRadius: 10, background: "rgba(10,14,24,0.75)" }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12 }}>Impact Targeting</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 12 }}>
+                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input
+                        type="radio"
+                        name="impact-target"
+                        value="OPPONENT"
+                        checked={impactTarget === "OPPONENT"}
+                        onChange={() => setImpactTarget("OPPONENT")}
+                      />
+                      Opponent
+                    </label>
+                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input
+                        type="radio"
+                        name="impact-target"
+                        value="SELF"
+                        checked={impactTarget === "SELF"}
+                        onChange={() => setImpactTarget("SELF")}
+                      />
+                      Self
+                    </label>
+                    <button onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
+                      Fire Impact
+                    </button>
+                    <button onClick={clearSelection}>Clear</button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {selected.kind === "HAND" && selected.orb.kind !== "IMPACT" && (
-              <div style={{ marginTop: 8, color: "#ddd", fontSize: 12 }}>
-                Selected: <b>{orbLabel(selected.orb)}</b> → click an empty slot on the active planet.
-                <button style={{ marginLeft: 8 }} onClick={clearSelection}>Clear</button>
-              </div>
-            )}
-            {selected.kind === "HAND" && selected.orb.kind === "IMPACT" && (
-              <div style={{ marginTop: 8, padding: 8, border: "1px solid #2a2f44", borderRadius: 10, background: "rgba(10,14,24,0.75)" }}>
-                <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12 }}>Impact Targeting</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 12 }}>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <input
-                      type="radio"
-                      name="impact-target"
-                      value="OPPONENT"
-                      checked={impactTarget === "OPPONENT"}
-                      onChange={() => setImpactTarget("OPPONENT")}
-                    />
-                    Opponent
-                  </label>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <input
-                      type="radio"
-                      name="impact-target"
-                      value="SELF"
-                      checked={impactTarget === "SELF"}
-                      onChange={() => setImpactTarget("SELF")}
-                    />
-                    Self
-                  </label>
-                  <button onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
-                    Fire Impact
-                  </button>
-                  <button onClick={clearSelection}>Clear</button>
-                </div>
+            {impactPreview && (
+              <div className="impact-panel">
+                <ImpactPreviewPanel preview={impactPreview} />
               </div>
             )}
           </div>
+        </div>
 
-          {impactPreview && (
-            <div className="impact-panel">
-              <ImpactPreviewPanel preview={impactPreview} />
-            </div>
-          )}
+        <div className="log-drawer" role="region" aria-label="Action log">
+          <div className="log-drawer__header">
+            <span>{logOpen ? "Action Log" : "Recent Log"}</span>
+            <button onClick={() => setLogOpen((prev) => !prev)}>
+              {logOpen ? "Collapse" : "Expand"}
+            </button>
+          </div>
+          <div className="log-drawer__body">
+            {logLines.length === 0 && <div className="log-drawer__line">No log entries yet.</div>}
+            {logLines.map((line, idx) => (
+              <div key={idx} className="log-drawer__line">
+                {line}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-
-      <div className="log-drawer" role="region" aria-label="Action log">
-        <div className="log-drawer__header">
-          <span>{logOpen ? "Action Log" : "Recent Log"}</span>
-          <button onClick={() => setLogOpen((prev) => !prev)}>
-            {logOpen ? "Collapse" : "Expand"}
-          </button>
-        </div>
-        <div className="log-drawer__body">
-          {logLines.length === 0 && <div className="log-drawer__line">No log entries yet.</div>}
-          {logLines.map((line, idx) => (
-            <div key={idx} className="log-drawer__line">
-              {line}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    </GameErrorBoundary>
   );
 }
 
@@ -1125,5 +1133,41 @@ function getCoreInfo(core: Core) {
       return { passive: "Your impacts have +1 severity (if abilities enabled).", weakness: "When unstable, you take 2 instability strikes instead of 1.", style: "Aggressive pressure." };
     case "GAS":
       return { passive: "Once per turn, Shift-click a hand orb to discard+draw.", weakness: "Cannot place Ice terraform.", style: "Wildcard hand control." };
+  }
+}
+
+class GameErrorBoundary extends React.Component<
+  { onReset: () => void; children: React.ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("Game screen crashed.", error, info);
+  }
+
+  render() {
+    if (!this.state.error) {
+      return this.props.children;
+    }
+
+    return (
+      <div style={{ padding: 20, maxWidth: 720, margin: "40px auto", textAlign: "center" }}>
+        <h2 style={{ marginTop: 0 }}>Game UI failed to render</h2>
+        <p style={{ color: "rgba(237, 239, 246, 0.8)" }}>
+          Something went wrong while loading the match view. You can return to setup and try again.
+        </p>
+        <pre style={{ whiteSpace: "pre-wrap", textAlign: "left", background: "rgba(10,14,24,0.6)", padding: 12, borderRadius: 10 }}>
+          {this.state.error.message}
+        </pre>
+        <button onClick={this.props.onReset} style={{ marginTop: 12, padding: "8px 14px", borderRadius: 10 }}>
+          Back to Setup
+        </button>
+      </div>
+    );
   }
 }
