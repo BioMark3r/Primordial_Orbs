@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useReducer, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import logoUrl from "./assets/logo.png";
 import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
@@ -6,6 +6,7 @@ import { newGame } from "./engine/setup";
 import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
+import { diffSlots } from "./ui/utils/diff";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -17,6 +18,23 @@ export type UIEvent =
   | { kind: "IMPACT_RESOLVED"; at: number; impact: string; source: 0 | 1; target: 0 | 1; affectedSlots: number[] }
   | { kind: "DRAW"; at: number; player: 0 | 1 }
   | { kind: "PLACE"; at: number; player: 0 | 1; slotIndex: number };
+type PendingDiff =
+  | null
+  | {
+      kind: "IMPACT";
+      at: number;
+      impact: string;
+      source: 0 | 1;
+      target: 0 | 1;
+      beforeTargetSlots: (Orb | null)[];
+      beforeSourceSlots: (Orb | null)[];
+    }
+  | {
+      kind: "PLACE" | "SWAP" | "REDRAW" | "VORTEX";
+      at: number;
+      player: 0 | 1;
+      beforeSlots: (Orb | null)[];
+    };
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
@@ -70,10 +88,6 @@ function impactLikelyRemoves(impact: Impact, state: GameState, target: 0 | 1): s
     case "TORNADO":
       return "Terraform";
   }
-}
-
-function orbKey(o: Orb | null): string {
-  return o ? JSON.stringify(o) : "null";
 }
 
 function impactSeverityPreview(state: GameState, impact: Impact, source: 0 | 1, target: 0 | 1) {
@@ -220,7 +234,8 @@ export default function App() {
   const [showHowTo, setShowHowTo] = useState(false);
   const [uiEvents, setUiEvents] = useState<UIEvent[]>([]);
   const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
-  const [flashState, setFlashState] = useState<{ target: 0 | 1; slots: number[] } | null>(null);
+  const [flashState, setFlashState] = useState<{ target: 0 | 1; slots: number[]; until: number } | null>(null);
+  const pendingDiffRef = useRef<PendingDiff>(null);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -234,16 +249,37 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (arenaEvent?.kind !== "IMPACT_RESOLVED") return;
-    setFlashState({ target: arenaEvent.target, slots: arenaEvent.affectedSlots });
-    const timer = window.setTimeout(() => setFlashState(null), 900);
+    if (!flashState) return;
+    const ms = Math.max(0, flashState.until - Date.now());
+    const timer = window.setTimeout(() => setFlashState(null), ms);
     return () => window.clearTimeout(timer);
-  }, [arenaEvent]);
+  }, [flashState]);
 
   function pushUiEvent(event: UIEvent) {
     setUiEvents((prev) => [...prev.slice(-24), event]);
     setArenaEvent(event);
   }
+
+  useEffect(() => {
+    const pending = pendingDiffRef.current;
+    if (!pending) return;
+    if (pending.kind === "IMPACT") {
+      const targetSlotsAfter = state.players[pending.target].planet.slots;
+      const affectedSlots = diffSlots(pending.beforeTargetSlots, targetSlotsAfter);
+      const now = Date.now();
+      const resolvedEvent: UIEvent = {
+        kind: "IMPACT_RESOLVED",
+        at: now,
+        impact: pending.impact,
+        source: pending.source,
+        target: pending.target,
+        affectedSlots,
+      };
+      pushUiEvent(resolvedEvent);
+      setFlashState({ target: pending.target, slots: affectedSlots, until: now + 900 });
+      pendingDiffRef.current = null;
+    }
+  }, [state]);
 
   function resolveSeed() {
     const trimmed = seedInput.trim();
@@ -537,6 +573,15 @@ export default function App() {
 
     const target: 0 | 1 = impactTarget === "SELF" ? active : other;
     const now = Date.now();
+    pendingDiffRef.current = {
+      kind: "IMPACT",
+      at: now,
+      impact: selected.orb.i,
+      source: active,
+      target,
+      beforeTargetSlots: [...state.players[target].planet.slots],
+      beforeSourceSlots: [...state.players[active].planet.slots],
+    };
     const castEvent: UIEvent = {
       kind: "IMPACT_CAST",
       at: now,
@@ -545,23 +590,6 @@ export default function App() {
       target,
     };
     pushUiEvent(castEvent);
-    const priorSlots = state.players[target].planet.slots.map((s) => orbKey(s));
-    const nextState = reducer(state, { type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
-    const nextSlots = nextState.players[target].planet.slots.map((s) => orbKey(s));
-    const affectedSlots = nextSlots
-      .map((slot, index) => (slot !== priorSlots[index] ? index : -1))
-      .filter((index) => index !== -1);
-    const resolvedEvent: UIEvent = {
-      kind: "IMPACT_RESOLVED",
-      at: now + 1,
-      impact: selected.orb.i,
-      source: active,
-      target,
-      affectedSlots,
-    };
-    window.setTimeout(() => {
-      pushUiEvent(resolvedEvent);
-    }, 580);
     dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
     clearSelection();
   }
