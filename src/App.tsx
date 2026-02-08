@@ -8,6 +8,7 @@ import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
 import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
 import { CoachStrip } from "./ui/components/CoachStrip";
+import { TutorialOverlay } from "./ui/components/TutorialOverlay";
 import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDiff";
 import type { PendingDiff } from "./ui/utils/pendingDiff";
 import { computeImpactPreview } from "./ui/utils/impactPreview";
@@ -16,6 +17,10 @@ import type { CoachHint } from "./ui/utils/coach";
 import { getCoachHints } from "./ui/utils/coach";
 import { pushHistory, undo } from "./ui/utils/history";
 import type { HistoryState } from "./ui/utils/history";
+import type { ActionEvent, GuideMode } from "./ui/utils/tutorialGuide";
+import { nextIndexOnEvent } from "./ui/utils/tutorialGuide";
+import { TUTORIAL_STEPS } from "./ui/utils/tutorialSteps";
+import { hasSeenTutorial, markSeenTutorial } from "./ui/utils/tutorialStorage";
 
 type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -190,6 +195,10 @@ export default function App() {
   const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
   const [flashState, setFlashState] = useState<{ target: 0 | 1; slots: number[]; until: number } | null>(null);
   const pendingDiffRef = useRef<PendingDiff>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [tutorialMode, setTutorialMode] = useState<GuideMode>("GUIDED");
+  const [tutorialIndex, setTutorialIndex] = useState(0);
+  const [lastActionEvent, setLastActionEvent] = useState<ActionEvent | null>(null);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -245,6 +254,18 @@ export default function App() {
     setArenaEvent(event);
   }
 
+  function emitActionEvent(event: ActionEvent) {
+    setLastActionEvent(event);
+  }
+
+  useEffect(() => {
+    if (screen !== "GAME") return;
+    if (hasSeenTutorial()) return;
+    setTutorialMode("GUIDED");
+    setTutorialIndex(0);
+    setTutorialOpen(true);
+  }, [screen]);
+
   useEffect(() => {
     if (!pendingDiffRef.current) return;
 
@@ -262,6 +283,22 @@ export default function App() {
 
     pendingDiffRef.current = null;
   }, [state]);
+
+  useEffect(() => {
+    if (!tutorialOpen) return;
+    if (tutorialMode !== "GUIDED") return;
+    if (!lastActionEvent) return;
+    const nextIndex = nextIndexOnEvent(
+      TUTORIAL_STEPS,
+      tutorialIndex,
+      lastActionEvent,
+      state.active,
+      tutorialMode
+    );
+    if (nextIndex !== tutorialIndex) {
+      setTutorialIndex(nextIndex);
+    }
+  }, [lastActionEvent, state.active, tutorialIndex, tutorialMode, tutorialOpen]);
 
   const impactPreview: ImpactPreview | null = useMemo(() => {
     if (screen !== "GAME") return null;
@@ -536,6 +573,7 @@ export default function App() {
 
     if (orb.kind === "TERRAFORM") {
       dispatchWithLog({ type: "PLAY_TERRAFORM", handIndex, slotIndex });
+      emitActionEvent({ type: "PLAY_TERRAFORM", at: Date.now(), player: active });
       pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
       clearSelection();
       return;
@@ -570,6 +608,7 @@ export default function App() {
       target,
     });
     dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
+    emitActionEvent({ type: "PLAY_IMPACT", at: Date.now(), player: active });
     clearSelection();
   }
 
@@ -577,6 +616,7 @@ export default function App() {
     if (hint.actionLabel === "Draw 2" && canDraw) {
       clearSelection();
       dispatchWithLog({ type: "DRAW_2" });
+      emitActionEvent({ type: "DRAW_2", at: Date.now(), player: active });
       pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
     }
   }
@@ -606,7 +646,7 @@ export default function App() {
           </div>
 
           <div className="game-topbar-center">
-            <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+            <div id="ui-topbar-controls" style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
               <button
                 onClick={() => {
                   resetTransientUi();
@@ -634,19 +674,37 @@ export default function App() {
                     New Game
                   </button>
                   <button
+                    id="ui-btn-draw"
                     disabled={!canDraw}
                     onClick={() => {
                       clearSelection();
                       dispatchWithLog({ type: "DRAW_2" });
+                      emitActionEvent({ type: "DRAW_2", at: Date.now(), player: active });
                       pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
                     }}
                   >
                     Draw 2
                   </button>
-                  <button disabled={!canEndPlay} onClick={() => { clearSelection(); dispatchWithLog({ type: "END_PLAY" }); }}>
+                  <button
+                    id="ui-btn-endplay"
+                    disabled={!canEndPlay}
+                    onClick={() => {
+                      clearSelection();
+                      dispatchWithLog({ type: "END_PLAY" });
+                      emitActionEvent({ type: "END_PLAY", at: Date.now(), player: active });
+                    }}
+                  >
                     End Play
                   </button>
-                  <button disabled={!canAdvance} onClick={() => { clearSelection(); dispatchWithLog({ type: "ADVANCE" }); }}>
+                  <button
+                    id="ui-btn-advance"
+                    disabled={!canAdvance}
+                    onClick={() => {
+                      clearSelection();
+                      dispatchWithLog({ type: "ADVANCE" });
+                      emitActionEvent({ type: "ADVANCE", at: Date.now(), player: active });
+                    }}
+                  >
                     Advance
                   </button>
                   <button
@@ -674,6 +732,16 @@ export default function App() {
               Log
             </button>
             <button onClick={() => setShowHowTo(true)}>How to Play</button>
+            <button
+              onClick={() => {
+                setTutorialMode("MANUAL");
+                setTutorialIndex(0);
+                setTutorialOpen(true);
+              }}
+              aria-label="Open tutorial"
+            >
+              ?
+            </button>
             <button onClick={() => setScreen("SETUP")}>Setup</button>
             {isDev && (
               <button onClick={() => setShowInspector((prev) => !prev)}>
@@ -689,6 +757,23 @@ export default function App() {
           isActionDisabled={(hint) => hint.actionLabel === "Draw 2" && !canDraw}
         />
         {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
+        <TutorialOverlay
+          open={tutorialOpen}
+          mode={tutorialMode}
+          steps={TUTORIAL_STEPS}
+          currentIndex={tutorialIndex}
+          onPrev={() => setTutorialIndex((prev) => Math.max(0, prev - 1))}
+          onNext={() => setTutorialIndex((prev) => Math.min(prev + 1, TUTORIAL_STEPS.length - 1))}
+          onClose={() => setTutorialOpen(false)}
+          onSkip={() => {
+            markSeenTutorial();
+            setTutorialOpen(false);
+          }}
+          onDone={() => {
+            markSeenTutorial();
+            setTutorialOpen(false);
+          }}
+        />
 
         <div className="game-content">
           {isDev && showInspector && (
@@ -730,6 +815,7 @@ export default function App() {
 
           <div className="game-arena-row">
             <PlayerPanel
+              id="ui-planet-active"
               title={`Player ${active} (Active)`}
               core={activePlanet.core}
               planetSlots={activePlanet.slots}
@@ -741,12 +827,14 @@ export default function App() {
               waterSwapMode={canWaterSwap && selected.kind === "NONE"}
               flashSlots={activeFlashSlots}
             />
-            <ArenaView
-              lastEvent={arenaEvent}
-              bagCount={state.bag.length}
-              discardCount={state.discard.length}
-              activePlayer={active}
-            />
+            <div id="ui-arena" style={{ display: "contents" }}>
+              <ArenaView
+                lastEvent={arenaEvent}
+                bagCount={state.bag.length}
+                discardCount={state.discard.length}
+                activePlayer={active}
+              />
+            </div>
             <PlayerPanel
               title={`Player ${other}`}
               core={otherPlanet.core}
@@ -761,7 +849,7 @@ export default function App() {
           </div>
 
           <div className="game-bottom-row">
-            <div className="hand-panel">
+            <div className="hand-panel" id="ui-hand-panel">
               <div className="hand-panel__header">
                 <h3 className="hand-panel__title">Hand (P{active})</h3>
                 <div className="hand-panel__hint">
@@ -904,7 +992,7 @@ function CoreStatusStrip({
   const activeCore = state.players[active].planet.core;
 
   return (
-    <div className="coach-strip">
+    <div className="coach-strip" id="ui-core-status">
       <div className="coach-grid">
         <CoreStatusCard who="P0" state={state} p={0} />
         <CoreStatusCard who="P1" state={state} p={1} />
@@ -967,6 +1055,7 @@ function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0
 
 
 function PlayerPanel(props: {
+  id?: string;
   title: string;
   core: Core;
   planetSlots: (Orb | null)[];
@@ -983,7 +1072,7 @@ function PlayerPanel(props: {
   const ok = tCount >= props.terraformMin;
 
   return (
-    <div className="player-panel">
+    <div className="player-panel" id={props.id}>
       <div className="player-panel__header">
         <div>
           <h3>{props.title}</h3>
