@@ -198,7 +198,9 @@ export default function App() {
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
     padding: 12,
+    width: "100%",
     maxWidth: 1200,
+    boxSizing: "border-box",
     margin: "0 auto",
   };
 
