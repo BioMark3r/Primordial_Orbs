@@ -8,6 +8,7 @@ type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
 type HistoryState = { past: GameState[]; present: GameState };
 type AppAction = Action | { type: "UNDO" };
+type TutorialSection = { title: string; body: string };
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
@@ -16,6 +17,15 @@ function orbLabel(o: Orb): string {
   if (o.kind === "TERRAFORM") return `Terraform: ${o.t}`;
   if (o.kind === "COLONIZE") return `Colonize: ${o.c}`;
   return `Impact: ${o.i}`;
+}
+function orbTooltip(o: Orb): string {
+  if (o.kind === "TERRAFORM") {
+    return `Terraform: place on an empty slot to build toward 3 minimum. (${o.t})`;
+  }
+  if (o.kind === "COLONIZE") {
+    return `Colonize: place on an empty slot once you have 3 Terraform. (${o.c})`;
+  }
+  return `Impact: plays instantly vs opponent. (${o.i})`;
 }
 function orbShort(o: Orb): string {
   if (o.kind === "TERRAFORM") return o.t;
@@ -69,6 +79,7 @@ export default function App() {
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
   const [seedInput, setSeedInput] = useState<string>(() => String(initialSeed));
   const [showInspector, setShowInspector] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -105,6 +116,29 @@ export default function App() {
     dispatchWithLog({ type: "NEW_GAME", mode, coreP0: p0Core, coreP1: p1Core, seed });
     setScreen("GAME");
   }
+
+  const tutorialSections: TutorialSection[] = [
+    {
+      title: "Goal",
+      body: "Be the first to place 4 different Colonize types on your planet.",
+    },
+    {
+      title: "Turn Flow",
+      body: "Draw 2 → Play up to 2 orbs (Terraform/Colonize) → Use 1 Impact max → Resolve → Advance.",
+    },
+    {
+      title: "Orbs",
+      body: "Terraform builds the base (need 3). Colonize wins the game. Impact targets the opponent immediately.",
+    },
+    {
+      title: "Cores",
+      body: "Each core has a passive and a weakness. Use the passive once per turn when available.",
+    },
+    {
+      title: "Recommended First Turn",
+      body: "Prioritize Terraform to reach 3 quickly. Hold Colonize until Terraform is ready.",
+    },
+  ];
 
 
   if (screen === "SPLASH") {
@@ -167,9 +201,13 @@ export default function App() {
   if (screen === "SETUP") {
     return (
       <div style={containerStyle}>
+        {showTutorial && <HowToOverlay sections={tutorialSections} onClose={() => setShowTutorial(false)} />}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <h2 style={{ margin: 0 }}>Setup</h2>
-          <button onClick={() => setScreen("TITLE")}>Back</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setShowTutorial(true)}>How to Play</button>
+            <button onClick={() => setScreen("TITLE")}>Back</button>
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 12 }}>
@@ -359,6 +397,7 @@ export default function App() {
 
   return (
     <div style={containerStyle}>
+      {showTutorial && <HowToOverlay sections={tutorialSections} onClose={() => setShowTutorial(false)} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h2 style={{ margin: 0 }}>{title}</h2>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -367,6 +406,7 @@ export default function App() {
               {showInspector ? "Hide" : "Show"} Game Inspector
             </button>
           )}
+          <button onClick={() => setShowTutorial(true)}>How to Play</button>
           <button onClick={() => setScreen("SETUP")}>Setup</button>
         </div>
       </div>
@@ -409,7 +449,9 @@ export default function App() {
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <div><b>Plays:</b> {playsRemaining}/2</div>
-          <div><b>Impacts:</b> {impactsRemaining}/1</div>
+          <div title="Impacts target the opponent immediately. Limit 1 per turn.">
+            <b>Impacts:</b> {impactsRemaining}/1
+          </div>
           <div><b>Hand:</b> {activeHand.length}/3</div>
           {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
             <div style={{ color: "#a00" }} title="Solar Flare">
@@ -458,6 +500,12 @@ export default function App() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {state.turn === 1 && state.phase === "DRAW" && (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #cbb", borderRadius: 10, background: "#fff7f1" }}>
+          <b>Recommended first turn:</b> Play Terraform to reach 3 quickly. Save Colonize until Terraform is ready.
         </div>
       )}
 
@@ -543,7 +591,7 @@ export default function App() {
                   minWidth: 150,
                   textAlign: "left",
                 }}
-                title={orbLabel(o)}
+                title={orbTooltip(o)}
               >
                 <div style={{ fontWeight: 700 }}>{orbShort(o)}</div>
                 <div style={{ fontSize: 12, color: "#444" }}>{o.kind}</div>
@@ -609,6 +657,7 @@ function CoreStatusStrip({ state }: { state: GameState }) {
 function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0 | 1 }) {
   const ps = state.players[p];
   const enabled = abilitiesEnabled(state, p);
+  const info = getCoreInfo(ps.planet.core);
 
   const items: Array<{ label: string; value: string }> = [
     { label: "Core", value: ps.planet.core },
@@ -628,9 +677,14 @@ function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0
         {items.map((it) => (
           <React.Fragment key={it.label}>
             <div style={{ color: "#555" }}>{it.label}</div>
-            <div style={{ fontWeight: 700 }}>{it.value}</div>
+            <div style={{ fontWeight: 700 }} title={it.label === "Core" ? info.passive : undefined}>
+              {it.value}
+            </div>
           </React.Fragment>
         ))}
+      </div>
+      <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
+        Passive: {info.passive}
       </div>
     </div>
   );
@@ -658,7 +712,7 @@ function PlayerPanel(props: {
         <div>
           <h3 style={{ margin: 0 }}>{props.title}</h3>
           <div style={{ color: "#555", marginTop: 4 }}>
-            Core: <b>{String(props.core)}</b>
+            Core: <b title={getCoreInfo(props.core).passive}>{String(props.core)}</b>
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -688,7 +742,15 @@ function PlayerPanel(props: {
                 cursor: clickable ? "pointer" : "default",
                 opacity: clickable ? 1 : 0.92,
               }}
-              title={locked ? "Locked slot" : props.waterSwapMode ? "Water Swap: click terraform slots" : "Planet slot"}
+              title={
+                locked
+                  ? "Locked slot"
+                  : s
+                    ? orbTooltip(s)
+                    : props.waterSwapMode
+                      ? "Water Swap: click terraform slots"
+                      : "Planet slot"
+              }
             >
               <div style={{ fontWeight: 800, fontSize: 13 }}>{slotText(s)}</div>
               <div style={{ fontSize: 12, color: "#555" }}>
@@ -733,4 +795,52 @@ function getCoreInfo(core: Core) {
     case "GAS":
       return { passive: "Once per turn, Shift-click a hand orb to discard+draw.", weakness: "Cannot place Ice terraform.", style: "Wildcard hand control." };
   }
+}
+
+function HowToOverlay({ sections, onClose }: { sections: TutorialSection[]; onClose: () => void }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.45)",
+        display: "grid",
+        placeItems: "center",
+        padding: 16,
+        zIndex: 20,
+      }}
+    >
+      <div
+        style={{
+          width: "min(760px, 95vw)",
+          maxHeight: "90vh",
+          overflow: "auto",
+          background: "#fff",
+          borderRadius: 16,
+          padding: 20,
+          boxShadow: "0 12px 30px rgba(0,0,0,0.25)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+          <h2 style={{ margin: 0 }}>How to Play</h2>
+          <button onClick={onClose} style={{ padding: "8px 12px", borderRadius: 10 }}>
+            Close
+          </button>
+        </div>
+        <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+          {sections.map((section) => (
+            <div key={section.title} style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+              <div style={{ fontWeight: 800 }}>{section.title}</div>
+              <div style={{ marginTop: 6, color: "#444" }}>{section.body}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 14, fontSize: 12, color: "#666" }}>
+          Tip: Hover over orbs, cores, and impact counters for quick reminders.
+        </div>
+      </div>
+    </div>
+  );
 }
