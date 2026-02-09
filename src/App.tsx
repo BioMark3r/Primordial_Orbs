@@ -578,6 +578,58 @@ export default function App() {
     setScreen("GAME");
   }
 
+  const shortcutContext = useMemo<ShortcutContext>(
+    () => ({
+      canDraw,
+      canEndPlay,
+      canAdvance,
+      canUndo,
+      toggleLog: () => setLogOpen((prev) => !prev),
+      openTutorial: handleOpenTutorial,
+      clearSelection: clearSelectionAndOverlays,
+      onDraw: handleDraw2,
+      onEndPlay: handleEndPlay,
+      onAdvance: handleAdvance,
+      onUndo: handleUndo,
+    }),
+    [
+      canAdvance,
+      canDraw,
+      canEndPlay,
+      canUndo,
+      clearSelectionAndOverlays,
+      handleAdvance,
+      handleDraw2,
+      handleEndPlay,
+      handleOpenTutorial,
+      handleUndo,
+    ]
+  );
+
+  useEffect(() => {
+    if (screen !== "GAME") return;
+    const onKeyDown = (e: KeyboardEvent) => handleKeyDown(e, shortcutContext);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [screen, shortcutContext]);
+
+  useEffect(() => {
+    if (!allowAutoFocus) {
+      prevPhaseRef.current = state.phase;
+      return;
+    }
+    if (state.phase === "PLAY" && playsRemaining === 0 && impactsRemaining === 0) {
+      endPlayRef.current?.focus();
+    }
+    const prevPhase = prevPhaseRef.current;
+    if (prevPhase !== state.phase) {
+      if (prevPhase === "PLAY" && (state.phase === "RESOLVE" || state.phase === "CHECK_WIN")) {
+        advanceRef.current?.focus();
+      }
+    }
+    prevPhaseRef.current = state.phase;
+  }, [allowAutoFocus, impactsRemaining, playsRemaining, state.phase]);
+
 
   if (screen === "SPLASH") {
     return (
@@ -881,58 +933,6 @@ export default function App() {
     setTurnRecap(null);
     setLogOpen(false);
   }
-
-  const shortcutContext = useMemo<ShortcutContext>(
-    () => ({
-      canDraw,
-      canEndPlay,
-      canAdvance,
-      canUndo,
-      toggleLog: () => setLogOpen((prev) => !prev),
-      openTutorial: handleOpenTutorial,
-      clearSelection: clearSelectionAndOverlays,
-      onDraw: handleDraw2,
-      onEndPlay: handleEndPlay,
-      onAdvance: handleAdvance,
-      onUndo: handleUndo,
-    }),
-    [
-      canAdvance,
-      canDraw,
-      canEndPlay,
-      canUndo,
-      clearSelectionAndOverlays,
-      handleAdvance,
-      handleDraw2,
-      handleEndPlay,
-      handleOpenTutorial,
-      handleUndo,
-    ]
-  );
-
-  useEffect(() => {
-    if (screen !== "GAME") return;
-    const onKeyDown = (e: KeyboardEvent) => handleKeyDown(e, shortcutContext);
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [screen, shortcutContext]);
-
-  useEffect(() => {
-    if (!allowAutoFocus) {
-      prevPhaseRef.current = state.phase;
-      return;
-    }
-    if (state.phase === "PLAY" && playsRemaining === 0 && impactsRemaining === 0) {
-      endPlayRef.current?.focus();
-    }
-    const prevPhase = prevPhaseRef.current;
-    if (prevPhase !== state.phase) {
-      if (prevPhase === "PLAY" && (state.phase === "RESOLVE" || state.phase === "CHECK_WIN")) {
-        advanceRef.current?.focus();
-      }
-    }
-    prevPhaseRef.current = state.phase;
-  }, [allowAutoFocus, impactsRemaining, playsRemaining, state.phase]);
 
   const topbarTitle =
     state.phase === "GAME_OVER"
