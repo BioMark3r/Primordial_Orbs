@@ -282,11 +282,11 @@ export default function App() {
   const isPlayPhase = state.phase === "PLAY";
   const isLastPlay = isPlayPhase && playsRemaining === 1;
   const endPlayReady = isPlayPhase && playsRemaining === 0 && impactsRemaining === 0;
-  const advanceReady = !isPlayPhase && canAdvance;
 
   const canDraw = state.phase === "DRAW";
   const canEndPlay = state.phase === "PLAY";
   const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
+  const advanceReady = !isPlayPhase && canAdvance;
   const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
   const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
   const canUndo = mode === "LOCAL_2P" && history.past.length > 0 && state.phase !== "GAME_OVER";
