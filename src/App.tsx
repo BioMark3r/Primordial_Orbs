@@ -3,6 +3,7 @@ import logoUrl from "./assets/logo.png";
 import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
+import { canPlaceColonize, canPlaceTerraform } from "./engine/rules";
 import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
@@ -245,6 +246,10 @@ export default function App() {
 
   const playsRemaining = state.counters.playsRemaining;
   const impactsRemaining = state.counters.impactsRemaining;
+
+  const isPlayPhase = state.phase === "PLAY";
+  const isLastPlay = isPlayPhase && playsRemaining === 1;
+  const endPlayReady = isPlayPhase && playsRemaining === 0 && impactsRemaining === 0;
 
   const canDraw = state.phase === "DRAW";
   const canEndPlay = state.phase === "PLAY";
@@ -724,6 +729,8 @@ export default function App() {
   const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
 
   const logLines = state.log.slice(0, 120);
+  const slotIndices = activePlanet.slots.map((_, index) => index);
+  const canPlaceAnyTerraform = slotIndices.some((slotIndex) => canPlaceTerraform(state, active, slotIndex));
 
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
@@ -743,8 +750,30 @@ export default function App() {
           <div className="game-topbar-center" />
 
           <div className="game-topbar-right">
-            <span className="game-status-pill">Plays {playsRemaining}/2</span>
-            <span className="game-status-pill">Impacts {impactsRemaining}/1</span>
+            {isPlayPhase && (
+              <>
+                <span
+                  className={[
+                    "game-status-pill",
+                    playsRemaining === 0 ? "counter-zero" : playsRemaining === 1 ? "counter-low" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  Plays: {playsRemaining}
+                </span>
+                <span
+                  className={[
+                    "game-status-pill",
+                    impactsRemaining === 0 ? "counter-zero" : impactsRemaining === 1 ? "counter-low" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  Impacts: {impactsRemaining}
+                </span>
+              </>
+            )}
             <span className="game-status-pill">Hand {activeHand.length}/3</span>
             <button className="game-status-pill" type="button" onClick={openRulebook}>
               Rulebook
@@ -866,6 +895,7 @@ export default function App() {
                 canEndPlay: canEndPlay && active === 0,
                 canAdvance: canAdvance && active === 0,
                 canUndo: canUndo && active === 0,
+                emphasizeEndPlay: endPlayReady && active === 0,
                 onDraw2: handleDraw2,
                 onEndPlay: handleEndPlay,
                 onAdvance: handleAdvance,
@@ -902,6 +932,7 @@ export default function App() {
                 canEndPlay: canEndPlay && active === 1,
                 canAdvance: canAdvance && active === 1,
                 canUndo: canUndo && active === 1,
+                emphasizeEndPlay: endPlayReady && active === 1,
                 onDraw2: handleDraw2,
                 onEndPlay: handleEndPlay,
                 onAdvance: handleAdvance,
@@ -914,8 +945,8 @@ export default function App() {
             />
           </div>
 
-          <div className="game-bottom-row">
-            <div className="hand-panel" id="ui-hand-panel">
+        <div className="game-bottom-row">
+            <div className={`hand-panel${isLastPlay ? " hand-last-play" : ""}`} id="ui-hand-panel">
               <div className="hand-panel__header">
                 <h3 className="hand-panel__title">Hand (Player {active + 1})</h3>
                 <div className="hand-panel__hint">
@@ -942,27 +973,40 @@ export default function App() {
                 {activeHand.map((o, i) => {
                   const isSel = selected.kind === "HAND" && selected.handIndex === i;
                   const isImpact = o.kind === "IMPACT";
+                  const isTerraform = o.kind === "TERRAFORM";
+                  const isColonize = o.kind === "COLONIZE";
+                  const canPlaceColonizeNow = isColonize
+                    ? slotIndices.some((slotIndex) => canPlaceColonize(state, active, o.c, slotIndex))
+                    : false;
+                  const isTerraformBlocked = isTerraform && activePlanet.core === "GAS" && o.t === "ICE";
+                  const canPlayTerraform = isPlayPhase && playsRemaining > 0 && canPlaceAnyTerraform && !isTerraformBlocked;
+                  const canPlayColonize = isPlayPhase && playsRemaining > 0 && canPlaceColonizeNow;
+                  const canPlayOrb = isImpact ? canPlayImpact : isTerraform ? canPlayTerraform : canPlayColonize;
+                  const isDisabled = !canPlayOrb;
+                  const handTokenClass = `hand-token${isDisabled ? " orb-disabled" : ""}`;
+
                   return (
                     <div
                       key={i}
-                      className="hand-token"
+                      className={handTokenClass}
                       onMouseEnter={() => {
-                        if (isImpact) setHoveredImpactIndex(i);
+                        if (isImpact && !isDisabled) setHoveredImpactIndex(i);
                       }}
                       onMouseLeave={() => {
-                        if (isImpact) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
+                        if (isImpact && !isDisabled) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
                       }}
                     >
                       <OrbToken
                         orb={o}
                         size="md"
                         selected={isSel}
-                        actionable={isImpact && canPlayImpact}
+                        disabled={isDisabled}
+                        actionable={isImpact && canPlayImpact && !isDisabled}
                         title={orbTooltip(o)}
-                        onClick={(e) => onClickHand(i, e)}
+                        onClick={isDisabled ? undefined : (e) => onClickHand(i, e)}
                       />
                       <div className="orb-label">{orbShort(o)}</div>
-                      {isImpact && <div style={{ fontSize: 10, color: "#cfd5ff" }}>Select target</div>}
+                      {isImpact && !isDisabled && <div style={{ fontSize: 10, color: "#cfd5ff" }}>Select target</div>}
                     </div>
                   );
                 })}
@@ -1203,6 +1247,7 @@ function PlayerPanel(props: {
     canEndPlay: boolean;
     canAdvance: boolean;
     canUndo: boolean;
+    emphasizeEndPlay?: boolean;
     onDraw2: () => void;
     onEndPlay: () => void;
     onAdvance: () => void;
@@ -1244,6 +1289,7 @@ function PlayerPanel(props: {
           <button
             id={props.endPlayId}
             disabled={!props.turnControls.canEndPlay}
+            className={props.turnControls.emphasizeEndPlay ? "endplay-ready" : undefined}
             onClick={props.turnControls.onEndPlay}
           >
             End Play
