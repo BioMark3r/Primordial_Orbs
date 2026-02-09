@@ -7,12 +7,16 @@ import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
 import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
+import { ToastStack } from "./ui/components/ToastStack";
 import { CoachStrip } from "./ui/components/CoachStrip";
 import { TutorialOverlay } from "./ui/components/TutorialOverlay";
 import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDiff";
 import type { PendingDiff } from "./ui/utils/pendingDiff";
 import { computeImpactPreview } from "./ui/utils/impactPreview";
 import type { ImpactPreview } from "./ui/utils/impactPreview";
+import { deriveCoreFeedback } from "./ui/utils/coreFeedback";
+import type { ImpactResolvedSummary } from "./ui/utils/coreFeedback";
+import { pushUniqueToast } from "./ui/utils/toasts";
 import type { CoachHint } from "./ui/utils/coach";
 import { getCoachHints } from "./ui/utils/coach";
 import { pushHistory, undo } from "./ui/utils/history";
@@ -26,8 +30,8 @@ type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
 type ImpactTargetChoice = "OPPONENT" | "SELF";
 export type UIEvent =
-  | { kind: "IMPACT_CAST"; at: number; impact: string; source: 0 | 1; target: 0 | 1 }
-  | { kind: "IMPACT_RESOLVED"; at: number; impact: string; source: 0 | 1; target: 0 | 1; affectedSlots: number[] }
+  | { kind: "IMPACT_CAST"; at: number; impact: Impact; source: 0 | 1; target: 0 | 1 }
+  | { kind: "IMPACT_RESOLVED"; at: number; impact: Impact; source: 0 | 1; target: 0 | 1; affectedSlots: number[] }
   | { kind: "DRAW"; at: number; player: 0 | 1 }
   | { kind: "PLACE"; at: number; player: 0 | 1; slotIndex: number };
 
@@ -67,6 +71,17 @@ function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
 }
 function hasPlant(state: GameState, p: 0 | 1): boolean {
   return state.players[p].planet.slots.some((s) => s?.kind === "COLONIZE" && s.c === "PLANT");
+}
+
+function usedAbilityKeys(player: GameState["players"][number]) {
+  const keys: string[] = [];
+  if (player.abilities.land_free_terraform_used_turn) keys.push("LAND_FREE_TERRAFORM_USED");
+  if (player.abilities.water_swap_used_turn) keys.push("WATER_SWAP_USED");
+  if (player.abilities.ice_shield_used_turn) keys.push("ICE_SHIELD_USED");
+  if (player.abilities.gas_redraw_used_turn) keys.push("GAS_REDRAW_USED");
+  if (player.abilities.plant_block_used_round) keys.push("PLANT_MITIGATION_USED");
+  if (player.abilities.hightech_redirect_used) keys.push("HIGHTECH_REDIRECT_USED");
+  return keys;
 }
 
 function shouldRecordHistory(action: Action): boolean {
@@ -203,6 +218,10 @@ export default function App() {
   const [tutorialMode, setTutorialMode] = useState<GuideMode>("GUIDED");
   const [tutorialIndex, setTutorialIndex] = useState(0);
   const [lastActionEvent, setLastActionEvent] = useState<ActionEvent | null>(null);
+  const [corePulse, setCorePulse] = useState<{ player: 0 | 1; key: string; until: number } | null>(null);
+  const prevStateRef = useRef<GameState | null>(null);
+  const lastImpactEventRef = useRef<ImpactResolvedSummary | null>(null);
+  const lastImpactProcessedRef = useRef<number | null>(null);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -253,6 +272,13 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [flashState]);
 
+  useEffect(() => {
+    if (!corePulse) return;
+    const ms = Math.max(0, corePulse.until - Date.now());
+    const timer = window.setTimeout(() => setCorePulse(null), ms);
+    return () => window.clearTimeout(timer);
+  }, [corePulse]);
+
   function pushUiEvent(event: UIEvent) {
     setUiEvents((prev) => [...prev.slice(-24), event]);
     setArenaEvent(event);
@@ -287,6 +313,52 @@ export default function App() {
 
     pendingDiffRef.current = null;
   }, [state]);
+
+  useEffect(() => {
+    if (arenaEvent?.kind === "IMPACT_RESOLVED") {
+      lastImpactEventRef.current = arenaEvent;
+    }
+  }, [arenaEvent]);
+
+  useEffect(() => {
+    if (screen !== "GAME") {
+      prevStateRef.current = state;
+      return;
+    }
+    const prev = prevStateRef.current;
+    const lastImpact = lastImpactEventRef.current;
+    const shouldUseImpact =
+      lastImpact && lastImpact.at !== lastImpactProcessedRef.current ? lastImpact : undefined;
+    if (prev) {
+      const events = deriveCoreFeedback(prev, state, shouldUseImpact);
+      let nextPulse: { player: 0 | 1; key: string } | null = null;
+      events.forEach((event) => {
+        if (event.kind === "TOAST") {
+          const toastId = `${event.key}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          pushUniqueToast(
+            `turn-${state.turn}-p${event.player}-${event.key}`,
+            {
+              id: toastId,
+              tone: event.tone,
+              title: event.title,
+              detail: event.detail,
+              at: Date.now(),
+            },
+            1500,
+          );
+        } else if (event.kind === "CORE_PULSE") {
+          nextPulse = { player: event.player, key: event.key };
+        }
+      });
+      if (nextPulse) {
+        setCorePulse({ ...nextPulse, until: Date.now() + 900 });
+      }
+    }
+    if (shouldUseImpact) {
+      lastImpactProcessedRef.current = shouldUseImpact.at;
+    }
+    prevStateRef.current = state;
+  }, [screen, state]);
 
   useEffect(() => {
     if (!tutorialOpen) return;
@@ -326,6 +398,14 @@ export default function App() {
     if (screen !== "GAME") return [];
     return getCoachHints(state);
   }, [screen, state]);
+
+  const usedKeys = useMemo(
+    () => ({
+      0: usedAbilityKeys(state.players[0]),
+      1: usedAbilityKeys(state.players[1]),
+    }),
+    [state],
+  );
 
   function resolveSeed() {
     const trimmed = seedInput.trim();
@@ -693,6 +773,7 @@ export default function App() {
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
       <div style={containerStyle} className="app-shell game-shell">
+        <ToastStack />
         <div className="game-topbar">
           <div className="game-topbar-left">
             <div className="game-topbar-title">{topbarTitle}</div>
@@ -801,6 +882,9 @@ export default function App() {
             canWaterSwap={canWaterSwap}
             canGasRedraw={canGasRedraw}
             waterSwapPick={waterSwapPick}
+            pulsePlayer={corePulse?.player}
+            pulseKey={corePulse?.key}
+            usedKeys={usedKeys}
           />
           <CoachStrip
             hints={coachHints}
@@ -1006,12 +1090,18 @@ function CoreStatusStrip({
   canWaterSwap,
   canGasRedraw,
   waterSwapPick,
+  pulsePlayer,
+  pulseKey,
+  usedKeys,
 }: {
   state: GameState;
   active: 0 | 1;
   canWaterSwap: boolean;
   canGasRedraw: boolean;
   waterSwapPick: number | null;
+  pulsePlayer?: 0 | 1;
+  pulseKey?: string;
+  usedKeys: { 0: string[]; 1: string[] };
 }) {
   const p0 = state.players[0];
   const p1 = state.players[1];
@@ -1021,8 +1111,8 @@ function CoreStatusStrip({
   return (
     <div className="coach-strip" id="ui-core-status">
       <div className="coach-grid">
-        <CoreStatusCard who="Player 1" state={state} p={0} />
-        <CoreStatusCard who="Player 2" state={state} p={1} />
+        <CoreStatusCard who="Player 1" state={state} p={0} pulseKey={pulseKey} pulsePlayer={pulsePlayer} usedKeys={usedKeys} />
+        <CoreStatusCard who="Player 2" state={state} p={1} pulseKey={pulseKey} pulsePlayer={pulsePlayer} usedKeys={usedKeys} />
       </div>
       <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
         {showFirstTurnHint && (
@@ -1052,19 +1142,70 @@ function CoreStatusStrip({
   );
 }
 
-function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0 | 1 }) {
+function CoreStatusCard({
+  who,
+  state,
+  p,
+  pulseKey,
+  pulsePlayer,
+  usedKeys,
+}: {
+  who: string;
+  state: GameState;
+  p: 0 | 1;
+  pulseKey?: string;
+  pulsePlayer?: 0 | 1;
+  usedKeys: { 0: string[]; 1: string[] };
+}) {
   const ps = state.players[p];
   const enabled = abilitiesEnabled(state, p);
+  const used = new Set(usedKeys[p]);
 
-  const items: Array<{ label: string; value: string; tooltip?: string }> = [
+  const items: Array<{ label: string; value: string; tooltip?: string; key?: string; used?: boolean }> = [
     { label: "Core", value: ps.planet.core, tooltip: corePassiveTooltip(ps.planet.core) },
     { label: "Abilities", value: enabled ? "Enabled" : `Disabled (until turn ${ps.abilities.disabled_until_turn})` },
-    { label: "Land free Terraform", value: ps.planet.core === "LAND" ? (ps.abilities.land_free_terraform_used_turn ? "Used" : "Ready") : "—", tooltip: getCoreInfo("LAND").passive },
-    { label: "Water Swap", value: ps.planet.core === "WATER" ? (ps.abilities.water_swap_used_turn ? "Used" : "Ready") : "—", tooltip: getCoreInfo("WATER").passive },
-    { label: "Ice Shield", value: ps.planet.core === "ICE" ? (ps.abilities.ice_shield_used_turn ? "Used" : "Ready") : "—", tooltip: getCoreInfo("ICE").passive },
-    { label: "Gas Redraw", value: ps.planet.core === "GAS" ? (ps.abilities.gas_redraw_used_turn ? "Used" : "Ready") : "—", tooltip: getCoreInfo("GAS").passive },
-    { label: "Plant Mitigation", value: ps.abilities.plant_block_used_round ? "Used" : "Ready (if you have Plant)", tooltip: getColonizeInfoText("PLANT") },
-    { label: "High-Tech Redirect", value: ps.abilities.hightech_redirect_used ? "Used" : "Ready (if you have High-Tech)", tooltip: getColonizeInfoText("HIGH_TECH") },
+    {
+      label: "Land free Terraform",
+      value: ps.planet.core === "LAND" ? (ps.abilities.land_free_terraform_used_turn ? "Used" : "Ready") : "—",
+      tooltip: getCoreInfo("LAND").passive,
+      key: "LAND_FREE_TERRAFORM_USED",
+      used: used.has("LAND_FREE_TERRAFORM_USED"),
+    },
+    {
+      label: "Water Swap",
+      value: ps.planet.core === "WATER" ? (ps.abilities.water_swap_used_turn ? "Used" : "Ready") : "—",
+      tooltip: getCoreInfo("WATER").passive,
+      key: "WATER_SWAP_USED",
+      used: used.has("WATER_SWAP_USED"),
+    },
+    {
+      label: "Ice Shield",
+      value: ps.planet.core === "ICE" ? (ps.abilities.ice_shield_used_turn ? "Used" : "Ready") : "—",
+      tooltip: getCoreInfo("ICE").passive,
+      key: "ICE_SHIELD_USED",
+      used: used.has("ICE_SHIELD_USED"),
+    },
+    {
+      label: "Gas Redraw",
+      value: ps.planet.core === "GAS" ? (ps.abilities.gas_redraw_used_turn ? "Used" : "Ready") : "—",
+      tooltip: getCoreInfo("GAS").passive,
+      key: "GAS_REDRAW_USED",
+      used: used.has("GAS_REDRAW_USED"),
+    },
+    {
+      label: "Plant Mitigation",
+      value: ps.abilities.plant_block_used_round ? "Used" : "Ready (if you have Plant)",
+      tooltip: getColonizeInfoText("PLANT"),
+      key: "PLANT_MITIGATION_USED",
+      used: used.has("PLANT_MITIGATION_USED"),
+    },
+    {
+      label: "High-Tech Redirect",
+      value: ps.abilities.hightech_redirect_used ? "Used" : "Ready (if you have High-Tech)",
+      tooltip: getColonizeInfoText("HIGH_TECH"),
+      key: "HIGHTECH_REDIRECT_USED",
+      used: used.has("HIGHTECH_REDIRECT_USED"),
+    },
   ];
 
   return (
@@ -1073,7 +1214,14 @@ function CoreStatusCard({ who, state, p }: { who: string; state: GameState; p: 0
       {items.map((it) => (
         <div className="coach-row" key={it.label}>
           <div style={{ color: "rgba(237,239,246,0.7)" }}>{it.label}</div>
-          <div style={{ fontWeight: 700 }} title={it.tooltip}>{it.value}</div>
+          <div
+            className={`core-status__value${it.used ? " core-status__value--used" : ""}${pulsePlayer === p && it.key === pulseKey ? " core-status__value--pulse" : ""}`}
+            style={{ fontWeight: 700 }}
+            title={it.tooltip}
+          >
+            {it.value}
+            {it.used && <span className="core-status__check" aria-hidden>✓</span>}
+          </div>
         </div>
       ))}
     </div>
