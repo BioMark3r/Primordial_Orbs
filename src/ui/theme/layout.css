@@ -111,11 +111,11 @@
   text-align: left;
   padding: 10px 10px;
   border-radius: 10px;
-  background: transparent;
+  background: rgba(20, 24, 40, 0.95);
 }
 
 .menuItem:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(32, 38, 58, 0.95);
 }
 
 .menuItem:focus {
