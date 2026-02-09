@@ -10,6 +10,9 @@ export type ShortcutContext = {
   canEndPlay: boolean;
   canAdvance: boolean;
   canUndo: boolean;
+  uiOverlayOpen: boolean;
+  menuOpen: boolean;
+  closeMenus: () => void;
   toggleLog: () => void;
   openTutorial: () => void;
   clearSelection: () => void;
@@ -24,6 +27,14 @@ export function handleKeyDown(e: KeyboardEvent, ctx: ShortcutContext): void {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
   const key = e.key.toLowerCase();
+  if (ctx.uiOverlayOpen) {
+    if (key === "escape") {
+      if (ctx.menuOpen) ctx.closeMenus();
+      else ctx.clearSelection();
+      e.preventDefault();
+    }
+    return;
+  }
   let handled = true;
 
   switch (key) {
