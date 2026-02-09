@@ -79,6 +79,16 @@
   gap: 4px;
 }
 
+.counter-low {
+  color: #ffb454;
+  border-color: rgba(255, 180, 84, 0.35);
+}
+
+.counter-zero {
+  opacity: 0.45;
+  color: rgba(210, 214, 228, 0.8);
+}
+
 .game-content {
   display: flex;
   flex-direction: column;
@@ -176,6 +186,27 @@
   background: rgba(8, 12, 20, 0.65);
 }
 
+.hand-last-play {
+  box-shadow:
+    0 0 0 2px rgba(255, 180, 80, 0.35),
+    0 0 22px rgba(255, 180, 80, 0.25);
+  animation: lastPlayPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes lastPlayPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 180, 80, 0.25),
+      0 0 18px rgba(255, 180, 80, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(255, 180, 80, 0.45),
+      0 0 26px rgba(255, 180, 80, 0.28);
+  }
+}
+
 .hand-panel__header {
   display: flex;
   align-items: center;
@@ -214,6 +245,15 @@
   display: grid;
   justify-items: center;
   min-width: 72px;
+}
+
+.orb-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.endplay-ready {
+  box-shadow: 0 0 0 1px rgba(255, 198, 120, 0.4), 0 0 16px rgba(255, 198, 120, 0.35);
 }
 
 .game-bottom-row {

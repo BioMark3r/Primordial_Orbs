@@ -78,7 +78,7 @@ export function OrbToken(props: {
       height: d,
       padding: 0,
       background: "transparent",
-      cursor: props.onClick ? "pointer" : "default",
+      cursor: props.disabled ? "not-allowed" : props.onClick ? "pointer" : "default",
     } as React.CSSProperties,
     title: props.title,
   };
