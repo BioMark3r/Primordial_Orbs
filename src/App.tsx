@@ -323,6 +323,7 @@ export default function App() {
 
   const allowAutoFocus = useMemo(() => {
     if (typeof window === "undefined") return true;
+    if (typeof window.matchMedia !== "function") return true;
     return window.matchMedia("(pointer: fine)").matches;
   }, []);
 
