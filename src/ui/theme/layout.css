@@ -100,9 +100,9 @@
   min-width: 220px;
   padding: 6px;
   border-radius: 12px;
-  background: rgba(14, 18, 32, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  background: #141a2a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
   z-index: 50;
 }
 
@@ -111,11 +111,11 @@
   text-align: left;
   padding: 10px 10px;
   border-radius: 10px;
-  background: rgba(20, 24, 40, 0.95);
+  background: #1d2438;
 }
 
 .menuItem:hover {
-  background: rgba(32, 38, 58, 0.95);
+  background: #262f48;
 }
 
 .menuItem:focus {
