@@ -27,6 +27,8 @@ import { computeProgressFromPlanet, diffProgress } from "./ui/utils/progress";
 import type { ColonizeType, ProgressState } from "./ui/utils/progress";
 import type { CoachHint } from "./ui/utils/coach";
 import { getCoachHints } from "./ui/utils/coach";
+import { handleKeyDown } from "./ui/utils/shortcuts";
+import type { ShortcutContext } from "./ui/utils/shortcuts";
 import { pushHistory, undo } from "./ui/utils/history";
 import type { HistoryState } from "./ui/utils/history";
 import type { ActionEvent, GuideMode } from "./ui/utils/tutorialGuide";
@@ -251,9 +253,14 @@ export default function App() {
   }>({ 0: null, 1: null });
   const [winCelebration, setWinCelebration] = useState<{ player: 0 | 1; until: number } | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
+  const prevPhaseRef = useRef(state.phase);
   const lastImpactEventRef = useRef<ImpactResolvedSummary | null>(null);
   const lastImpactProcessedRef = useRef<number | null>(null);
   const prevProgressRef = useRef<{ 0: ProgressState; 1: ProgressState } | null>(null);
+  const drawRef = useRef<HTMLButtonElement | null>(null);
+  const endPlayRef = useRef<HTMLButtonElement | null>(null);
+  const advanceRef = useRef<HTMLButtonElement | null>(null);
+  const undoRef = useRef<HTMLButtonElement | null>(null);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -313,6 +320,11 @@ export default function App() {
     activePlanet.core === "GAS" &&
     !state.players[active].abilities.gas_redraw_used_turn &&
     abilitiesEnabled(state, active);
+
+  const allowAutoFocus = useMemo(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia("(pointer: fine)").matches;
+  }, []);
 
   useEffect(() => {
     if (!flashState) return;
@@ -393,6 +405,12 @@ export default function App() {
   useEffect(() => {
     if (arenaEvent?.kind === "IMPACT_RESOLVED") {
       lastImpactEventRef.current = arenaEvent;
+    }
+  }, [arenaEvent]);
+
+  useEffect(() => {
+    if (arenaEvent?.kind === "IMPACT_RESOLVED") {
+      clearSelection();
     }
   }, [arenaEvent]);
 
@@ -848,6 +866,73 @@ export default function App() {
     dispatchWithLog({ type: "UNDO" });
   }
 
+  function handleOpenTutorial() {
+    setTutorialMode("MANUAL");
+    setTutorialIndex(0);
+    setTutorialOpen(true);
+  }
+
+  function clearSelectionAndOverlays() {
+    clearSelection();
+    setShowHowTo(false);
+    setTutorialOpen(false);
+    setTurnRecapOpen(false);
+    setTurnRecap(null);
+    setLogOpen(false);
+  }
+
+  const shortcutContext = useMemo<ShortcutContext>(
+    () => ({
+      canDraw,
+      canEndPlay,
+      canAdvance,
+      canUndo,
+      toggleLog: () => setLogOpen((prev) => !prev),
+      openTutorial: handleOpenTutorial,
+      clearSelection: clearSelectionAndOverlays,
+      onDraw: handleDraw2,
+      onEndPlay: handleEndPlay,
+      onAdvance: handleAdvance,
+      onUndo: handleUndo,
+    }),
+    [
+      canAdvance,
+      canDraw,
+      canEndPlay,
+      canUndo,
+      clearSelectionAndOverlays,
+      handleAdvance,
+      handleDraw2,
+      handleEndPlay,
+      handleOpenTutorial,
+      handleUndo,
+    ]
+  );
+
+  useEffect(() => {
+    if (screen !== "GAME") return;
+    const onKeyDown = (e: KeyboardEvent) => handleKeyDown(e, shortcutContext);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [screen, shortcutContext]);
+
+  useEffect(() => {
+    if (!allowAutoFocus) {
+      prevPhaseRef.current = state.phase;
+      return;
+    }
+    if (state.phase === "PLAY" && playsRemaining === 0 && impactsRemaining === 0) {
+      endPlayRef.current?.focus();
+    }
+    const prevPhase = prevPhaseRef.current;
+    if (prevPhase !== state.phase) {
+      if (prevPhase === "PLAY" && (state.phase === "RESOLVE" || state.phase === "CHECK_WIN")) {
+        advanceRef.current?.focus();
+      }
+    }
+    prevPhaseRef.current = state.phase;
+  }, [allowAutoFocus, impactsRemaining, playsRemaining, state.phase]);
+
   const topbarTitle =
     state.phase === "GAME_OVER"
       ? `Game Over — Winner: Player ${String((state.winner ?? 0) + 1)}`
@@ -922,11 +1007,7 @@ export default function App() {
             </button>
             <button onClick={() => setShowHowTo(true)}>How to Play</button>
             <button
-              onClick={() => {
-                setTutorialMode("MANUAL");
-                setTutorialIndex(0);
-                setTutorialOpen(true);
-              }}
+              onClick={handleOpenTutorial}
               aria-label="Open tutorial"
             >
               ?
@@ -1052,6 +1133,10 @@ export default function App() {
               drawId={active === 0 ? "ui-btn-draw" : undefined}
               endPlayId={active === 0 ? "ui-btn-endplay" : undefined}
               advanceId={active === 0 ? "ui-btn-advance" : undefined}
+              drawRef={active === 0 ? drawRef : undefined}
+              endPlayRef={active === 0 ? endPlayRef : undefined}
+              advanceRef={active === 0 ? advanceRef : undefined}
+              undoRef={active === 0 ? undoRef : undefined}
             />
             <div id="ui-arena" style={{ display: "contents" }}>
               <ArenaView
@@ -1097,6 +1182,10 @@ export default function App() {
               drawId={active === 1 ? "ui-btn-draw" : undefined}
               endPlayId={active === 1 ? "ui-btn-endplay" : undefined}
               advanceId={active === 1 ? "ui-btn-advance" : undefined}
+              drawRef={active === 1 ? drawRef : undefined}
+              endPlayRef={active === 1 ? endPlayRef : undefined}
+              advanceRef={active === 1 ? advanceRef : undefined}
+              undoRef={active === 1 ? undoRef : undefined}
             />
           </div>
 
@@ -1432,6 +1521,10 @@ function PlayerPanel(props: {
   drawId?: string;
   endPlayId?: string;
   advanceId?: string;
+  drawRef?: React.Ref<HTMLButtonElement>;
+  endPlayRef?: React.Ref<HTMLButtonElement>;
+  advanceRef?: React.Ref<HTMLButtonElement>;
+  undoRef?: React.Ref<HTMLButtonElement>;
 }) {
   const tCount = terraformCount(props.planetSlots);
   const cTypes = colonizeTypesCount(props.planetSlots);
@@ -1469,6 +1562,7 @@ function PlayerPanel(props: {
           >
             <button
               id={props.drawId}
+              ref={props.drawRef}
               disabled={!props.turnControls.canDraw}
               aria-disabled={!props.turnControls.canDraw || undefined}
               title={props.turnControls.drawDisabledReason ?? undefined}
@@ -1483,6 +1577,7 @@ function PlayerPanel(props: {
           >
             <button
               id={props.endPlayId}
+              ref={props.endPlayRef}
               disabled={!props.turnControls.canEndPlay}
               aria-disabled={!props.turnControls.canEndPlay || undefined}
               className={props.turnControls.emphasizeEndPlay ? "btn-nudge" : undefined}
@@ -1501,6 +1596,7 @@ function PlayerPanel(props: {
           >
             <button
               id={props.advanceId}
+              ref={props.advanceRef}
               disabled={!props.turnControls.canAdvance}
               aria-disabled={!props.turnControls.canAdvance || undefined}
               className={props.turnControls.emphasizeAdvance ? "btn-nudge btn-nudge-advance" : undefined}
@@ -1514,6 +1610,7 @@ function PlayerPanel(props: {
             <div className="turn-nudge-text turn-nudge-text--advance">Ready to Advance</div>
           )}
           <button
+            ref={props.undoRef}
             disabled={!props.turnControls.canUndo}
             onClick={props.turnControls.onUndo}
           >
