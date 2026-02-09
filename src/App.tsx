@@ -45,6 +45,14 @@ import {
   saveToLocalStorage,
 } from "./ui/utils/save";
 import type { SavePayloadV1 } from "./ui/utils/save";
+import {
+  actionPayload,
+  getDrawResult,
+  shouldRecordReplay,
+  validateReplayBundle,
+} from "./ui/utils/actionLog";
+import type { ReplayBundleV1, ReplayEntryV1 } from "./ui/utils/actionLog";
+import { replayFromStart, validateReplayMatchesCurrent } from "./ui/utils/replay";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -238,12 +246,20 @@ export default function App() {
   const [showHowTo, setShowHowTo] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const [replayMenuOpen, setReplayMenuOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportCode, setExportCode] = useState("");
   const [importCode, setImportCode] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const [importPayload, setImportPayload] = useState<SavePayloadV1 | null>(null);
+  const [replayExportOpen, setReplayExportOpen] = useState(false);
+  const [replayImportOpen, setReplayImportOpen] = useState(false);
+  const [replayExportCode, setReplayExportCode] = useState("");
+  const [replayImportCode, setReplayImportCode] = useState("");
+  const [replayImportError, setReplayImportError] = useState<string | null>(null);
+  const [replayImportBundle, setReplayImportBundle] = useState<ReplayBundleV1 | null>(null);
+  const [actionLog, setActionLog] = useState<ReplayEntryV1[]>([]);
   const [uiEvents, setUiEvents] = useState<UIEvent[]>([]);
   const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
   const [flashState, setFlashState] = useState<{
@@ -274,6 +290,8 @@ export default function App() {
   const autosaveAtRef = useRef(0);
   const autosaveTimerRef = useRef<number | null>(null);
   const autosaveStateRef = useRef<GameState | null>(null);
+  const initialStateRef = useRef<GameState | null>(null);
+  const replayEntryCounterRef = useRef(0);
   const drawRef = useRef<HTMLButtonElement | null>(null);
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
@@ -573,9 +591,11 @@ export default function App() {
   }
 
   function dispatchWithLog(action: Action) {
+    const before = state;
+    const computedNext = reducer(before, action);
     setLastAction(action);
     setHistory((prev) => {
-      const nextPresent = reducer(prev.present, action);
+      const nextPresent = prev.present === before ? computedNext : reducer(prev.present, action);
       if (nextPresent === prev.present) return prev;
       if (action.type === "NEW_GAME") {
         return { past: [], present: nextPresent, future: [] };
@@ -585,6 +605,27 @@ export default function App() {
       }
       return pushHistory(prev, nextPresent, HISTORY_LIMIT);
     });
+
+    if (computedNext === before) return;
+    if (action.type === "NEW_GAME") {
+      initialStateRef.current = structuredClone(computedNext);
+      setActionLog([]);
+      replayEntryCounterRef.current = 0;
+      setReplayImportBundle(null);
+      return;
+    }
+    if (!shouldRecordReplay(action)) return;
+    const result = getDrawResult(action, before, computedNext, before.active);
+    const entry: ReplayEntryV1 = {
+      v: 1,
+      id: `${Date.now()}-${replayEntryCounterRef.current++}`,
+      at: Date.now(),
+      player: before.active,
+      type: action.type,
+      payload: actionPayload(action),
+      ...(result ? { result } : {}),
+    };
+    setActionLog((prev) => [...prev, entry]);
   }
 
   function startGame() {
@@ -861,6 +902,9 @@ export default function App() {
     setLastActionEvent(null);
     setTurnEvents([]);
     setSaveMenuOpen(false);
+    setReplayMenuOpen(false);
+    setReplayExportOpen(false);
+    setReplayImportOpen(false);
   }
 
   function applyLoadedState(payload: SavePayloadV1) {
@@ -869,6 +913,10 @@ export default function App() {
     setSeedInput(String(payload.state.seed));
     autosaveStateRef.current = payload.state;
     autosaveAtRef.current = Date.now();
+    initialStateRef.current = structuredClone(payload.state);
+    setActionLog([]);
+    replayEntryCounterRef.current = 0;
+    setReplayImportBundle(null);
   }
 
   function handleSaveNow() {
@@ -966,6 +1014,145 @@ export default function App() {
     } else {
       setImportPayload(null);
       setImportError(result.error);
+    }
+  }
+
+  function buildReplayBundle(): ReplayBundleV1 | null {
+    const initial = initialStateRef.current ?? state;
+    if (!initial) return null;
+    return {
+      v: 1,
+      app: "primordial-orbs",
+      createdAt: Date.now(),
+      initial,
+      entries: actionLog,
+    };
+  }
+
+  function handleReplayExportOpen() {
+    const bundle = buildReplayBundle();
+    if (!bundle) {
+      pushToast({
+        id: `replay-export-missing-${Date.now()}`,
+        tone: "warn",
+        title: "Replay unavailable.",
+        detail: "No initial state recorded yet.",
+        at: Date.now(),
+      });
+      return;
+    }
+    setReplayExportCode(JSON.stringify(bundle, null, 2));
+    setReplayExportOpen(true);
+  }
+
+  async function handleCopyReplayExport() {
+    try {
+      await navigator.clipboard.writeText(replayExportCode);
+      pushToast({
+        id: `replay-copy-${Date.now()}`,
+        tone: "good",
+        title: "Replay copied.",
+        at: Date.now(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Clipboard unavailable.";
+      pushToast({
+        id: `replay-copy-error-${Date.now()}`,
+        tone: "warn",
+        title: "Replay copy failed.",
+        detail: message,
+        at: Date.now(),
+      });
+    }
+  }
+
+  function handleReplayImportValidate() {
+    try {
+      const parsed = JSON.parse(replayImportCode) as unknown;
+      const result = validateReplayBundle(parsed);
+      if (result.ok) {
+        setReplayImportBundle(result.payload);
+        setReplayImportError(null);
+        return;
+      }
+      setReplayImportBundle(null);
+      setReplayImportError(result.error);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invalid JSON.";
+      setReplayImportBundle(null);
+      setReplayImportError(message);
+    }
+  }
+
+  function handleReplayImportLoad() {
+    try {
+      const parsed = JSON.parse(replayImportCode) as unknown;
+      const result = validateReplayBundle(parsed);
+      if (result.ok) {
+        setReplayImportBundle(result.payload);
+        setReplayImportError(null);
+        setReplayImportOpen(false);
+        setReplayImportCode("");
+        pushToast({
+          id: `replay-import-${Date.now()}`,
+          tone: "good",
+          title: "Replay loaded.",
+          at: Date.now(),
+        });
+        return;
+      }
+      setReplayImportBundle(null);
+      setReplayImportError(result.error);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invalid JSON.";
+      setReplayImportBundle(null);
+      setReplayImportError(message);
+    }
+  }
+
+  function handleReplayFromStart() {
+    const bundle = replayImportBundle ?? buildReplayBundle();
+    if (!bundle) {
+      pushToast({
+        id: `replay-missing-${Date.now()}`,
+        tone: "warn",
+        title: "Replay unavailable.",
+        detail: "No replay bundle loaded.",
+        at: Date.now(),
+      });
+      return;
+    }
+    try {
+      const replayed = replayFromStart(bundle, reducer);
+      setHistory({ past: [], present: replayed, future: [] });
+      setSeedInput(String(replayed.seed));
+      autosaveStateRef.current = replayed;
+      autosaveAtRef.current = Date.now();
+      initialStateRef.current = structuredClone(bundle.initial);
+      setActionLog(bundle.entries);
+      const verified =
+        replayImportBundle === null ? validateReplayMatchesCurrent(replayed, state) : null;
+      pushToast({
+        id: `replay-done-${Date.now()}`,
+        tone: verified === false ? "warn" : "good",
+        title: `Replayed ${bundle.entries.length} actions.`,
+        detail:
+          verified === null
+            ? undefined
+            : verified
+              ? "Replay verified."
+              : "Replay mismatch detected.",
+        at: Date.now(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Replay failed.";
+      pushToast({
+        id: `replay-failed-${Date.now()}`,
+        tone: "warn",
+        title: "Replay failed.",
+        detail: message,
+        at: Date.now(),
+      });
     }
   }
 
@@ -1242,6 +1429,63 @@ export default function App() {
                 </div>
               )}
             </div>
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setReplayMenuOpen((prev) => !prev)}
+                aria-expanded={replayMenuOpen}
+              >
+                Replay
+              </button>
+              {replayMenuOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: "100%",
+                    marginTop: 6,
+                    background: "rgba(16,20,33,0.98)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    borderRadius: 10,
+                    padding: 8,
+                    display: "grid",
+                    gap: 6,
+                    minWidth: 160,
+                    zIndex: 30,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleReplayExportOpen();
+                      setReplayMenuOpen(false);
+                    }}
+                  >
+                    Export Replay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplayImportOpen(true);
+                      setReplayImportError(null);
+                      setReplayImportBundle(null);
+                      setReplayMenuOpen(false);
+                    }}
+                  >
+                    Import Replay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleReplayFromStart();
+                      setReplayMenuOpen(false);
+                    }}
+                  >
+                    Replay From Start
+                  </button>
+                </div>
+              )}
+            </div>
             <button className="game-status-pill" type="button" onClick={openRulebook}>
               Rulebook
             </button>
@@ -1353,6 +1597,90 @@ export default function App() {
                   Validate
                 </button>
                 <button type="button" onClick={handleImportLoad}>
+                  Load
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {replayExportOpen && (
+          <div className="overlay-backdrop" role="dialog" aria-modal="true">
+            <div className="overlay-panel" style={{ width: "min(720px, 95vw)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <h2 style={{ margin: 0 }}>Replay Bundle</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplayExportOpen(false);
+                    setReplayExportCode("");
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              <p style={{ marginTop: 10 }}>
+                Export this replay bundle to reproduce or replay the match from the starting state.
+              </p>
+              <textarea
+                readOnly
+                value={replayExportCode}
+                rows={8}
+                style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+              />
+              <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" onClick={handleCopyReplayExport}>
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {replayImportOpen && (
+          <div className="overlay-backdrop" role="dialog" aria-modal="true">
+            <div className="overlay-panel" style={{ width: "min(720px, 95vw)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <h2 style={{ margin: 0 }}>Import Replay</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplayImportOpen(false);
+                    setReplayImportCode("");
+                    setReplayImportError(null);
+                    setReplayImportBundle(null);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              <p style={{ marginTop: 10 }}>
+                Paste a replay bundle JSON to load it for replay.
+              </p>
+              <textarea
+                value={replayImportCode}
+                onChange={(event) => {
+                  setReplayImportCode(event.target.value);
+                  setReplayImportError(null);
+                }}
+                rows={8}
+                style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+              />
+              {replayImportError && (
+                <div style={{ marginTop: 8, color: "#b3261e", fontSize: 13 }}>
+                  {replayImportError}
+                </div>
+              )}
+              {replayImportBundle && !replayImportError && (
+                <div style={{ marginTop: 8, color: "#1b5e20", fontSize: 13 }}>
+                  Replay bundle loaded: {replayImportBundle.entries.length} actions.
+                </div>
+              )}
+              <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" onClick={handleReplayImportValidate}>
+                  Validate
+                </button>
+                <button type="button" onClick={handleReplayImportLoad}>
                   Load
                 </button>
               </div>
