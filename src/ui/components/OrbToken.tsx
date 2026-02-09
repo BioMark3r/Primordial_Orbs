@@ -29,8 +29,12 @@ export function OrbToken(props: {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     let frame = 0;
     let lastDimension = 0;
+    const raf = window.requestAnimationFrame ?? ((callback: FrameRequestCallback) => window.setTimeout(() => callback(0), 16));
+    const caf = window.cancelAnimationFrame ?? ((handle: number) => window.clearTimeout(handle));
+    const now = () => (typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now());
 
     const render = () => {
       const canvas = canvasRef.current;
@@ -51,12 +55,12 @@ export function OrbToken(props: {
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
       ctx.clearRect(0, 0, dimension, dimension);
       const r = dimension * 0.46;
-      drawOrb(ctx, dimension / 2, dimension / 2, r, orbStyleForOrb(props.orb), performance.now() / 1000);
-      frame = window.requestAnimationFrame(render);
+      drawOrb(ctx, dimension / 2, dimension / 2, r, orbStyleForOrb(props.orb), now() / 1000);
+      frame = raf(render);
     };
 
-    frame = window.requestAnimationFrame(render);
-    return () => window.cancelAnimationFrame(frame);
+    frame = raf(render);
+    return () => caf(frame);
   }, [numericSize, props.orb]);
 
   const cls = [
