@@ -14,6 +14,7 @@ import { WinCelebration } from "./ui/components/WinCelebration";
 import { CoachStrip } from "./ui/components/CoachStrip";
 import { TutorialOverlay } from "./ui/components/TutorialOverlay";
 import { TurnRecapToast } from "./ui/components/TurnRecapToast";
+import { Tooltip } from "./ui/components/Tooltip";
 import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDiff";
 import type { PendingDiff } from "./ui/utils/pendingDiff";
 import { computeImpactPreview } from "./ui/utils/impactPreview";
@@ -34,6 +35,7 @@ import { TUTORIAL_STEPS } from "./ui/utils/tutorialSteps";
 import { hasSeenTutorial, markSeenTutorial } from "./ui/utils/tutorialStorage";
 import { buildTurnRecap } from "./ui/utils/turnRecap";
 import type { TurnRecap } from "./ui/utils/turnRecap";
+import { getButtonDisabledReason, getOrbDisabledReason } from "./ui/utils/disabledReasons";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -296,6 +298,9 @@ export default function App() {
   const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
   const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
   const canUndo = mode === "LOCAL_2P" && history.past.length > 0 && state.phase !== "GAME_OVER";
+  const drawDisabledReason = canDraw ? null : getButtonDisabledReason(state.phase, "DRAW");
+  const endPlayDisabledReason = canEndPlay ? null : getButtonDisabledReason(state.phase, "END_PLAY");
+  const advanceDisabledReason = canAdvance ? null : getButtonDisabledReason(state.phase, "ADVANCE");
 
   const canWaterSwap =
     state.phase === "PLAY" &&
@@ -1035,6 +1040,9 @@ export default function App() {
                 canUndo: canUndo && active === 0,
                 emphasizeEndPlay: endPlayReady && active === 0,
                 emphasizeAdvance: advanceReady && active === 0,
+                drawDisabledReason,
+                endPlayDisabledReason,
+                advanceDisabledReason,
                 onDraw2: handleDraw2,
                 onEndPlay: handleEndPlay,
                 onAdvance: handleAdvance,
@@ -1077,6 +1085,9 @@ export default function App() {
                 canUndo: canUndo && active === 1,
                 emphasizeEndPlay: endPlayReady && active === 1,
                 emphasizeAdvance: advanceReady && active === 1,
+                drawDisabledReason,
+                endPlayDisabledReason,
+                advanceDisabledReason,
                 onDraw2: handleDraw2,
                 onEndPlay: handleEndPlay,
                 onAdvance: handleAdvance,
@@ -1127,7 +1138,23 @@ export default function App() {
                   const canPlayColonize = isPlayPhase && playsRemaining > 0 && canPlaceColonizeNow;
                   const canPlayOrb = isImpact ? canPlayImpact : isTerraform ? canPlayTerraform : canPlayColonize;
                   const isDisabled = !canPlayOrb;
+                  const disabledReason = isDisabled
+                    ? getOrbDisabledReason(state, o, active, state.phase, playsRemaining, impactsRemaining)
+                    : null;
                   const handTokenClass = `hand-token${isDisabled ? " orb-disabled" : ""}`;
+
+                  const orbToken = (
+                    <OrbToken
+                      orb={o}
+                      size="md"
+                      selected={isSel}
+                      disabled={isDisabled}
+                      disabledReason={disabledReason ?? undefined}
+                      actionable={isImpact && canPlayImpact && !isDisabled}
+                      title={disabledReason ?? orbTooltip(o)}
+                      onClick={isDisabled ? undefined : (e) => onClickHand(i, e)}
+                    />
+                  );
 
                   return (
                     <div
@@ -1140,15 +1167,11 @@ export default function App() {
                         if (isImpact && !isDisabled) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
                       }}
                     >
-                      <OrbToken
-                        orb={o}
-                        size="md"
-                        selected={isSel}
-                        disabled={isDisabled}
-                        actionable={isImpact && canPlayImpact && !isDisabled}
-                        title={orbTooltip(o)}
-                        onClick={isDisabled ? undefined : (e) => onClickHand(i, e)}
-                      />
+                      {disabledReason ? (
+                        <Tooltip content={disabledReason}>{orbToken}</Tooltip>
+                      ) : (
+                        orbToken
+                      )}
                       <div className="orb-label">{orbShort(o)}</div>
                       {isImpact && !isDisabled && <div style={{ fontSize: 10, color: "#cfd5ff" }}>Select target</div>}
                     </div>
@@ -1397,6 +1420,9 @@ function PlayerPanel(props: {
     canUndo: boolean;
     emphasizeEndPlay?: boolean;
     emphasizeAdvance?: boolean;
+    drawDisabledReason?: string | null;
+    endPlayDisabledReason?: string | null;
+    advanceDisabledReason?: string | null;
     onDraw2: () => void;
     onEndPlay: () => void;
     onAdvance: () => void;
@@ -1437,32 +1463,53 @@ function PlayerPanel(props: {
 
       {props.showTurnControls && props.turnControls && (
         <div className="player-panel__controls" id={props.controlsId}>
-          <button
-            id={props.drawId}
-            disabled={!props.turnControls.canDraw}
-            onClick={props.turnControls.onDraw2}
+          <Tooltip
+            content={props.turnControls.drawDisabledReason ?? ""}
+            disabled={!props.turnControls.drawDisabledReason}
           >
-            Draw
-          </button>
-          <button
-            id={props.endPlayId}
-            disabled={!props.turnControls.canEndPlay}
-            className={props.turnControls.emphasizeEndPlay ? "btn-nudge" : undefined}
-            onClick={props.turnControls.onEndPlay}
+            <button
+              id={props.drawId}
+              disabled={!props.turnControls.canDraw}
+              aria-disabled={!props.turnControls.canDraw || undefined}
+              title={props.turnControls.drawDisabledReason ?? undefined}
+              onClick={props.turnControls.onDraw2}
+            >
+              Draw
+            </button>
+          </Tooltip>
+          <Tooltip
+            content={props.turnControls.endPlayDisabledReason ?? ""}
+            disabled={!props.turnControls.endPlayDisabledReason}
           >
-            End Play
-          </button>
+            <button
+              id={props.endPlayId}
+              disabled={!props.turnControls.canEndPlay}
+              aria-disabled={!props.turnControls.canEndPlay || undefined}
+              className={props.turnControls.emphasizeEndPlay ? "btn-nudge" : undefined}
+              title={props.turnControls.endPlayDisabledReason ?? undefined}
+              onClick={props.turnControls.onEndPlay}
+            >
+              End Play
+            </button>
+          </Tooltip>
           {props.turnControls.emphasizeEndPlay && (
             <div className="turn-nudge-text">Ready to End Play</div>
           )}
-          <button
-            id={props.advanceId}
-            disabled={!props.turnControls.canAdvance}
-            className={props.turnControls.emphasizeAdvance ? "btn-nudge btn-nudge-advance" : undefined}
-            onClick={props.turnControls.onAdvance}
+          <Tooltip
+            content={props.turnControls.advanceDisabledReason ?? ""}
+            disabled={!props.turnControls.advanceDisabledReason}
           >
-            Advance
-          </button>
+            <button
+              id={props.advanceId}
+              disabled={!props.turnControls.canAdvance}
+              aria-disabled={!props.turnControls.canAdvance || undefined}
+              className={props.turnControls.emphasizeAdvance ? "btn-nudge btn-nudge-advance" : undefined}
+              title={props.turnControls.advanceDisabledReason ?? undefined}
+              onClick={props.turnControls.onAdvance}
+            >
+              Advance
+            </button>
+          </Tooltip>
           {props.turnControls.emphasizeAdvance && (
             <div className="turn-nudge-text turn-nudge-text--advance">Ready to Advance</div>
           )}
