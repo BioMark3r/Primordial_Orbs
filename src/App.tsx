@@ -9,6 +9,8 @@ import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
 import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
 import { ToastStack } from "./ui/components/ToastStack";
+import { ProgressTrack } from "./ui/components/ProgressTrack";
+import { WinCelebration } from "./ui/components/WinCelebration";
 import { CoachStrip } from "./ui/components/CoachStrip";
 import { TutorialOverlay } from "./ui/components/TutorialOverlay";
 import { TurnRecapToast } from "./ui/components/TurnRecapToast";
@@ -18,7 +20,9 @@ import { computeImpactPreview } from "./ui/utils/impactPreview";
 import type { ImpactPreview } from "./ui/utils/impactPreview";
 import { deriveCoreFeedback } from "./ui/utils/coreFeedback";
 import type { ImpactResolvedSummary } from "./ui/utils/coreFeedback";
-import { pushUniqueToast } from "./ui/utils/toasts";
+import { pushToast, pushUniqueToast } from "./ui/utils/toasts";
+import { computeProgressFromPlanet, diffProgress } from "./ui/utils/progress";
+import type { ColonizeType, ProgressState } from "./ui/utils/progress";
 import type { CoachHint } from "./ui/utils/coach";
 import { getCoachHints } from "./ui/utils/coach";
 import { pushHistory, undo } from "./ui/utils/history";
@@ -139,6 +143,13 @@ function getColonizeInfoText(c: "PLANT" | "ANIMAL" | "SENTIENT" | "HIGH_TECH") {
   }
 }
 
+const COLONIZE_LABELS: Record<ColonizeType, string> = {
+  PLANT: "Plant",
+  ANIMAL: "Animal",
+  SENTIENT: "Sentient",
+  HIGH_TECH: "High-Tech",
+};
+
 function getImpactInfo(impact: Impact) {
   switch (impact) {
     case "METEOR":
@@ -226,9 +237,15 @@ export default function App() {
   const [turnRecap, setTurnRecap] = useState<TurnRecap | null>(null);
   const [turnRecapOpen, setTurnRecapOpen] = useState(false);
   const [corePulse, setCorePulse] = useState<{ player: 0 | 1; key: string; until: number } | null>(null);
+  const [progressPulse, setProgressPulse] = useState<{
+    0: { types: ColonizeType[]; until: number } | null;
+    1: { types: ColonizeType[]; until: number } | null;
+  }>({ 0: null, 1: null });
+  const [winCelebration, setWinCelebration] = useState<{ player: 0 | 1; until: number } | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
   const lastImpactEventRef = useRef<ImpactResolvedSummary | null>(null);
   const lastImpactProcessedRef = useRef<number | null>(null);
+  const prevProgressRef = useRef<{ 0: ProgressState; 1: ProgressState } | null>(null);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -249,6 +266,15 @@ export default function App() {
   const activeHand = state.players[active].hand;
   const activePlanet = state.players[active].planet;
   const otherPlanet = state.players[other].planet;
+
+  const p0Progress = useMemo(
+    () => computeProgressFromPlanet(state.players[0].planet.slots),
+    [state.players[0].planet.slots]
+  );
+  const p1Progress = useMemo(
+    () => computeProgressFromPlanet(state.players[1].planet.slots),
+    [state.players[1].planet.slots]
+  );
 
   const playsRemaining = state.counters.playsRemaining;
   const impactsRemaining = state.counters.impactsRemaining;
@@ -290,6 +316,31 @@ export default function App() {
     const timer = window.setTimeout(() => setCorePulse(null), ms);
     return () => window.clearTimeout(timer);
   }, [corePulse]);
+
+  useEffect(() => {
+    if (!progressPulse[0] && !progressPulse[1]) return;
+    const timers: number[] = [];
+    (["0", "1"] as const).forEach((playerKey) => {
+      const player = Number(playerKey) as 0 | 1;
+      const entry = progressPulse[player];
+      if (!entry) return;
+      const ms = Math.max(0, entry.until - Date.now());
+      const timer = window.setTimeout(() => {
+        setProgressPulse((prev) => (prev[player]?.until === entry.until ? { ...prev, [player]: null } : prev));
+      }, ms);
+      timers.push(timer);
+    });
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [progressPulse]);
+
+  useEffect(() => {
+    if (!winCelebration) return;
+    const ms = Math.max(0, winCelebration.until - Date.now());
+    const timer = window.setTimeout(() => setWinCelebration(null), ms);
+    return () => window.clearTimeout(timer);
+  }, [winCelebration]);
 
   function pushUiEvent(event: UIEvent) {
     setUiEvents((prev) => [...prev.slice(-24), event]);
@@ -372,6 +423,52 @@ export default function App() {
     }
     prevStateRef.current = state;
   }, [screen, state]);
+
+  useEffect(() => {
+    const next: { 0: ProgressState; 1: ProgressState } = { 0: p0Progress, 1: p1Progress };
+    if (screen !== "GAME") {
+      prevProgressRef.current = next;
+      return;
+    }
+    const prev = prevProgressRef.current;
+    if (!prev) {
+      prevProgressRef.current = next;
+      return;
+    }
+
+    const now = Date.now();
+    ([0, 1] as const).forEach((player) => {
+      const newlyUnlocked = diffProgress(prev[player], next[player]);
+      if (newlyUnlocked.length > 0) {
+        newlyUnlocked.forEach((type) => {
+          pushToast({
+            id: `unlock-${player}-${type}-${now}-${Math.random().toString(36).slice(2, 7)}`,
+            tone: "good",
+            title: `Unlocked: ${COLONIZE_LABELS[type]}`,
+            detail: "New life form established.",
+            at: now,
+          });
+        });
+        setProgressPulse((current) => ({
+          ...current,
+          [player]: { types: newlyUnlocked, until: now + 900 },
+        }));
+      }
+
+      if (!prev[player].hasAll && next[player].hasAll) {
+        pushToast({
+          id: `unlock-all-${player}-${now}-${Math.random().toString(36).slice(2, 7)}`,
+          tone: "good",
+          title: "All 4 life types unlocked!",
+          detail: `Player ${player + 1} completed colonization.`,
+          at: now,
+        });
+        setWinCelebration({ player, until: now + 1400 });
+      }
+    });
+
+    prevProgressRef.current = next;
+  }, [p0Progress, p1Progress, screen]);
 
   useEffect(() => {
     if (!tutorialOpen) return;
@@ -755,6 +852,7 @@ export default function App() {
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
       <div style={containerStyle} className="app-shell game-shell">
         <ToastStack />
+        {winCelebration && <WinCelebration player={winCelebration.player} />}
         <TurnRecapToast
           recap={turnRecap}
           open={turnRecapOpen}
@@ -906,10 +1004,13 @@ export default function App() {
           <div className="game-arena-row">
             <PlayerPanel
               title={`Player 1${active === 0 ? " (Active)" : ""}`}
+              player={0}
               core={state.players[0].planet.core}
               planetSlots={state.players[0].planet.slots}
               locked={state.players[0].planet.locked}
               terraformMin={3}
+              progress={p0Progress}
+              pulseTypes={progressPulse[0]?.types}
               onClickSlot={active === 0 ? onClickSlot : undefined}
               selected={active === 0 ? selected : { kind: "NONE" }}
               waterSwapPick={active === 0 ? waterSwapPick : null}
@@ -944,10 +1045,13 @@ export default function App() {
             </div>
             <PlayerPanel
               title={`Player 2${active === 1 ? " (Active)" : ""}`}
+              player={1}
               core={state.players[1].planet.core}
               planetSlots={state.players[1].planet.slots}
               locked={state.players[1].planet.locked}
               terraformMin={3}
+              progress={p1Progress}
+              pulseTypes={progressPulse[1]?.types}
               onClickSlot={active === 1 ? onClickSlot : undefined}
               selected={active === 1 ? selected : { kind: "NONE" }}
               waterSwapPick={active === 1 ? waterSwapPick : null}
@@ -1260,10 +1364,13 @@ function CoreStatusCard({
 function PlayerPanel(props: {
   id?: string;
   title: string;
+  player: 0 | 1;
   core: Core;
   planetSlots: (Orb | null)[];
   locked: boolean[];
   terraformMin: number;
+  progress: ProgressState;
+  pulseTypes?: ColonizeType[];
   onClickSlot?: (i: number) => void;
   selected: Selected;
   waterSwapMode: boolean;
@@ -1304,6 +1411,15 @@ function PlayerPanel(props: {
         <div className="player-panel__stats">
           <div><b>Terraform:</b> {tCount}/6 {ok ? "OK" : "LOW"}</div>
           <div><b>Colonize types:</b> {cTypes}/4</div>
+          <div className="player-panel__progress">
+            <ProgressTrack
+              player={props.player}
+              progress={props.progress}
+              pulseTypes={props.pulseTypes}
+              size="sm"
+              title="Life"
+            />
+          </div>
         </div>
       </div>
 
