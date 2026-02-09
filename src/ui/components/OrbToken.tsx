@@ -18,6 +18,7 @@ export function OrbToken(props: {
   size?: Size;
   selected?: boolean;
   disabled?: boolean;
+  disabledReason?: string;
   actionable?: boolean;
   title?: string;
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -80,19 +81,26 @@ export function OrbToken(props: {
       background: "transparent",
       cursor: props.disabled ? "not-allowed" : props.onClick ? "pointer" : "default",
     } as React.CSSProperties,
-    title: props.title,
+    title: props.title ?? props.disabledReason,
   };
 
   if (Component === "button") {
+    const isDisabled = Boolean(props.disabled);
     return (
-      <button type="button" {...sharedProps} onClick={props.onClick} disabled={props.disabled}>
+      <button
+        type="button"
+        {...sharedProps}
+        onClick={isDisabled ? undefined : props.onClick}
+        disabled={isDisabled && !props.disabledReason}
+        aria-disabled={isDisabled || undefined}
+      >
         <canvas ref={canvasRef} className="orb-canvas" width={numericSize} height={numericSize} aria-hidden="true" />
       </button>
     );
   }
 
   return (
-    <div {...sharedProps}>
+    <div {...sharedProps} aria-disabled={props.disabled || undefined}>
       <canvas ref={canvasRef} className="orb-canvas" width={numericSize} height={numericSize} aria-hidden="true" />
     </div>
   );
