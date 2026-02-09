@@ -4,6 +4,7 @@ import App from "./App";
 import "./styles.css";
 import "./ui/theme/global.css";
 import "./ui/theme/arena.css";
+import "./ui/theme/fx.css";
 import "./ui/theme/layout.css";
 import "./ui/theme/tutorial.css";
 

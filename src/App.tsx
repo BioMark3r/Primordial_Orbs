@@ -20,6 +20,7 @@ import { computeImpactPreview } from "./ui/utils/impactPreview";
 import type { ImpactPreview } from "./ui/utils/impactPreview";
 import { deriveCoreFeedback } from "./ui/utils/coreFeedback";
 import type { ImpactResolvedSummary } from "./ui/utils/coreFeedback";
+import { fxForImpact } from "./ui/utils/impactFx";
 import { pushToast, pushUniqueToast } from "./ui/utils/toasts";
 import { computeProgressFromPlanet, diffProgress } from "./ui/utils/progress";
 import type { ColonizeType, ProgressState } from "./ui/utils/progress";
@@ -227,7 +228,12 @@ export default function App() {
   const [logOpen, setLogOpen] = useState(false);
   const [uiEvents, setUiEvents] = useState<UIEvent[]>([]);
   const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
-  const [flashState, setFlashState] = useState<{ target: 0 | 1; slots: number[]; until: number } | null>(null);
+  const [flashState, setFlashState] = useState<{
+    target: 0 | 1;
+    slots: number[];
+    until: number;
+    fxImpact?: Impact;
+  } | null>(null);
   const pendingDiffRef = useRef<PendingDiff>(null);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialMode, setTutorialMode] = useState<GuideMode>("GUIDED");
@@ -373,6 +379,7 @@ export default function App() {
       target: resolved.target,
       slots: resolved.affectedSlots,
       until: Date.now() + 900,
+      fxImpact: resolved.impact,
     });
 
     pendingDiffRef.current = null;
@@ -843,6 +850,8 @@ export default function App() {
 
   const activeFlashSlots = flashState?.target === active ? flashState.slots : [];
   const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
+  const activeFlashFx = flashState?.target === active ? flashState.fxImpact ?? null : null;
+  const otherFlashFx = flashState?.target === other ? flashState.fxImpact ?? null : null;
 
   const logLines = state.log.slice(0, 120);
   const slotIndices = activePlanet.slots.map((_, index) => index);
@@ -1016,6 +1025,7 @@ export default function App() {
               waterSwapPick={active === 0 ? waterSwapPick : null}
               waterSwapMode={active === 0 && canWaterSwap && selected.kind === "NONE"}
               flashSlots={active === 0 ? activeFlashSlots : otherFlashSlots}
+              flashFx={active === 0 ? activeFlashFx : otherFlashFx}
               isActive={active === 0}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
@@ -1057,6 +1067,7 @@ export default function App() {
               waterSwapPick={active === 1 ? waterSwapPick : null}
               waterSwapMode={active === 1 && canWaterSwap && selected.kind === "NONE"}
               flashSlots={active === 1 ? activeFlashSlots : otherFlashSlots}
+              flashFx={active === 1 ? activeFlashFx : otherFlashFx}
               isActive={active === 1}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
@@ -1376,6 +1387,7 @@ function PlayerPanel(props: {
   waterSwapMode: boolean;
   waterSwapPick: number | null;
   flashSlots: number[];
+  flashFx?: Impact | null;
   isActive?: boolean;
   showTurnControls?: boolean;
   turnControls?: {
@@ -1470,6 +1482,8 @@ function PlayerPanel(props: {
           const showHint = clickable && props.selected.kind === "HAND" && props.selected.orb.kind !== "IMPACT";
           const waterPick = props.waterSwapMode && props.waterSwapPick === i;
           const flashSlot = props.flashSlots.includes(i);
+          const fxStyle = flashSlot && props.flashFx ? fxForImpact(props.flashFx) : null;
+          const slotFxClass = fxStyle ? fxStyle.slotClass : "fx-slot-generic";
           const slotClass = `${flashSlot ? "slot-flash " : ""}player-panel__slot-btn`;
 
           return (
@@ -1496,7 +1510,14 @@ function PlayerPanel(props: {
                       : "Planet slot"
               }
             >
-              <div style={{ display: "grid", justifyItems: "center", gap: 4 }}>
+              {flashSlot && (
+                <span
+                  className={`fx-slot-overlay ${slotFxClass}`}
+                  style={fxStyle ? ({ ["--fx-accent" as string]: fxStyle.accent } as React.CSSProperties) : undefined}
+                  aria-hidden
+                />
+              )}
+              <div className="player-panel__slot-content" style={{ display: "grid", justifyItems: "center", gap: 4 }}>
                 {s ? (
                   <OrbToken orb={s} size="slot" selected={waterPick} disabled={locked} title={orbTooltip(s)} />
                 ) : (

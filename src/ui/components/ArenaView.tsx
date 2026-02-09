@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { UIEvent } from "../../App";
 import type { Impact } from "../../engine/types";
+import { fxForImpact } from "../utils/impactFx";
 import { OrbToken } from "./OrbToken";
 import { PileWidget } from "./PileWidget";
 
@@ -39,6 +40,13 @@ export function ArenaView({
 }: ArenaViewProps) {
   const [flightEvent, setFlightEvent] = useState<UIEvent | null>(null);
   const [bowlPulse, setBowlPulse] = useState(false);
+  const [bowlFx, setBowlFx] = useState<{
+    key: string;
+    className: string;
+    accent: string;
+    landed: boolean;
+  } | null>(null);
+  const [impactResult, setImpactResult] = useState<string | null>(null);
 
   const impactLabel = useMemo(() => getImpactLabel(lastEvent, lastImpactName), [lastEvent, lastImpactName]);
   const impactTarget = useMemo(() => getImpactTarget(lastEvent), [lastEvent]);
@@ -57,6 +65,33 @@ export function ArenaView({
     };
   }, [lastEvent]);
 
+  useEffect(() => {
+    if (!impactEvent) return;
+    const fx = fxForImpact(impactEvent.impact);
+    const fxKey = `${impactEvent.kind}-${impactEvent.at}`;
+    setBowlFx({ key: fxKey, className: fx.bowlClass, accent: fx.accent, landed: impactEvent.kind === "IMPACT_RESOLVED" });
+    const clearFx = window.setTimeout(() => {
+      setBowlFx((prev) => (prev?.key === fxKey ? null : prev));
+    }, 900);
+
+    if (impactEvent.kind === "IMPACT_RESOLVED") {
+      setBowlPulse(true);
+      const result = `${fx.label}: ${impactEvent.affectedSlots?.length ?? 0} slot(s) changed`;
+      setImpactResult(result);
+      const clearResult = window.setTimeout(() => setImpactResult(null), 1000);
+      const clearPulse = window.setTimeout(() => setBowlPulse(false), 420);
+      return () => {
+        window.clearTimeout(clearFx);
+        window.clearTimeout(clearResult);
+        window.clearTimeout(clearPulse);
+      };
+    }
+
+    return () => {
+      window.clearTimeout(clearFx);
+    };
+  }, [impactEvent]);
+
   return (
     <div className="arena-view">
       <div className="arena-view__header">
@@ -66,6 +101,14 @@ export function ArenaView({
       <div className="arena-view__body">
         <div className="arena-view__bowl-wrap">
           <div className={`arena-view__bowl ${bowlPulse ? "arena-view__bowl--pulse" : ""}`} />
+          {bowlFx && (
+            <div
+              key={bowlFx.key}
+              className={`arena-view__bowl-fx ${bowlFx.className}${bowlFx.landed ? " arena-view__bowl-fx--landed" : ""}`}
+              style={{ ["--fx-accent" as string]: bowlFx.accent } as React.CSSProperties}
+              aria-hidden
+            />
+          )}
           {flightEvent?.kind === "IMPACT_CAST" && (
             <div
               className={`arena-view__orb-flight ${
@@ -89,6 +132,7 @@ export function ArenaView({
               <div className="arena-view__impact-target">{impactTarget}</div>
             </div>
           </div>
+          {impactResult && <div className="arena-view__impact-result">{impactResult}</div>}
           <div className="arena-view__piles">
             <PileWidget title="Temporal Anomaly" count={bagCount} subtitle="Draw source" />
             <PileWidget title="Discard Pile" count={discardCount} subtitle="Spent orbs" />
