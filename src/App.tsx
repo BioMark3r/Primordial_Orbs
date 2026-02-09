@@ -1386,45 +1386,6 @@ export default function App() {
             </div>
           </div>
 
-          <div className="game-topbar-center topbar-actions">
-            <Tooltip content={drawDisabledReason ?? ""} disabled={!drawDisabledReason}>
-              <button
-                type="button"
-                className="primary-action"
-                disabled={!canDraw}
-                aria-disabled={!canDraw || undefined}
-                title={drawDisabledReason ?? undefined}
-                onClick={handleDraw2}
-              >
-                Draw 2
-              </button>
-            </Tooltip>
-            <Tooltip content={endPlayDisabledReason ?? ""} disabled={!endPlayDisabledReason}>
-              <button
-                type="button"
-                className={`primary-action${endPlayReady ? " btn-nudge" : ""}`}
-                disabled={!canEndPlay}
-                aria-disabled={!canEndPlay || undefined}
-                title={endPlayDisabledReason ?? undefined}
-                onClick={handleEndPlay}
-              >
-                End Play
-              </button>
-            </Tooltip>
-            <Tooltip content={advanceDisabledReason ?? ""} disabled={!advanceDisabledReason}>
-              <button
-                type="button"
-                className={`primary-action${advanceReady ? " btn-nudge btn-nudge-advance" : ""}`}
-                disabled={!canAdvance}
-                aria-disabled={!canAdvance || undefined}
-                title={advanceDisabledReason ?? undefined}
-                onClick={handleAdvance}
-              >
-                Advance
-              </button>
-            </Tooltip>
-          </div>
-
           <div className="game-topbar-right">
             <span className="game-status-pill">Phase: {state.phase}</span>
             <span className="game-status-pill">Turn: {state.turn}</span>
