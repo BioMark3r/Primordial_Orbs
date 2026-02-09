@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import type { Orb } from "../../engine/types";
-import { orbIcon } from "../theme/assets";
+import { drawOrb, orbStyleForOrb } from "../render/orbRenderer";
 
 type Size = "sm" | "md" | "lg" | "slot";
 
@@ -24,7 +24,39 @@ export function OrbToken(props: {
 }) {
   const size = props.size ?? "md";
   const d = px[size];
-  const icon = orbIcon(props.orb);
+  const numericSize = typeof d === "string" ? 62 : d;
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    let frame = 0;
+    let lastDimension = 0;
+
+    const render = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const parent = canvas.parentElement;
+      const dimension = parent?.clientWidth || numericSize;
+      if (dimension <= 0) return;
+      const scale = window.devicePixelRatio || 1;
+      if (dimension !== lastDimension || canvas.width !== dimension * scale) {
+        canvas.width = dimension * scale;
+        canvas.height = dimension * scale;
+        canvas.style.width = `${dimension}px`;
+        canvas.style.height = `${dimension}px`;
+        lastDimension = dimension;
+      }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.clearRect(0, 0, dimension, dimension);
+      const r = dimension * 0.46;
+      drawOrb(ctx, dimension / 2, dimension / 2, r, orbStyleForOrb(props.orb), performance.now() / 1000);
+      frame = window.requestAnimationFrame(render);
+    };
+
+    frame = window.requestAnimationFrame(render);
+    return () => window.cancelAnimationFrame(frame);
+  }, [numericSize, props.orb]);
 
   const cls = [
     "marble",
@@ -36,7 +68,6 @@ export function OrbToken(props: {
     .filter(Boolean)
     .join(" ");
 
-  const isImpact = props.orb.kind === "IMPACT";
   const isButton = Boolean(props.onClick);
   const Component = (isButton ? "button" : "div") as "button" | "div";
 
@@ -54,24 +85,15 @@ export function OrbToken(props: {
 
   if (Component === "button") {
     return (
-      <button
-        type="button"
-        {...sharedProps}
-        onClick={props.onClick}
-        disabled={props.disabled}
-      >
-        <span className={`etch${isImpact ? " etch-impact" : ""}`}>
-          <img src={icon} alt="" />
-        </span>
+      <button type="button" {...sharedProps} onClick={props.onClick} disabled={props.disabled}>
+        <canvas ref={canvasRef} className="orb-canvas" width={numericSize} height={numericSize} aria-hidden="true" />
       </button>
     );
   }
 
   return (
     <div {...sharedProps}>
-      <span className={`etch${isImpact ? " etch-impact" : ""}`}>
-        <img src={icon} alt="" />
-      </span>
+      <canvas ref={canvasRef} className="orb-canvas" width={numericSize} height={numericSize} aria-hidden="true" />
     </div>
   );
 }

@@ -158,6 +158,10 @@ body {
   text-align: center;
 }
 
+.orb-canvas {
+  display: block;
+}
+
 .slot-empty {
   width: var(--slot);
   height: var(--slot);
