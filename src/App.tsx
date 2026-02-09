@@ -781,20 +781,14 @@ export default function App() {
             <button
               onClick={() => setScreen("SETUP")}
               style={{ padding: "10px 14px", borderRadius: 10 }}
+              title="Proceed to setup"
             >
-              Enter
-            </button>
-            <button
-              onClick={() => setScreen("SETUP")}
-              style={{ padding: "10px 14px", borderRadius: 10 }}
-              title="Skip to setup"
-            >
-              Quick Start
+              Enter the Cataclysm Arena
             </button>
           </div>
 
           <div style={{ marginTop: 14, fontSize: 12, color: "#777" }}>
-            Click Enter to continue
+            Click to enter the Cataclysm Arena
           </div>
         </div>
       </div>
