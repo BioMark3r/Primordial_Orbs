@@ -58,7 +58,9 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
+  justify-self: end;
   font-size: 12px;
+  grid-column: 3;
 }
 
 .game-topbar-right button {
@@ -100,9 +102,9 @@
   min-width: 220px;
   padding: 6px;
   border-radius: 12px;
-  background: rgba(14, 18, 32, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  background-color: #101626;
+  border: 1px solid #2a324a;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
   z-index: 50;
 }
 
@@ -111,11 +113,11 @@
   text-align: left;
   padding: 10px 10px;
   border-radius: 10px;
-  background: rgba(20, 24, 40, 0.95);
+  background-color: #1a2236;
 }
 
 .menuItem:hover {
-  background: rgba(32, 38, 58, 0.95);
+  background-color: #222c45;
 }
 
 .menuItem:focus {
@@ -774,6 +776,8 @@
 
   .game-topbar-right {
     justify-content: flex-start;
+    grid-column: auto;
+    justify-self: stretch;
   }
 
   .game-bottom-row {
