@@ -6,6 +6,61 @@ export function ImpactPreviewPanel({ preview, onClose }: { preview: ImpactPrevie
   const iconSrc = impactIcon[preview.impact];
   const impactName = formatImpactName(preview.impact);
   const modsDelta = preview.severityAfterMods - preview.baseSeverity;
+  const severityEquation = [
+    `base (1+vuln=${preview.baseSeverity})`,
+    preview.lavaBoostApplied ? "+ lava" : null,
+    preview.waterWeaknessApplied ? "+ water weakness" : null,
+    preview.iceShieldApplied ? "− ice shield" : null,
+    preview.plantMitigationApplied ? "− plant" : null,
+  ]
+    .filter((part): part is string => !!part)
+    .join(" ");
+
+  const modifierChips = [
+    {
+      key: "lava",
+      label: "Lava +1",
+      applied: preview.lavaBoostApplied,
+      tone: "good",
+    },
+    {
+      key: "water",
+      label: "Water (Disease) +1",
+      applied: preview.waterWeaknessApplied,
+      tone: "warn",
+    },
+    {
+      key: "ice",
+      label: "Ice −1",
+      applied: preview.iceShieldApplied,
+      tone: "info",
+    },
+    {
+      key: "plant",
+      label: "Plant −1",
+      applied: preview.plantMitigationApplied,
+      tone: "info",
+    },
+    {
+      key: "land",
+      label: "Land weakness +1 terraform",
+      applied: preview.landWeaknessApplied,
+      tone: "warn",
+    },
+    {
+      key: "solar",
+      label: "Solar Flare: abilities disabled",
+      applied: preview.solarFlareActive || preview.impact === "SOLAR_FLARE",
+      tone: "warn",
+    },
+    {
+      key: "tech",
+      label: "High-Tech redirect possible",
+      applied: preview.highTechRedirectPossible,
+      tone: "good",
+    },
+  ].filter((chip) => chip.applied);
+  const modifierNotes = preview.modifiers.filter((mod) => mod.note);
 
   return (
     <div
@@ -47,6 +102,9 @@ export function ImpactPreviewPanel({ preview, onClose }: { preview: ImpactPrevie
         <div>
           <b>Severity:</b> {preview.severityAfterMods} (base {preview.baseSeverity} {formatModsDelta(modsDelta)})
         </div>
+        <div style={{ marginTop: 4, fontSize: 12, color: "#5a4b3d" }}>
+          Severity = {severityEquation} (min 1)
+        </div>
         <div style={{ marginTop: 4 }}>
           <b>Vulnerability:</b> +{preview.vulnerability}
         </div>
@@ -54,20 +112,40 @@ export function ImpactPreviewPanel({ preview, onClose }: { preview: ImpactPrevie
 
       <div style={{ marginTop: 10 }}>
         <div style={{ fontWeight: 700 }}>Modifiers</div>
-        {preview.modifiers.length === 0 ? (
+        {modifierChips.length === 0 && preview.modifiers.length === 0 ? (
           <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>No active modifiers.</div>
         ) : (
-          <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
-            {preview.modifiers.map((mod, idx) => (
-              <li key={`${mod.label}-${idx}`} style={{ fontSize: 12, marginBottom: 4 }}>
-                {mod.label}
-                {typeof mod.delta === "number" && (
-                  <span style={{ marginLeft: 6, fontWeight: 700 }}>{formatSignedDelta(mod.delta)}</span>
-                )}
-                {mod.note && <span style={{ marginLeft: 6, color: "#666" }}>({mod.note})</span>}
-              </li>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+            {modifierChips.map((chip) => (
+              <span
+                key={chip.key}
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  border: "1px solid",
+                  borderColor: chip.tone === "warn" ? "#c95c2b" : chip.tone === "good" ? "#1d7a4d" : "#3562b0",
+                  background:
+                    chip.tone === "warn"
+                      ? "rgba(201, 92, 43, 0.12)"
+                      : chip.tone === "good"
+                      ? "rgba(29, 122, 77, 0.12)"
+                      : "rgba(53, 98, 176, 0.12)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#26201a",
+                }}
+              >
+                {chip.label}
+              </span>
             ))}
-          </ul>
+          </div>
+        )}
+        {modifierNotes.length > 0 && (
+          <div style={{ marginTop: 6, fontSize: 11, color: "#6b5e52" }}>
+            {modifierNotes.map((mod, idx) => (
+              <div key={`${mod.label}-${idx}`}>{mod.note}</div>
+            ))}
+          </div>
         )}
       </div>
 
@@ -95,9 +173,4 @@ function formatImpactName(impact: string) {
 function formatModsDelta(delta: number) {
   if (delta === 0) return "(+0 mods)";
   return `(${delta > 0 ? "+" : ""}${delta} mods)`;
-}
-
-function formatSignedDelta(delta: number) {
-  if (delta === 0) return "0";
-  return `${delta > 0 ? "+" : ""}${delta}`;
 }
