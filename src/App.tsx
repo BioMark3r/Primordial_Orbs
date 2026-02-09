@@ -10,6 +10,7 @@ import { ArenaView } from "./ui/components/ArenaView";
 import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
 import { ToastStack } from "./ui/components/ToastStack";
 import { ProgressTrack } from "./ui/components/ProgressTrack";
+import { PlanetIcon } from "./ui/components/PlanetIcon";
 import { WinCelebration } from "./ui/components/WinCelebration";
 import { CoachStrip } from "./ui/components/CoachStrip";
 import { TutorialOverlay } from "./ui/components/TutorialOverlay";
@@ -27,6 +28,8 @@ import { fxForImpact } from "./ui/utils/impactFx";
 import { pushToast, pushUniqueToast } from "./ui/utils/toasts";
 import { computeProgressFromPlanet, diffProgress } from "./ui/utils/progress";
 import type { ColonizeType, ProgressState } from "./ui/utils/progress";
+import { computePlanetViz } from "./ui/utils/planetViz";
+import type { PlanetViz } from "./ui/utils/planetViz";
 import type { CoachHint } from "./ui/utils/coach";
 import { getCoachHints } from "./ui/utils/coach";
 import { handleKeyDown } from "./ui/utils/shortcuts";
@@ -329,6 +332,8 @@ export default function App() {
     () => computeProgressFromPlanet(state.players[1].planet.slots),
     [state.players[1].planet.slots]
   );
+  const p0Viz = useMemo(() => computePlanetViz(state.players[0].planet.slots), [state.players[0].planet.slots]);
+  const p1Viz = useMemo(() => computePlanetViz(state.players[1].planet.slots), [state.players[1].planet.slots]);
 
   const playsRemaining = state.counters.playsRemaining;
   const impactsRemaining = state.counters.impactsRemaining;
@@ -1763,6 +1768,7 @@ export default function App() {
               player={0}
               core={state.players[0].planet.core}
               planetSlots={state.players[0].planet.slots}
+              planetViz={p0Viz}
               locked={state.players[0].planet.locked}
               terraformMin={3}
               progress={p0Progress}
@@ -1805,6 +1811,8 @@ export default function App() {
                 bagCount={state.bag.length}
                 discardCount={state.discard.length}
                 activePlayer={active}
+                p0Viz={p0Viz}
+                p1Viz={p1Viz}
               />
             </div>
             <PlayerPanel
@@ -1812,6 +1820,7 @@ export default function App() {
               player={1}
               core={state.players[1].planet.core}
               planetSlots={state.players[1].planet.slots}
+              planetViz={p1Viz}
               locked={state.players[1].planet.locked}
               terraformMin={3}
               progress={p1Progress}
@@ -2151,6 +2160,7 @@ function PlayerPanel(props: {
   player: 0 | 1;
   core: Core;
   planetSlots: (Orb | null)[];
+  planetViz: PlanetViz;
   locked: boolean[];
   terraformMin: number;
   progress: ProgressState;
@@ -2194,10 +2204,13 @@ function PlayerPanel(props: {
   return (
     <div className={`player-panel${props.isActive ? " player-panel--active" : ""}`}>
       <div className="player-panel__header">
-        <div>
-          <h3>{props.title}</h3>
-          <div style={{ color: "rgba(237,239,246,0.7)", marginTop: 2 }}>
-            Core: <CoreBadge core={props.core} />
+        <div className="player-panel__title">
+          <PlanetIcon viz={props.planetViz} size={40} label={`${props.title} planet`} />
+          <div>
+            <h3>{props.title}</h3>
+            <div style={{ color: "rgba(237,239,246,0.7)", marginTop: 2 }}>
+              Core: <CoreBadge core={props.core} />
+            </div>
           </div>
         </div>
         <div className="player-panel__stats">

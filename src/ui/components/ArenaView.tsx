@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { UIEvent } from "../../App";
 import type { Impact } from "../../engine/types";
 import { fxForImpact } from "../utils/impactFx";
+import type { PlanetViz } from "../utils/planetViz";
 import { OrbToken } from "./OrbToken";
+import { PlanetIcon } from "./PlanetIcon";
 import { PileWidget } from "./PileWidget";
 
 type ArenaViewProps = {
@@ -12,6 +14,8 @@ type ArenaViewProps = {
   activePlayer: 0 | 1;
   lastImpactName?: string;
   lastImpactIconPath?: string;
+  p0Viz: PlanetViz;
+  p1Viz: PlanetViz;
 };
 
 function getImpactLabel(event: UIEvent | null, fallback?: string) {
@@ -37,6 +41,8 @@ export function ArenaView({
   activePlayer,
   lastImpactName,
   lastImpactIconPath,
+  p0Viz,
+  p1Viz,
 }: ArenaViewProps) {
   const [flightEvent, setFlightEvent] = useState<UIEvent | null>(null);
   const [bowlPulse, setBowlPulse] = useState(false);
@@ -51,6 +57,7 @@ export function ArenaView({
   const impactLabel = useMemo(() => getImpactLabel(lastEvent, lastImpactName), [lastEvent, lastImpactName]);
   const impactTarget = useMemo(() => getImpactTarget(lastEvent), [lastEvent]);
   const impactEvent = lastEvent?.kind === "IMPACT_CAST" || lastEvent?.kind === "IMPACT_RESOLVED" ? lastEvent : null;
+  const targetPulse = impactEvent ? impactEvent.target : null;
 
   useEffect(() => {
     if (lastEvent?.kind !== "IMPACT_CAST") return;
@@ -95,8 +102,16 @@ export function ArenaView({
   return (
     <div className="arena-view">
       <div className="arena-view__header">
-        <div className="arena-view__title">Cataclysm Arena</div>
-        <div className="arena-view__subtitle">Active: Player {activePlayer + 1}</div>
+        <div className="arena-view__planet arena-view__planet--left">
+          <PlanetIcon viz={p0Viz} size={34} label="Player 1 planet" pulse={targetPulse === 0} />
+        </div>
+        <div className="arena-view__title-wrap">
+          <div className="arena-view__title">Cataclysm Arena</div>
+          <div className="arena-view__subtitle">Active: Player {activePlayer + 1}</div>
+        </div>
+        <div className="arena-view__planet arena-view__planet--right">
+          <PlanetIcon viz={p1Viz} size={34} label="Player 2 planet" pulse={targetPulse === 1} />
+        </div>
       </div>
       <div className="arena-view__body">
         <div className="arena-view__bowl-wrap">
