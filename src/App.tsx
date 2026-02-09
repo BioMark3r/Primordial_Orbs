@@ -11,6 +11,7 @@ import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
 import { ToastStack } from "./ui/components/ToastStack";
 import { CoachStrip } from "./ui/components/CoachStrip";
 import { TutorialOverlay } from "./ui/components/TutorialOverlay";
+import { TurnRecapToast } from "./ui/components/TurnRecapToast";
 import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDiff";
 import type { PendingDiff } from "./ui/utils/pendingDiff";
 import { computeImpactPreview } from "./ui/utils/impactPreview";
@@ -26,6 +27,8 @@ import type { ActionEvent, GuideMode } from "./ui/utils/tutorialGuide";
 import { nextIndexOnEvent } from "./ui/utils/tutorialGuide";
 import { TUTORIAL_STEPS } from "./ui/utils/tutorialSteps";
 import { hasSeenTutorial, markSeenTutorial } from "./ui/utils/tutorialStorage";
+import { buildTurnRecap } from "./ui/utils/turnRecap";
+import type { TurnRecap } from "./ui/utils/turnRecap";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -219,6 +222,9 @@ export default function App() {
   const [tutorialMode, setTutorialMode] = useState<GuideMode>("GUIDED");
   const [tutorialIndex, setTutorialIndex] = useState(0);
   const [lastActionEvent, setLastActionEvent] = useState<ActionEvent | null>(null);
+  const [turnEvents, setTurnEvents] = useState<ActionEvent[]>([]);
+  const [turnRecap, setTurnRecap] = useState<TurnRecap | null>(null);
+  const [turnRecapOpen, setTurnRecapOpen] = useState(false);
   const [corePulse, setCorePulse] = useState<{ player: 0 | 1; key: string; until: number } | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
   const lastImpactEventRef = useRef<ImpactResolvedSummary | null>(null);
@@ -250,6 +256,7 @@ export default function App() {
   const isPlayPhase = state.phase === "PLAY";
   const isLastPlay = isPlayPhase && playsRemaining === 1;
   const endPlayReady = isPlayPhase && playsRemaining === 0 && impactsRemaining === 0;
+  const advanceReady = !isPlayPhase && canAdvance;
 
   const canDraw = state.phase === "DRAW";
   const canEndPlay = state.phase === "PLAY";
@@ -291,6 +298,7 @@ export default function App() {
 
   function emitActionEvent(event: ActionEvent) {
     setLastActionEvent(event);
+    setTurnEvents((prev) => [...prev.slice(-40), event]);
   }
 
   useEffect(() => {
@@ -599,6 +607,9 @@ export default function App() {
     setHoveredImpactIndex(null);
     setArenaEvent(null);
     setFlashState(null);
+    setTurnEvents([]);
+    setTurnRecap(null);
+    setTurnRecapOpen(false);
     pendingDiffRef.current = null;
   }
 
@@ -609,6 +620,7 @@ export default function App() {
     // GAS passive: Shift-click any hand orb to redraw it (once per turn)
     if (canGasRedraw && e.shiftKey) {
       dispatchWithLog({ type: "GAS_REDRAW", handIndex: i });
+      emitActionEvent({ type: "GAS_REDRAW", at: Date.now(), player: active });
       clearSelection();
       return;
     }
@@ -630,6 +642,7 @@ export default function App() {
         setWaterSwapPick(slotIndex);
       } else {
         dispatchWithLog({ type: "WATER_SWAP", slotA: waterSwapPick, slotB: slotIndex });
+        emitActionEvent({ type: "WATER_SWAP", at: Date.now(), player: active });
         setWaterSwapPick(null);
       }
       return;
@@ -641,13 +654,14 @@ export default function App() {
 
     if (orb.kind === "TERRAFORM") {
       dispatchWithLog({ type: "PLAY_TERRAFORM", handIndex, slotIndex });
-      emitActionEvent({ type: "PLAY_TERRAFORM", at: Date.now(), player: active });
+      emitActionEvent({ type: "PLAY_TERRAFORM", at: Date.now(), player: active, terra: orb.t });
       pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
       clearSelection();
       return;
     }
     if (orb.kind === "COLONIZE") {
       dispatchWithLog({ type: "PLAY_COLONIZE", handIndex, slotIndex });
+      emitActionEvent({ type: "PLAY_COLONIZE", at: Date.now(), player: active, colonize: orb.c });
       pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
       clearSelection();
       return;
@@ -676,7 +690,7 @@ export default function App() {
       target,
     });
     dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
-    emitActionEvent({ type: "PLAY_IMPACT", at: Date.now(), player: active });
+    emitActionEvent({ type: "PLAY_IMPACT", at: Date.now(), player: active, impact: selected.orb.i, target });
     clearSelection();
   }
 
@@ -711,8 +725,13 @@ export default function App() {
 
   function handleAdvance() {
     clearSelection();
+    const recapPlayer = active;
+    const recap = buildTurnRecap(turnEvents, recapPlayer);
+    setTurnRecap(recap);
+    setTurnRecapOpen(true);
     dispatchWithLog({ type: "ADVANCE" });
     emitActionEvent({ type: "ADVANCE", at: Date.now(), player: active });
+    setTurnEvents([]);
   }
 
   function handleUndo() {
@@ -736,6 +755,14 @@ export default function App() {
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
       <div style={containerStyle} className="app-shell game-shell">
         <ToastStack />
+        <TurnRecapToast
+          recap={turnRecap}
+          open={turnRecapOpen}
+          onDone={() => {
+            setTurnRecapOpen(false);
+            setTurnRecap(null);
+          }}
+        />
         <div className="game-topbar">
           <div className="game-topbar-left">
             <div className="game-topbar-title">{topbarTitle}</div>
@@ -896,6 +923,7 @@ export default function App() {
                 canAdvance: canAdvance && active === 0,
                 canUndo: canUndo && active === 0,
                 emphasizeEndPlay: endPlayReady && active === 0,
+                emphasizeAdvance: advanceReady && active === 0,
                 onDraw2: handleDraw2,
                 onEndPlay: handleEndPlay,
                 onAdvance: handleAdvance,
@@ -933,6 +961,7 @@ export default function App() {
                 canAdvance: canAdvance && active === 1,
                 canUndo: canUndo && active === 1,
                 emphasizeEndPlay: endPlayReady && active === 1,
+                emphasizeAdvance: advanceReady && active === 1,
                 onDraw2: handleDraw2,
                 onEndPlay: handleEndPlay,
                 onAdvance: handleAdvance,
@@ -1248,6 +1277,7 @@ function PlayerPanel(props: {
     canAdvance: boolean;
     canUndo: boolean;
     emphasizeEndPlay?: boolean;
+    emphasizeAdvance?: boolean;
     onDraw2: () => void;
     onEndPlay: () => void;
     onAdvance: () => void;
@@ -1289,18 +1319,25 @@ function PlayerPanel(props: {
           <button
             id={props.endPlayId}
             disabled={!props.turnControls.canEndPlay}
-            className={props.turnControls.emphasizeEndPlay ? "endplay-ready" : undefined}
+            className={props.turnControls.emphasizeEndPlay ? "btn-nudge" : undefined}
             onClick={props.turnControls.onEndPlay}
           >
             End Play
           </button>
+          {props.turnControls.emphasizeEndPlay && (
+            <div className="turn-nudge-text">Ready to End Play</div>
+          )}
           <button
             id={props.advanceId}
             disabled={!props.turnControls.canAdvance}
+            className={props.turnControls.emphasizeAdvance ? "btn-nudge btn-nudge-advance" : undefined}
             onClick={props.turnControls.onAdvance}
           >
             Advance
           </button>
+          {props.turnControls.emphasizeAdvance && (
+            <div className="turn-nudge-text turn-nudge-text--advance">Ready to Advance</div>
+          )}
           <button
             disabled={!props.turnControls.canUndo}
             onClick={props.turnControls.onUndo}

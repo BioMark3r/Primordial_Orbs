@@ -1,8 +1,12 @@
+import type { Colonize, Impact, Terraform } from "../../engine/types";
+
 export type ActionEvent =
   | { type: "DRAW_2"; at: number; player: 0 | 1 }
-  | { type: "PLAY_TERRAFORM"; at: number; player: 0 | 1 }
-  | { type: "PLAY_COLONIZE"; at: number; player: 0 | 1 }
-  | { type: "PLAY_IMPACT"; at: number; player: 0 | 1 }
+  | { type: "PLAY_TERRAFORM"; at: number; player: 0 | 1; terra: Terraform }
+  | { type: "PLAY_COLONIZE"; at: number; player: 0 | 1; colonize: Colonize }
+  | { type: "PLAY_IMPACT"; at: number; player: 0 | 1; impact: Impact; target: 0 | 1 }
+  | { type: "WATER_SWAP"; at: number; player: 0 | 1 }
+  | { type: "GAS_REDRAW"; at: number; player: 0 | 1 }
   | { type: "END_PLAY"; at: number; player: 0 | 1 }
   | { type: "ADVANCE"; at: number; player: 0 | 1 }
   | { type: "DISCARD"; at: number; player: 0 | 1 };
