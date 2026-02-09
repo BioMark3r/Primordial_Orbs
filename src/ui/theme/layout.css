@@ -66,6 +66,67 @@
   border-radius: 8px;
 }
 
+.topbar-actions .primary-action {
+  min-width: 110px;
+}
+
+.game-topbar-menus {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.menuButtonWrap {
+  position: relative;
+}
+
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.menuButton:focus {
+  outline: 2px solid rgba(140, 170, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.menuPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  min-width: 220px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(14, 18, 32, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 50;
+}
+
+.menuItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 10px;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.menuItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.menuItem:focus {
+  outline: 2px solid rgba(140, 170, 255, 0.45);
+  outline-offset: 1px;
+}
+
+.menuItem--danger {
+  color: #ffb4ab;
+}
+
 .game-status-pill {
   padding: 2px 8px;
   border-radius: 999px;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import logoUrl from "./assets/logo.png";
 import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
@@ -15,6 +15,8 @@ import { CoachStrip } from "./ui/components/CoachStrip";
 import { TutorialOverlay } from "./ui/components/TutorialOverlay";
 import { TurnRecapToast } from "./ui/components/TurnRecapToast";
 import { Tooltip } from "./ui/components/Tooltip";
+import { MenuButton } from "./ui/components/MenuButton";
+import { MenuItem } from "./ui/components/MenuItem";
 import { beginPendingImpactDiff, resolvePendingDiff } from "./ui/utils/pendingDiff";
 import type { PendingDiff } from "./ui/utils/pendingDiff";
 import { computeImpactPreview } from "./ui/utils/impactPreview";
@@ -245,8 +247,10 @@ export default function App() {
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
   const [showHowTo, setShowHowTo] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
-  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
-  const [replayMenuOpen, setReplayMenuOpen] = useState(false);
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportCode, setExportCode] = useState("");
@@ -636,12 +640,47 @@ export default function App() {
     setScreen("GAME");
   }
 
+  const menuOpen = gameMenuOpen || viewMenuOpen || helpMenuOpen;
+  const uiOverlayOpen =
+    menuOpen ||
+    exportOpen ||
+    importOpen ||
+    replayExportOpen ||
+    replayImportOpen ||
+    tutorialOpen ||
+    turnRecapOpen ||
+    showHowTo ||
+    shortcutsOpen;
+
+  const closeMenus = useCallback(() => {
+    setGameMenuOpen(false);
+    setViewMenuOpen(false);
+    setHelpMenuOpen(false);
+  }, []);
+
+  const toggleMenu = useCallback((menu: "game" | "view" | "help") => {
+    setGameMenuOpen((prev) => (menu === "game" ? !prev : false));
+    setViewMenuOpen((prev) => (menu === "view" ? !prev : false));
+    setHelpMenuOpen((prev) => (menu === "help" ? !prev : false));
+  }, []);
+
+  const menuAction = useCallback(
+    (action: () => void) => () => {
+      action();
+      closeMenus();
+    },
+    [closeMenus]
+  );
+
   const shortcutContext = useMemo<ShortcutContext>(
     () => ({
       canDraw,
       canEndPlay,
       canAdvance,
       canUndo,
+      uiOverlayOpen,
+      menuOpen,
+      closeMenus,
       toggleLog: () => setLogOpen((prev) => !prev),
       openTutorial: handleOpenTutorial,
       clearSelection: clearSelectionAndOverlays,
@@ -656,11 +695,14 @@ export default function App() {
       canEndPlay,
       canUndo,
       clearSelectionAndOverlays,
+      closeMenus,
       handleAdvance,
       handleDraw2,
       handleEndPlay,
       handleOpenTutorial,
       handleUndo,
+      menuOpen,
+      uiOverlayOpen,
     ]
   );
 
@@ -901,8 +943,10 @@ export default function App() {
     setLastAction(null);
     setLastActionEvent(null);
     setTurnEvents([]);
-    setSaveMenuOpen(false);
-    setReplayMenuOpen(false);
+    setGameMenuOpen(false);
+    setViewMenuOpen(false);
+    setHelpMenuOpen(false);
+    setShortcutsOpen(false);
     setReplayExportOpen(false);
     setReplayImportOpen(false);
   }
@@ -1282,6 +1326,12 @@ export default function App() {
     dispatchWithLog({ type: "UNDO" });
   }
 
+  function handleOpenGuidedTutorial() {
+    setTutorialMode("GUIDED");
+    setTutorialIndex(0);
+    setTutorialOpen(true);
+  }
+
   function handleOpenTutorial() {
     setTutorialMode("MANUAL");
     setTutorialIndex(0);
@@ -1295,12 +1345,12 @@ export default function App() {
     setTurnRecapOpen(false);
     setTurnRecap(null);
     setLogOpen(false);
+    setShortcutsOpen(false);
   }
 
-  const topbarTitle =
-    state.phase === "GAME_OVER"
-      ? `Game Over — Winner: Player ${String((state.winner ?? 0) + 1)}`
-      : `Turn ${state.turn} • Phase: ${state.phase}`;
+  const topbarTitle = "Primordial Orbs";
+  const gameOverLabel =
+    state.phase === "GAME_OVER" ? `Winner: Player ${String((state.winner ?? 0) + 1)}` : null;
 
   const activeFlashSlots = flashState?.target === active ? flashState.slots : [];
   const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
@@ -1329,15 +1379,55 @@ export default function App() {
             <div className="game-topbar-title">{topbarTitle}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               <span className="game-status-pill">Active: Player {active + 1}</span>
+              {gameOverLabel && <span className="game-status-pill">{gameOverLabel}</span>}
               {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
                 <span className="game-status-pill" title="Solar Flare">Abilities Disabled</span>
               )}
             </div>
           </div>
 
-          <div className="game-topbar-center" />
+          <div className="game-topbar-center topbar-actions">
+            <Tooltip content={drawDisabledReason ?? ""} disabled={!drawDisabledReason}>
+              <button
+                type="button"
+                className="primary-action"
+                disabled={!canDraw}
+                aria-disabled={!canDraw || undefined}
+                title={drawDisabledReason ?? undefined}
+                onClick={handleDraw2}
+              >
+                Draw 2
+              </button>
+            </Tooltip>
+            <Tooltip content={endPlayDisabledReason ?? ""} disabled={!endPlayDisabledReason}>
+              <button
+                type="button"
+                className={`primary-action${endPlayReady ? " btn-nudge" : ""}`}
+                disabled={!canEndPlay}
+                aria-disabled={!canEndPlay || undefined}
+                title={endPlayDisabledReason ?? undefined}
+                onClick={handleEndPlay}
+              >
+                End Play
+              </button>
+            </Tooltip>
+            <Tooltip content={advanceDisabledReason ?? ""} disabled={!advanceDisabledReason}>
+              <button
+                type="button"
+                className={`primary-action${advanceReady ? " btn-nudge btn-nudge-advance" : ""}`}
+                disabled={!canAdvance}
+                aria-disabled={!canAdvance || undefined}
+                title={advanceDisabledReason ?? undefined}
+                onClick={handleAdvance}
+              >
+                Advance
+              </button>
+            </Tooltip>
+          </div>
 
           <div className="game-topbar-right">
+            <span className="game-status-pill">Phase: {state.phase}</span>
+            <span className="game-status-pill">Turn: {state.turn}</span>
             {isPlayPhase && (
               <>
                 <span
@@ -1362,159 +1452,77 @@ export default function App() {
                 </span>
               </>
             )}
-            <span className="game-status-pill">Hand {activeHand.length}/3</span>
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => setSaveMenuOpen((prev) => !prev)}
-                aria-expanded={saveMenuOpen}
+            <div className="game-topbar-menus">
+              <MenuButton
+                label="Game"
+                open={gameMenuOpen}
+                onToggle={() => toggleMenu("game")}
+                onClose={closeMenus}
               >
-                Save/Load
-              </button>
-              {saveMenuOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "100%",
-                    marginTop: 6,
-                    background: "rgba(16,20,33,0.98)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    borderRadius: 10,
-                    padding: 8,
-                    display: "grid",
-                    gap: 6,
-                    minWidth: 140,
-                    zIndex: 30,
-                  }}
+                <MenuItem onSelect={menuAction(handleNewGame)}>New Game</MenuItem>
+                <MenuItem
+                  tone="danger"
+                  onSelect={menuAction(() => {
+                    clearSelection();
+                    resetTransientUi();
+                    setScreen("SETUP");
+                  })}
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSaveNow();
-                      setSaveMenuOpen(false);
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleLoadNow();
-                      setSaveMenuOpen(false);
-                    }}
-                  >
-                    Load
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleExportOpen();
-                      setSaveMenuOpen(false);
-                    }}
-                  >
-                    Export Code
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImportOpen(true);
-                      setImportError(null);
-                      setImportPayload(null);
-                      setSaveMenuOpen(false);
-                    }}
-                  >
-                    Import Code
-                  </button>
-                </div>
-              )}
-            </div>
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => setReplayMenuOpen((prev) => !prev)}
-                aria-expanded={replayMenuOpen}
+                  Quit Game
+                </MenuItem>
+                <MenuItem onSelect={menuAction(() => setScreen("SETUP"))}>Setup</MenuItem>
+                <MenuItem onSelect={menuAction(handleSaveNow)}>Save</MenuItem>
+                <MenuItem onSelect={menuAction(handleLoadNow)}>Load</MenuItem>
+                <MenuItem onSelect={menuAction(handleExportOpen)}>Export Match Code</MenuItem>
+                <MenuItem
+                  onSelect={menuAction(() => {
+                    setImportOpen(true);
+                    setImportError(null);
+                    setImportPayload(null);
+                  })}
+                >
+                  Import Match Code
+                </MenuItem>
+                <MenuItem onSelect={menuAction(handleReplayExportOpen)}>Export Replay</MenuItem>
+                <MenuItem
+                  onSelect={menuAction(() => {
+                    setReplayImportOpen(true);
+                    setReplayImportError(null);
+                    setReplayImportBundle(null);
+                  })}
+                >
+                  Import Replay
+                </MenuItem>
+                <MenuItem onSelect={menuAction(handleReplayFromStart)}>Replay From Start</MenuItem>
+              </MenuButton>
+              <MenuButton
+                label="View"
+                open={viewMenuOpen}
+                onToggle={() => toggleMenu("view")}
+                onClose={closeMenus}
               >
-                Replay
-              </button>
-              {replayMenuOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "100%",
-                    marginTop: 6,
-                    background: "rgba(16,20,33,0.98)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    borderRadius: 10,
-                    padding: 8,
-                    display: "grid",
-                    gap: 6,
-                    minWidth: 160,
-                    zIndex: 30,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleReplayExportOpen();
-                      setReplayMenuOpen(false);
-                    }}
-                  >
-                    Export Replay
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReplayImportOpen(true);
-                      setReplayImportError(null);
-                      setReplayImportBundle(null);
-                      setReplayMenuOpen(false);
-                    }}
-                  >
-                    Import Replay
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleReplayFromStart();
-                      setReplayMenuOpen(false);
-                    }}
-                  >
-                    Replay From Start
-                  </button>
-                </div>
-              )}
+                <MenuItem onSelect={menuAction(() => setLogOpen((prev) => !prev))}>
+                  {logOpen ? "Hide Log" : "Show Log"}
+                </MenuItem>
+                {isDev && (
+                  <MenuItem onSelect={menuAction(() => setShowInspector((prev) => !prev))}>
+                    {showInspector ? "Hide Inspector" : "Show Inspector"}
+                  </MenuItem>
+                )}
+              </MenuButton>
+              <MenuButton
+                label="Help"
+                open={helpMenuOpen}
+                onToggle={() => toggleMenu("help")}
+                onClose={closeMenus}
+              >
+                <MenuItem onSelect={menuAction(handleOpenGuidedTutorial)}>Tutorial (Guided)</MenuItem>
+                <MenuItem onSelect={menuAction(handleOpenTutorial)}>Tutorial (Manual)</MenuItem>
+                <MenuItem onSelect={menuAction(() => setShowHowTo(true))}>How to Play</MenuItem>
+                <MenuItem onSelect={menuAction(() => setShortcutsOpen(true))}>Keyboard Shortcuts</MenuItem>
+                <MenuItem onSelect={menuAction(openRulebook)}>Rulebook</MenuItem>
+              </MenuButton>
             </div>
-            <button className="game-status-pill" type="button" onClick={openRulebook}>
-              Rulebook
-            </button>
-            <button onClick={() => setLogOpen((prev) => !prev)} aria-expanded={logOpen}>
-              Log
-            </button>
-            <button onClick={() => setShowHowTo(true)}>How to Play</button>
-            <button
-              onClick={handleOpenTutorial}
-              aria-label="Open tutorial"
-            >
-              ?
-            </button>
-            <button onClick={() => setScreen("SETUP")}>Setup</button>
-            <button onClick={handleNewGame}>New Game</button>
-            <button
-              onClick={() => {
-                clearSelection();
-                resetTransientUi();
-                setScreen("SETUP");
-              }}
-            >
-              Quit Game
-            </button>
-            {isDev && (
-              <button onClick={() => setShowInspector((prev) => !prev)}>
-                {showInspector ? "Hide" : "Show"} Inspector
-              </button>
-            )}
           </div>
         </div>
 
@@ -1683,6 +1691,28 @@ export default function App() {
                 <button type="button" onClick={handleReplayImportLoad}>
                   Load
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {shortcutsOpen && (
+          <div className="overlay-backdrop" role="dialog" aria-modal="true">
+            <div className="overlay-panel" style={{ width: "min(520px, 92vw)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <h2 style={{ margin: 0 }}>Keyboard Shortcuts</h2>
+                <button type="button" onClick={() => setShortcutsOpen(false)}>
+                  Close
+                </button>
+              </div>
+              <div style={{ marginTop: 12, display: "grid", gap: 8, fontSize: 14 }}>
+                <div><b>D</b> — Draw 2</div>
+                <div><b>E</b> — End Play</div>
+                <div><b>A</b> — Advance Turn</div>
+                <div><b>U</b> — Undo</div>
+                <div><b>L</b> — Toggle Log</div>
+                <div><b>?</b> or <b>Shift + /</b> — Open Tutorial</div>
+                <div><b>Esc</b> — Clear Selection</div>
               </div>
             </div>
           </div>
@@ -2325,7 +2355,7 @@ function PlayerPanel(props: {
                   <span className="slot-empty" />
                 )}
                 <div style={{ fontSize: 11, color: "rgba(237,239,246,0.7)" }}>
-                  Slot {i}{locked ? " • Locked" : ""}
+                  Slot {i + 1}{locked ? " • Locked" : ""}
                 </div>
                 {showHint && !s && !locked && <div className="slot-hint">Place here</div>}
                 {props.waterSwapMode && s?.kind === "TERRAFORM" && !locked && (
