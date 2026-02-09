@@ -27,11 +27,11 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "draw",
     title: "Draw Orbs",
-    body: "Start by drawing 2 orbs from the Temporal Anomaly.",
+    body: "Start by drawing orbs from the Temporal Anomaly.",
     targetId: "ui-btn-draw",
     placement: "bottom",
     advanceOn: { kind: "ACTION", type: "DRAW_2" },
-    doThisNow: "Click Draw 2.",
+    doThisNow: "Click Draw.",
   },
   {
     id: "place_terraform",

@@ -22,7 +22,7 @@ type TutorialOverlayProps = {
 };
 
 const FALLBACK_DO_THIS: Record<string, string> = {
-  DRAW_2: "Click Draw 2.",
+  DRAW_2: "Click Draw.",
   PLAY_TERRAFORM: "Play a Terraform orb.",
   PLAY_IMPACT: "Play an Impact orb.",
   END_PLAY: "Click End Play.",
