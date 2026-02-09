@@ -33,7 +33,11 @@ export type UIEvent =
 
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
-const RULEBOOK_URL = "/RULEBOOK.md";
+const RULEBOOK_URL = "/rulebook.html";
+
+function openRulebook() {
+  window.open(RULEBOOK_URL, "_blank", "noopener,noreferrer");
+}
 
 function orbLabel(o: Orb): string {
   if (o.kind === "TERRAFORM") return `Terraform: ${o.t}`;
@@ -409,6 +413,26 @@ export default function App() {
           <div style={{ marginTop: 16, color: "#666", fontSize: 13 }}>
             MVP defaults: Medium planet (6 slots) • Terraform min 3 • Draw 2 • Hand cap 3 • Play 2 • Impact 1
           </div>
+          <div style={{ marginTop: 12, fontSize: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={openRulebook}
+              style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
+            >
+              Help / Rulebook
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTutorialMode("MANUAL");
+                setTutorialIndex(0);
+                setTutorialOpen(true);
+              }}
+              style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
+            >
+              Tutorial
+            </button>
+          </div>
         </div>
         {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
       </div>
@@ -509,9 +533,13 @@ export default function App() {
               </button>
             </div>
             <div style={{ marginTop: 10, fontSize: 12 }}>
-              <a href={RULEBOOK_URL} target="_blank" rel="noreferrer">
+              <button
+                type="button"
+                onClick={openRulebook}
+                style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
+              >
                 Read the full rulebook
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -682,9 +710,9 @@ export default function App() {
             <span className="game-status-pill">Plays {playsRemaining}/2</span>
             <span className="game-status-pill">Impacts {impactsRemaining}/1</span>
             <span className="game-status-pill">Hand {activeHand.length}/3</span>
-            <a className="game-status-pill" href={RULEBOOK_URL} target="_blank" rel="noreferrer">
+            <button className="game-status-pill" type="button" onClick={openRulebook}>
               Rulebook
-            </a>
+            </button>
             <button onClick={() => setLogOpen((prev) => !prev)} aria-expanded={logOpen}>
               Log
             </button>
@@ -1237,9 +1265,13 @@ function HowToOverlay({ onClose }: { onClose: () => void }) {
           </ul>
 
           <div style={{ marginTop: 12 }}>
-            <a href={RULEBOOK_URL} target="_blank" rel="noreferrer">
+            <button
+              type="button"
+              onClick={openRulebook}
+              style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
+            >
               Read the full rulebook
-            </a>
+            </button>
           </div>
         </div>
       </div>

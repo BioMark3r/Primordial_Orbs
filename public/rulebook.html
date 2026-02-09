@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Primordial Orbs — Full Rulebook</title>
+    <link rel="stylesheet" href="/rulebook.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <img src="/rulebook/logo.svg" alt="Primordial Orbs logo" />
+        <div class="header-title">
+          <h1>Primordial Orbs — Rulebook</h1>
+          <p>Terraform • Evolve • Destabilize</p>
+        </div>
+        <div class="top-actions">
+          <a href="/" class="btn secondary">Back to Game</a>
+          <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside>
+        <h2>Sections</h2>
+        <nav>
+          <ul class="nav-links">
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#components">Components</a></li>
+            <li><a href="#setup">Setup</a></li>
+            <li><a href="#turn-flow">Turn Flow</a></li>
+            <li><a href="#actions">Actions</a></li>
+            <li><a href="#impacts">Impacts</a></li>
+            <li><a href="#cores">Cores</a></li>
+            <li><a href="#solo">Solo / Tutorial</a></li>
+            <li><a href="#glossary">Glossary</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main>
+        <details class="mobile-nav">
+          <summary>Jump to a section</summary>
+          <nav>
+            <ul class="nav-links">
+              <li><a href="#overview">Overview</a></li>
+              <li><a href="#components">Components</a></li>
+              <li><a href="#setup">Setup</a></li>
+              <li><a href="#turn-flow">Turn Flow</a></li>
+              <li><a href="#actions">Actions</a></li>
+              <li><a href="#impacts">Impacts</a></li>
+              <li><a href="#cores">Cores</a></li>
+              <li><a href="#solo">Solo / Tutorial</a></li>
+              <li><a href="#glossary">Glossary</a></li>
+              <li><a href="#faq">FAQ</a></li>
+            </ul>
+          </nav>
+        </details>
+
+        <section id="overview">
+          <h2>Overview</h2>
+          <p>
+            Welcome to <strong>Primordial Orbs</strong>, a fast-paced duel where you sculpt a planet,
+            cultivate life, and hurl cosmic impacts. Each turn is a tight puzzle of plays, impacts,
+            and timing. Your goal is clear and bold: <strong>be the first to claim 4 colonization types</strong>
+            (Plant, Animal, Sentient, High-Tech).
+          </p>
+
+          <div class="quick-start">
+            <h3>Quick Start</h3>
+            <ol>
+              <li>Choose a planet size and core.</li>
+              <li>Draw 2 cards.</li>
+              <li>Place Terraform orbs to build slots.</li>
+              <li>Impacts target your opponent (unless you say otherwise).</li>
+              <li>End Play, then Advance to resolve impacts.</li>
+            </ol>
+          </div>
+
+          <div class="callout tip">
+            <strong>Tip</strong>
+            Terraform quickly, then pivot into Colonize to race for 4 unique types.
+          </div>
+
+          <figure>
+            <img src="/rulebook/ui-overview.svg" alt="Primordial Orbs gameplay interface" />
+            <figcaption>
+              The main gameplay UI: hand, planet slots, impacts, and the Cataclysm Arena.
+              <em>TODO: replace placeholder with in-game screenshot.</em>
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="components">
+          <h2>Components</h2>
+          <ul>
+            <li><strong>Terraform Orbs</strong>: build the foundation of your planet.</li>
+            <li><strong>Colonize Orbs</strong>: Plant, Animal, Sentient, and High-Tech life.</li>
+            <li><strong>Impact Orbs</strong>: destabilize planets or protect your own.</li>
+            <li><strong>Core</strong>: your planet's passive ability and weakness.</li>
+            <li><strong>Cataclysm Arena</strong>: preview where impacts will land.</li>
+          </ul>
+          <div class="callout example">
+            <strong>Example</strong>
+            You can only Colonize on an existing Terraform slot. No Terraform, no colony.
+          </div>
+        </section>
+
+        <section id="setup">
+          <h2>Setup</h2>
+          <ol>
+            <li>Pick a planet size (small/medium/large).</li>
+            <li>Each player chooses a core (Land, Water, Ice, Lava, Gas).</li>
+            <li>Shuffle and draw 2 cards to start.</li>
+          </ol>
+          <figure>
+            <img src="/rulebook/setup.svg" alt="Setup screen with planet size and cores" />
+            <figcaption>
+              Set planet size and cores before starting. <em>TODO: replace placeholder with screenshot.</em>
+            </figcaption>
+          </figure>
+          <div class="callout warn">
+            <strong>Warning</strong>
+            Terraform minimums matter: you need at least 3 Terraform on your planet before Colonizing.
+          </div>
+        </section>
+
+        <section id="turn-flow">
+          <h2>Turn Flow</h2>
+          <p>Every turn follows this four-step cadence:</p>
+          <ol class="flow-list">
+            <li>Draw</li>
+            <li>Play</li>
+            <li>End Play</li>
+            <li>Advance</li>
+          </ol>
+          <p>
+            The most important decision is timing: do you build safely, or pressure with an impact?
+          </p>
+        </section>
+
+        <section id="actions">
+          <h2>Actions</h2>
+          <h3>Draw</h3>
+          <p>Draw 2 cards at the start of your turn. If your hand exceeds 3, discard down to 3.</p>
+
+          <h3>Play</h3>
+          <p>During Play you may place up to 2 orbs and 1 impact.</p>
+          <ul>
+            <li><strong>Terraform</strong>: place onto empty slots to build your planet.</li>
+            <li><strong>Colonize</strong>: place onto Terraform slots to gain a colonization type.</li>
+            <li><strong>Impact</strong>: strike a target planet to destabilize or clear slots.</li>
+          </ul>
+
+          <figure>
+            <img src="/rulebook/hand-play.svg" alt="Hand with orbs ready to play" />
+            <figcaption>
+              Select an orb from your hand, then click a slot to play it.
+              <em>TODO: replace placeholder with screenshot.</em>
+            </figcaption>
+          </figure>
+
+          <div class="callout tip">
+            <strong>Tip</strong>
+            If you are close to 4 colonization types, prioritize defense and protect key slots.
+          </div>
+        </section>
+
+        <section id="impacts">
+          <h2>Impacts</h2>
+          <p>
+            Impacts are your disruption tools. Target your opponent to break Terraform and Colonize
+            chains, or target yourself to clear unstable slots.
+          </p>
+          <figure>
+            <img src="/rulebook/arena-impact.svg" alt="Cataclysm Arena impact animation" />
+            <figcaption>
+              Impacts fly into the Cataclysm Arena. Affected slots flash on the target planet.
+              <em>TODO: replace placeholder with screenshot.</em>
+            </figcaption>
+          </figure>
+          <figure>
+            <img src="/rulebook/impact-preview.svg" alt="Impact preview panel" />
+            <figcaption>
+              The preview panel shows how many slots will be affected before you commit.
+              <em>TODO: replace placeholder with screenshot.</em>
+            </figcaption>
+          </figure>
+          <div class="callout example">
+            <strong>Example</strong>
+            If an impact would remove a Terraform slot holding a Colonize orb, the colony is lost too.
+          </div>
+        </section>
+
+        <section id="cores">
+          <h2>Cores</h2>
+          <p>Each core grants a passive and a weakness. Build around it.</p>
+          <ul>
+            <li><strong>Land</strong>: first Terraform each turn is free.</li>
+            <li><strong>Water</strong>: swap two Terraform slots once per turn.</li>
+            <li><strong>Ice</strong>: first impact against you each turn is reduced by 1 severity.</li>
+            <li><strong>Lava</strong>: your impacts gain +1 severity.</li>
+            <li><strong>Gas</strong>: shift-click a hand orb to discard + draw once per turn.</li>
+          </ul>
+          <figure>
+            <img src="/rulebook/core-status.svg" alt="Core status panel" />
+            <figcaption>
+              Core status and passives are always visible above your planet.
+              <em>TODO: replace placeholder with screenshot.</em>
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="solo">
+          <h2>Solo / Tutorial</h2>
+          <p>
+            The in-game tutorial overlay walks you through the fundamentals step-by-step. You can
+            launch it anytime from the <strong>?</strong> button.
+          </p>
+          <figure>
+            <img src="/rulebook/tutorial.svg" alt="Tutorial overlay" />
+            <figcaption>
+              Tutorial mode highlights what to click next. <em>TODO: replace placeholder with screenshot.</em>
+            </figcaption>
+          </figure>
+          <div class="callout tip">
+            <strong>Tip</strong>
+            Use Manual tutorial mode when teaching new players at the table.
+          </div>
+        </section>
+
+        <section id="glossary">
+          <h2>Glossary</h2>
+          <ul>
+            <li><strong>Terraform</strong>: a foundational slot that can later be colonized.</li>
+            <li><strong>Colonize</strong>: a life type placed on Terraform to score toward victory.</li>
+            <li><strong>Impact</strong>: a disruptive orb that removes or destabilizes slots.</li>
+            <li><strong>Advance</strong>: the step that resolves impacts and checks for a win.</li>
+          </ul>
+        </section>
+
+        <section id="faq">
+          <h2>FAQ</h2>
+          <h3>How do I win?</h3>
+          <p>
+            First to collect <strong>4 colonization types</strong> (Plant, Animal, Sentient, High-Tech)
+            wins the game. If both players hit four types in the same Advance, the active player wins.
+          </p>
+
+          <h3>Can I target my own planet with an impact?</h3>
+          <p>
+            Yes. Self-targeted impacts can clear unstable slots or remove a threatened colony to
+            reposition your build.
+          </p>
+
+          <h3>Is there a hand limit?</h3>
+          <p>
+            Yes. You draw 2 each turn and must end Play with at most 3 cards in hand.
+          </p>
+
+          <div class="callout warn">
+            <strong>Warning</strong>
+            Impacts resolve on Advance, not immediately—plan your defenses accordingly.
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <p>Primordial Orbs Rulebook — Win Condition: First to 4 Colonization Types.</p>
+    </footer>
+  </body>
+</html>
