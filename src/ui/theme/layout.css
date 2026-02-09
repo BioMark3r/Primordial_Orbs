@@ -58,7 +58,9 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
+  justify-self: end;
   font-size: 12px;
+  grid-column: 3;
 }
 
 .game-topbar-right button {
@@ -774,6 +776,8 @@
 
   .game-topbar-right {
     justify-content: flex-start;
+    grid-column: auto;
+    justify-self: stretch;
   }
 
   .game-bottom-row {
