@@ -102,9 +102,9 @@
   min-width: 220px;
   padding: 6px;
   border-radius: 12px;
-  background: #141a2a;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  background-color: #101626;
+  border: 1px solid #2a324a;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
   z-index: 50;
 }
 
@@ -113,11 +113,11 @@
   text-align: left;
   padding: 10px 10px;
   border-radius: 10px;
-  background: #1d2438;
+  background-color: #1a2236;
 }
 
 .menuItem:hover {
-  background: #262f48;
+  background-color: #222c45;
 }
 
 .menuItem:focus {
