@@ -1,4 +1,5 @@
 import type { Orb } from "../../engine/types";
+import { ORB_COLORS, type OrbColorKey } from "../theme/orbColors";
 
 export type OrbElement = "lava" | "ice" | "nature" | "void";
 
@@ -13,39 +14,13 @@ type OrbPalette = {
 
 const TAU = Math.PI * 2;
 
-const ORB_PALETTES: Record<OrbElement, OrbPalette> = {
-  lava: {
-    glow: "rgba(255, 110, 60, 0.55)",
-    core: "#ff6f3c",
-    mid: "#c63620",
-    rim: "#ffd4b0",
-    highlight: "rgba(255, 238, 210, 0.9)",
-    sparkle: "rgba(255, 220, 160, 0.85)",
-  },
-  ice: {
-    glow: "rgba(120, 210, 255, 0.55)",
-    core: "#aee8ff",
-    mid: "#4da5ff",
-    rim: "#e8fbff",
-    highlight: "rgba(240, 252, 255, 0.95)",
-    sparkle: "rgba(200, 245, 255, 0.7)",
-  },
-  nature: {
-    glow: "rgba(120, 255, 160, 0.45)",
-    core: "#7fe79a",
-    mid: "#2f8f5b",
-    rim: "#dcffef",
-    highlight: "rgba(230, 255, 244, 0.9)",
-    sparkle: "rgba(210, 255, 220, 0.75)",
-  },
-  void: {
-    glow: "rgba(168, 120, 255, 0.55)",
-    core: "#b08bff",
-    mid: "#4f2a88",
-    rim: "#e5d6ff",
-    highlight: "rgba(240, 225, 255, 0.9)",
-    sparkle: "rgba(200, 170, 255, 0.75)",
-  },
+type OrbRenderStyle = {
+  element: OrbElement;
+  colors: {
+    base: string;
+    hi: string;
+    lo: string;
+  };
 };
 
 type GradientSet = {
@@ -57,8 +32,35 @@ type GradientSet = {
 
 const gradientCache = new WeakMap<CanvasRenderingContext2D, Map<string, GradientSet>>();
 
-function getGradientSet(ctx: CanvasRenderingContext2D, r: number, element: OrbElement): GradientSet {
-  const key = `${element}-${Math.round(r * 10)}`;
+function hexToRgb(hex: string) {
+  const normalized = hex.replace("#", "");
+  const value = normalized.length === 3 ? normalized.split("").map((c) => c + c).join("") : normalized;
+  const int = Number.parseInt(value, 16);
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  };
+}
+
+function rgba(hex: string, alpha: number) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function paletteFromColors(colors: OrbRenderStyle["colors"]): OrbPalette {
+  return {
+    glow: rgba(colors.base, 0.55),
+    core: colors.hi,
+    mid: colors.base,
+    rim: colors.hi,
+    highlight: rgba(colors.hi, 0.9),
+    sparkle: rgba(colors.hi, 0.75),
+  };
+}
+
+function getGradientSet(ctx: CanvasRenderingContext2D, r: number, styleKey: string, colors: OrbRenderStyle["colors"]): GradientSet {
+  const key = `${styleKey}-${Math.round(r * 10)}`;
   let ctxCache = gradientCache.get(ctx);
   if (!ctxCache) {
     ctxCache = new Map();
@@ -67,7 +69,7 @@ function getGradientSet(ctx: CanvasRenderingContext2D, r: number, element: OrbEl
   const cached = ctxCache.get(key);
   if (cached) return cached;
 
-  const palette = ORB_PALETTES[element];
+  const palette = paletteFromColors(colors);
   const glow = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.35);
   glow.addColorStop(0, palette.glow);
   glow.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -75,6 +77,7 @@ function getGradientSet(ctx: CanvasRenderingContext2D, r: number, element: OrbEl
   const body = ctx.createRadialGradient(-r * 0.25, -r * 0.35, r * 0.2, 0, 0, r * 1.1);
   body.addColorStop(0, palette.core);
   body.addColorStop(0.55, palette.mid);
+  body.addColorStop(0.8, colors.lo);
   body.addColorStop(1, "#0b0d18");
 
   const rim = ctx.createRadialGradient(0, 0, r * 0.7, 0, 0, r * 1.05);
@@ -95,7 +98,7 @@ function getGradientSet(ctx: CanvasRenderingContext2D, r: number, element: OrbEl
 function drawLavaDetails(ctx: CanvasRenderingContext2D, r: number, t: number, palette: OrbPalette) {
   ctx.save();
   ctx.globalAlpha = 0.8;
-  ctx.strokeStyle = "rgba(255, 150, 80, 0.6)";
+  ctx.strokeStyle = palette.sparkle;
   ctx.lineWidth = r * 0.12;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.32, t * 0.4, t * 0.4 + Math.PI * 1.2);
@@ -153,8 +156,7 @@ function drawVoidDetails(ctx: CanvasRenderingContext2D, r: number, t: number, pa
   ctx.restore();
 }
 
-function drawElementDetails(ctx: CanvasRenderingContext2D, r: number, element: OrbElement, t: number) {
-  const palette = ORB_PALETTES[element];
+function drawElementDetails(ctx: CanvasRenderingContext2D, r: number, element: OrbElement, palette: OrbPalette, t: number) {
   switch (element) {
     case "lava":
       drawLavaDetails(ctx, r, t, palette);
@@ -173,16 +175,9 @@ function drawElementDetails(ctx: CanvasRenderingContext2D, r: number, element: O
   }
 }
 
-export function drawOrb(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  element: OrbElement,
-  t: number,
-) {
-  const palette = ORB_PALETTES[element];
-  const gradients = getGradientSet(ctx, r, element);
+export function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, style: OrbRenderStyle, t: number) {
+  const palette = paletteFromColors(style.colors);
+  const gradients = getGradientSet(ctx, r, style.element, style.colors);
 
   ctx.save();
   ctx.translate(x, y);
@@ -201,7 +196,7 @@ export function drawOrb(
 
   ctx.save();
   ctx.clip();
-  drawElementDetails(ctx, r, element, t);
+  drawElementDetails(ctx, r, style.element, palette, t);
   ctx.restore();
 
   ctx.strokeStyle = gradients.rim;
@@ -226,19 +221,35 @@ export function drawOrb(
   ctx.restore();
 }
 
-export function orbStyleForOrb(orb: Orb): OrbElement {
+function orbColorKeyForOrb(orb: Orb): OrbColorKey {
   if (orb.kind === "TERRAFORM") {
-    if (orb.t === "LAVA") return "lava";
-    if (orb.t === "ICE") return "ice";
-    if (orb.t === "GAS") return "void";
-    return "nature";
+    return `TERRAFORM_${orb.t}` as OrbColorKey;
   }
   if (orb.kind === "COLONIZE") {
-    if (orb.c === "HIGH_TECH" || orb.c === "SENTIENT") return "void";
-    return "nature";
+    const colonizeKey = orb.c === "HIGH_TECH" ? "HIGHTECH" : orb.c;
+    return `COLONIZE_${colonizeKey}` as OrbColorKey;
   }
-  if (orb.i === "BLACK_HOLE" || orb.i === "TEMPORAL_VORTEX") return "void";
-  if (orb.i === "SOLAR_FLARE" || orb.i === "METEOR") return "lava";
-  if (orb.i === "TORNADO") return "ice";
-  return "nature";
+  if (orb.i === "TEMPORAL_VORTEX") {
+    return "IMPACT_TEMPORALVORTEX";
+  }
+  return `IMPACT_${orb.i}` as OrbColorKey;
+}
+
+export function orbStyleForOrb(orb: Orb): OrbRenderStyle {
+  const colorKey = orbColorKeyForOrb(orb);
+  const colors = ORB_COLORS[colorKey];
+  if (orb.kind === "TERRAFORM") {
+    if (orb.t === "LAVA") return { element: "lava", colors };
+    if (orb.t === "ICE") return { element: "ice", colors };
+    if (orb.t === "GAS") return { element: "void", colors };
+    return { element: "nature", colors };
+  }
+  if (orb.kind === "COLONIZE") {
+    if (orb.c === "HIGH_TECH" || orb.c === "SENTIENT") return { element: "void", colors };
+    return { element: "nature", colors };
+  }
+  if (orb.i === "BLACK_HOLE" || orb.i === "TEMPORAL_VORTEX") return { element: "void", colors };
+  if (orb.i === "SOLAR_FLARE" || orb.i === "METEOR") return { element: "lava", colors };
+  if (orb.i === "TORNADO") return { element: "ice", colors };
+  return { element: "nature", colors };
 }
