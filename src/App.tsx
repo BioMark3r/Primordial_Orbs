@@ -1694,7 +1694,15 @@ export default function App() {
 
         <div className="game-content">
           {isDev && showInspector && (
-            <div style={{ padding: 10, border: "1px solid #666", borderRadius: 10, background: "#fafafa" }}>
+            <div
+              style={{
+                padding: 10,
+                border: "1px solid #666",
+                borderRadius: 10,
+                background: "#fafafa",
+                color: "#1f1f1f",
+              }}
+            >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                 <h3 style={{ margin: 0 }}>Game Inspector</h3>
                 <div style={{ fontSize: 12, color: "#666" }}>Dev-only</div>
@@ -1709,13 +1717,24 @@ export default function App() {
               </div>
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontWeight: 700 }}>Last Action</div>
-                <pre style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
+                <pre style={{ marginTop: 6, whiteSpace: "pre-wrap", color: "#1f1f1f" }}>
                   {lastAction ? JSON.stringify(lastAction, null, 2) : "None"}
                 </pre>
               </div>
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontWeight: 700 }}>State JSON</div>
-                <pre style={{ marginTop: 6, maxHeight: 200, overflow: "auto", background: "#fff", padding: 8, borderRadius: 8, border: "1px solid #ddd" }}>
+                <pre
+                  style={{
+                    marginTop: 6,
+                    maxHeight: 200,
+                    overflow: "auto",
+                    background: "#fff",
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid #ddd",
+                    color: "#1f1f1f",
+                  }}
+                >
                   {JSON.stringify(state, null, 2)}
                 </pre>
               </div>
