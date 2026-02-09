@@ -54,6 +54,22 @@ Open the local URL printed by Vite (commonly http://localhost:5173).
 - Impacts are deterministic (no physics arena yet).
 - Solo/AI files are included for future expansion but not wired.
 
+## Rulebook Screenshots (Dev Note)
+
+To refresh the rulebook screenshots:
+
+1. Run the app locally.
+2. Use your OS/browser screenshot tool to capture the relevant panels.
+3. Crop to the game UI frame for consistency.
+4. Save into `public/rulebook/` with these exact filenames (replace the SVG placeholders):
+   - `ui-overview.svg`
+   - `setup.svg`
+   - `hand-play.svg`
+   - `arena-impact.svg`
+   - `core-status.svg`
+   - `impact-preview.svg`
+   - `tutorial.svg`
+
 
 ## Splash Screen
 - A short splash screen displays the logo on load.
