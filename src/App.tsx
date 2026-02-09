@@ -26,7 +26,7 @@ import { nextIndexOnEvent } from "./ui/utils/tutorialGuide";
 import { TUTORIAL_STEPS } from "./ui/utils/tutorialSteps";
 import { hasSeenTutorial, markSeenTutorial } from "./ui/utils/tutorialStorage";
 
-type Screen = "SPLASH" | "TITLE" | "SETUP" | "GAME";
+type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
 type ImpactTargetChoice = "OPPONENT" | "SELF";
 export type UIEvent =
@@ -452,7 +452,7 @@ export default function App() {
 
           <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             <button
-              onClick={() => setScreen("TITLE")}
+              onClick={() => setScreen("SETUP")}
               style={{ padding: "10px 14px", borderRadius: 10 }}
             >
               Enter
@@ -474,57 +474,12 @@ export default function App() {
     );
   }
 
-  if (screen === "TITLE") {
-    return (
-      <div style={containerStyle}>
-        <div style={{ border: "1px solid #bbb", borderRadius: 14, padding: 18 }}>
-          <h1 style={{ margin: 0 }}>PRIMORDIAL ORBS</h1>
-          <div style={{ marginTop: 6, color: "#555" }}>Terraform • Evolve • Destabilize</div>
-
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
-            <button onClick={() => setScreen("SETUP")} style={{ padding: "10px 14px", borderRadius: 10 }}>
-              Local 2P
-            </button>
-            <button onClick={() => setShowHowTo(true)} style={{ padding: "10px 14px", borderRadius: 10 }}>
-              How to Play
-            </button>
-          </div>
-
-          <div style={{ marginTop: 16, color: "#666", fontSize: 13 }}>
-            MVP defaults: Medium planet (6 slots) • Terraform min 3 • Draw 2 • Hand cap 3 • Play 2 • Impact 1
-          </div>
-          <div style={{ marginTop: 12, fontSize: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={openRulebook}
-              style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
-            >
-              Help / Rulebook
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTutorialMode("MANUAL");
-                setTutorialIndex(0);
-                setTutorialOpen(true);
-              }}
-              style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
-            >
-              Tutorial
-            </button>
-          </div>
-        </div>
-        {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
-      </div>
-    );
-  }
-
   if (screen === "SETUP") {
     return (
       <div style={containerStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <h2 style={{ margin: 0 }}>Setup</h2>
-          <button onClick={() => setScreen("TITLE")}>Back</button>
+          <button onClick={() => setScreen("SPLASH")}>Back</button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 12 }}>
@@ -569,10 +524,10 @@ export default function App() {
           <div style={{ border: "1px solid #bbb", borderRadius: 14, padding: 14 }}>
             <h3 style={{ marginTop: 0 }}>Match Settings</h3>
             <div style={{ marginTop: 6 }}>
-              <div><b>Mode:</b> Local 2P</div>
+              <div><b>Mode:</b> Local Game</div>
               <div style={{ marginTop: 6 }}><b>Planet Size:</b> Medium (fixed)</div>
               <div style={{ marginTop: 6 }}><b>Win:</b> 4 Colonization types</div>
-              <div style={{ marginTop: 6 }}><b>Turn:</b> Draw 2 • Hand cap 3 • Play 2 • Impact 1</div>
+              <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap 3 • Play 2 • Impact 1</div>
             </div>
 
             <div style={{ marginTop: 14 }}>
@@ -721,7 +676,7 @@ export default function App() {
   }
 
   function onCoachAction(hint: CoachHint) {
-    if (hint.actionLabel === "Draw 2" && canDraw) {
+    if (hint.actionLabel === "Draw" && canDraw) {
       clearSelection();
       dispatchWithLog({ type: "DRAW_2" });
       emitActionEvent({ type: "DRAW_2", at: Date.now(), player: active });
@@ -889,7 +844,7 @@ export default function App() {
           <CoachStrip
             hints={coachHints}
             onAction={onCoachAction}
-            isActionDisabled={(hint) => hint.actionLabel === "Draw 2" && !canDraw}
+            isActionDisabled={(hint) => hint.actionLabel === "Draw" && !canDraw}
           />
 
           <div className="game-arena-row">
@@ -1284,7 +1239,7 @@ function PlayerPanel(props: {
             disabled={!props.turnControls.canDraw}
             onClick={props.turnControls.onDraw2}
           >
-            Draw 2
+            Draw
           </button>
           <button
             id={props.endPlayId}
@@ -1382,7 +1337,7 @@ function HowToOverlay({ onClose }: { onClose: () => void }) {
 
           <h3>Turn Flow</h3>
           <ul>
-            <li>Draw 2 cards.</li>
+            <li>Draw cards.</li>
             <li>Play up to 2 orbs (Terraform/Colonize) and up to 1 Impact.</li>
             <li>End Play, then Advance to resolve impacts and check for victory.</li>
           </ul>

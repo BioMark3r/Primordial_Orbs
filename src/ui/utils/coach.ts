@@ -46,8 +46,8 @@ export function getCoachHints(state: GameState): CoachHint[] {
   if (state.phase === "DRAW") {
     hints.push({
       tone: "info",
-      title: "Draw 2 to begin your turn.",
-      actionLabel: "Draw 2",
+      title: "Draw to begin your turn.",
+      actionLabel: "Draw",
     });
 
     if (activePlayer.hand.length > HAND_CAP) {
