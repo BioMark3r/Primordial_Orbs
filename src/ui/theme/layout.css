@@ -181,6 +181,13 @@
   padding: 6px;
   border-radius: 10px;
   min-height: calc(var(--slot) + 16px);
+  position: relative;
+  overflow: hidden;
+}
+
+.player-panel__slot-content {
+  position: relative;
+  z-index: 1;
 }
 
 .hand-panel {
