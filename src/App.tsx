@@ -38,6 +38,13 @@ import { hasSeenTutorial, markSeenTutorial } from "./ui/utils/tutorialStorage";
 import { buildTurnRecap } from "./ui/utils/turnRecap";
 import type { TurnRecap } from "./ui/utils/turnRecap";
 import { getButtonDisabledReason, getOrbDisabledReason } from "./ui/utils/disabledReasons";
+import {
+  exportMatchCode,
+  importMatchCode,
+  loadFromLocalStorage,
+  saveToLocalStorage,
+} from "./ui/utils/save";
+import type { SavePayloadV1 } from "./ui/utils/save";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -230,6 +237,13 @@ export default function App() {
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
   const [showHowTo, setShowHowTo] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [exportCode, setExportCode] = useState("");
+  const [importCode, setImportCode] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importPayload, setImportPayload] = useState<SavePayloadV1 | null>(null);
   const [uiEvents, setUiEvents] = useState<UIEvent[]>([]);
   const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
   const [flashState, setFlashState] = useState<{
@@ -257,6 +271,9 @@ export default function App() {
   const lastImpactEventRef = useRef<ImpactResolvedSummary | null>(null);
   const lastImpactProcessedRef = useRef<number | null>(null);
   const prevProgressRef = useRef<{ 0: ProgressState; 1: ProgressState } | null>(null);
+  const autosaveAtRef = useRef(0);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const autosaveStateRef = useRef<GameState | null>(null);
   const drawRef = useRef<HTMLButtonElement | null>(null);
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
@@ -614,6 +631,40 @@ export default function App() {
   }, [screen, shortcutContext]);
 
   useEffect(() => {
+    if (screen !== "GAME") {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      return;
+    }
+    if (autosaveStateRef.current === state) {
+      return;
+    }
+    const now = Date.now();
+    const elapsed = now - autosaveAtRef.current;
+    const saveNow = (next: GameState) => {
+      const result = saveToLocalStorage(next);
+      if (result.ok) {
+        autosaveAtRef.current = Date.now();
+        autosaveStateRef.current = next;
+      }
+    };
+    if (elapsed >= 2000) {
+      saveNow(state);
+      return;
+    }
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+    const delay = Math.max(0, 2000 - elapsed);
+    autosaveTimerRef.current = window.setTimeout(() => {
+      saveNow(state);
+      autosaveTimerRef.current = null;
+    }, delay);
+  }, [screen, state]);
+
+  useEffect(() => {
     if (!allowAutoFocus) {
       prevPhaseRef.current = state.phase;
       return;
@@ -791,6 +842,131 @@ export default function App() {
     setTurnRecap(null);
     setTurnRecapOpen(false);
     pendingDiffRef.current = null;
+  }
+
+  function clearUiForLoad() {
+    resetTransientUi();
+    setShowHowTo(false);
+    setTutorialOpen(false);
+    setTutorialIndex(0);
+    setTutorialMode("GUIDED");
+    setLogOpen(false);
+    setUiEvents([]);
+    setArenaEvent(null);
+    setFlashState(null);
+    setWinCelebration(null);
+    setCorePulse(null);
+    setProgressPulse({ 0: null, 1: null });
+    setLastAction(null);
+    setLastActionEvent(null);
+    setTurnEvents([]);
+    setSaveMenuOpen(false);
+  }
+
+  function applyLoadedState(payload: SavePayloadV1) {
+    clearUiForLoad();
+    setHistory({ past: [], present: payload.state, future: [] });
+    setSeedInput(String(payload.state.seed));
+    autosaveStateRef.current = payload.state;
+    autosaveAtRef.current = Date.now();
+  }
+
+  function handleSaveNow() {
+    const result = saveToLocalStorage(state);
+    if (result.ok) {
+      pushToast({
+        id: `save-${Date.now()}`,
+        tone: "good",
+        title: "Saved.",
+        at: Date.now(),
+      });
+    } else {
+      pushToast({
+        id: `save-error-${Date.now()}`,
+        tone: "warn",
+        title: "Save failed.",
+        detail: result.error,
+        at: Date.now(),
+      });
+    }
+  }
+
+  function handleLoadNow() {
+    const result = loadFromLocalStorage();
+    if (result.ok) {
+      applyLoadedState(result.payload);
+      pushToast({
+        id: `load-${Date.now()}`,
+        tone: "good",
+        title: "Loaded.",
+        at: Date.now(),
+      });
+    } else {
+      pushToast({
+        id: `load-error-${Date.now()}`,
+        tone: "warn",
+        title: "Load failed.",
+        detail: result.error,
+        at: Date.now(),
+      });
+    }
+  }
+
+  function handleExportOpen() {
+    setExportCode(exportMatchCode(state));
+    setExportOpen(true);
+  }
+
+  async function handleCopyExport() {
+    try {
+      await navigator.clipboard.writeText(exportCode);
+      pushToast({
+        id: `copy-${Date.now()}`,
+        tone: "good",
+        title: "Code copied.",
+        at: Date.now(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Clipboard unavailable.";
+      pushToast({
+        id: `copy-error-${Date.now()}`,
+        tone: "warn",
+        title: "Copy failed.",
+        detail: message,
+        at: Date.now(),
+      });
+    }
+  }
+
+  function handleImportValidate() {
+    const result = importMatchCode(importCode);
+    if (result.ok) {
+      setImportPayload(result.payload);
+      setImportError(null);
+      return;
+    }
+    setImportPayload(null);
+    setImportError(result.error);
+  }
+
+  function handleImportLoad() {
+    const result = importMatchCode(importCode);
+    if (result.ok) {
+      applyLoadedState(result.payload);
+      setImportOpen(false);
+      setImportCode("");
+      setImportPayload(null);
+      setImportError(null);
+      pushToast({
+        id: `import-${Date.now()}`,
+        tone: "good",
+        title: "Match code loaded.",
+        at: Date.now(),
+      });
+    } else {
+      setImportPayload(null);
+      setImportError(result.error);
+    }
   }
 
   function onClickHand(i: number, e: React.MouseEvent) {
@@ -1000,6 +1176,72 @@ export default function App() {
               </>
             )}
             <span className="game-status-pill">Hand {activeHand.length}/3</span>
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setSaveMenuOpen((prev) => !prev)}
+                aria-expanded={saveMenuOpen}
+              >
+                Save/Load
+              </button>
+              {saveMenuOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: "100%",
+                    marginTop: 6,
+                    background: "rgba(16,20,33,0.98)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    borderRadius: 10,
+                    padding: 8,
+                    display: "grid",
+                    gap: 6,
+                    minWidth: 140,
+                    zIndex: 30,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSaveNow();
+                      setSaveMenuOpen(false);
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleLoadNow();
+                      setSaveMenuOpen(false);
+                    }}
+                  >
+                    Load
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleExportOpen();
+                      setSaveMenuOpen(false);
+                    }}
+                  >
+                    Export Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportOpen(true);
+                      setImportError(null);
+                      setImportPayload(null);
+                      setSaveMenuOpen(false);
+                    }}
+                  >
+                    Import Code
+                  </button>
+                </div>
+              )}
+            </div>
             <button className="game-status-pill" type="button" onClick={openRulebook}>
               Rulebook
             </button>
@@ -1031,6 +1273,92 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {exportOpen && (
+          <div className="overlay-backdrop" role="dialog" aria-modal="true">
+            <div className="overlay-panel" style={{ width: "min(720px, 95vw)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <h2 style={{ margin: 0 }}>Match Code</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExportOpen(false);
+                    setExportCode("");
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              <p style={{ marginTop: 10 }}>
+                Share this code to restore the current match.
+              </p>
+              <textarea
+                readOnly
+                value={exportCode}
+                rows={6}
+                style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+              />
+              <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" onClick={handleCopyExport}>
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {importOpen && (
+          <div className="overlay-backdrop" role="dialog" aria-modal="true">
+            <div className="overlay-panel" style={{ width: "min(720px, 95vw)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <h2 style={{ margin: 0 }}>Import Match Code</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportOpen(false);
+                    setImportCode("");
+                    setImportError(null);
+                    setImportPayload(null);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              <p style={{ marginTop: 10 }}>
+                Paste a match code to validate and load a saved game state.
+              </p>
+              <textarea
+                value={importCode}
+                onChange={(event) => {
+                  setImportCode(event.target.value);
+                  setImportError(null);
+                  setImportPayload(null);
+                }}
+                rows={6}
+                placeholder="Paste match code here"
+                style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+              />
+              {importError && (
+                <div style={{ marginTop: 8, color: "#b3261e", fontSize: 13 }}>
+                  {importError}
+                </div>
+              )}
+              {importPayload && !importError && (
+                <div style={{ marginTop: 8, color: "#1b5e20", fontSize: 13 }}>
+                  Code valid. Created {new Date(importPayload.createdAt).toLocaleString()}.
+                </div>
+              )}
+              <div style={{ marginTop: 12, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" onClick={handleImportValidate}>
+                  Validate
+                </button>
+                <button type="button" onClick={handleImportLoad}>
+                  Load
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
         <TutorialOverlay
