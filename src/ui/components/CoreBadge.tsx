@@ -1,14 +1,14 @@
 import React from "react";
 import type { Core } from "../../engine/types";
 import { coreIcon } from "../theme/assets";
-import { ORB_COLORS } from "../theme/orbColors";
+import { orbColors } from "../theme/orbColors";
 
 const coreColors: Record<Core, string> = {
-  LAND: ORB_COLORS.TERRAFORM_LAND.base,
-  WATER: ORB_COLORS.TERRAFORM_WATER.base,
-  ICE: ORB_COLORS.TERRAFORM_ICE.base,
-  LAVA: ORB_COLORS.TERRAFORM_LAVA.base,
-  GAS: ORB_COLORS.TERRAFORM_GAS.base,
+  LAND: orbColors.TERRAFORM_LAND.base,
+  WATER: orbColors.TERRAFORM_WATER.base,
+  ICE: orbColors.TERRAFORM_ICE.base,
+  LAVA: orbColors.TERRAFORM_LAVA.base,
+  GAS: orbColors.TERRAFORM_GAS.base,
 };
 
 export function CoreBadge(props: { core: Core; size?: number; title?: string }) {
