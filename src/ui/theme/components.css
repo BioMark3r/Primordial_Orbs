@@ -12,6 +12,14 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.ui-panel--compact {
+  padding: var(--s2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-2);
+  background: var(--panel-2);
+  box-shadow: none;
+}
+
 .ui-btn {
   display: inline-flex;
   align-items: center;
