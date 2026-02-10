@@ -58,6 +58,7 @@ import { replayFromStart, validateReplayMatchesCurrent } from "./ui/utils/replay
 import { DeterminismPanel } from "./ui/components/DeterminismPanel";
 import { TurnHandoffOverlay } from "./ui/components/TurnHandoffOverlay";
 import { PlayerHeader } from "./ui/components/PlayerHeader";
+import { CriticalVignette } from "./ui/components/CriticalVignette";
 import { createAiRunner } from "./ai/aiRunner";
 import type { AiConfig, AiPersonality } from "./ai/aiTypes";
 import { DEMO_ARENA_EVENT_V1, DEMO_FLASH_STATE_V1, DEMO_REPLAY_LOG_V1, DEMO_STATE_V1 } from "./demo/demoState";
@@ -357,6 +358,8 @@ export default function App() {
   }>({ 0: null, 1: null });
   const [winCelebration, setWinCelebration] = useState<{ player: 0 | 1; until: number } | null>(null);
   const [turnHandoff, setTurnHandoff] = useState<{ open: boolean; player: 0 | 1 } | null>(null);
+  const [endgamePulse, setEndgamePulse] = useState(false);
+  const [fracturePlayer, setFracturePlayer] = useState<0 | 1 | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
   const prevActiveRef = useRef(state.active);
   const prevPhaseRef = useRef(state.phase);
@@ -437,6 +440,48 @@ export default function App() {
   );
   const p0Viz = useMemo(() => computePlanetViz(state.players[0].planet.slots), [state.players[0].planet.slots]);
   const p1Viz = useMemo(() => computePlanetViz(state.players[1].planet.slots), [state.players[1].planet.slots]);
+  const p0LifeCurrent = p0Progress.unlockedCount;
+  const p1LifeCurrent = p1Progress.unlockedCount;
+  const p0LifeMax = 4;
+  const p1LifeMax = 4;
+  const shotsMode =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("shots") === "1";
+
+  const criticalPlayer: 0 | 1 | null = useMemo(() => {
+    const p0Critical = p0LifeCurrent <= 1;
+    const p1Critical = p1LifeCurrent <= 1;
+    if (!p0Critical && !p1Critical) return null;
+    if (p0Critical && !p1Critical) return 0;
+    if (p1Critical && !p0Critical) return 1;
+    return p0LifeCurrent <= p1LifeCurrent ? 0 : 1;
+  }, [p0LifeCurrent, p1LifeCurrent]);
+
+  const losingPlayer: 0 | 1 | null = useMemo(() => {
+    if (p0LifeCurrent === 0 && p1LifeCurrent === 0) {
+      if (state.phase === "GAME_OVER" && state.winner !== undefined) {
+        return state.winner === 0 ? 1 : 0;
+      }
+      return null;
+    }
+    if (p0LifeCurrent === 0) return 0;
+    if (p1LifeCurrent === 0) return 1;
+    if (state.phase === "GAME_OVER" && state.winner !== undefined) {
+      return state.winner === 0 ? 1 : 0;
+    }
+    return null;
+  }, [p0LifeCurrent, p1LifeCurrent, state.phase, state.winner]);
+
+  const criticalIntensity = useMemo(() => {
+    if (criticalPlayer === null || shotsMode) return 0;
+    const current = criticalPlayer === 0 ? p0LifeCurrent : p1LifeCurrent;
+    const max = criticalPlayer === 0 ? p0LifeMax : p1LifeMax;
+    if (max <= 0) return 0;
+    const ratio = Math.max(0, Math.min(1, current / max));
+    const intensity = 0.25 + (1 - ratio) * 0.3;
+    return Math.max(0.2, Math.min(0.55, intensity));
+  }, [criticalPlayer, p0LifeCurrent, p0LifeMax, p1LifeCurrent, p1LifeMax, shotsMode]);
+
+  const prevLosingPlayerRef = useRef<0 | 1 | null>(null);
 
   const playsRemaining = state.counters.playsRemaining;
   const impactsRemaining = state.counters.impactsRemaining;
@@ -518,6 +563,23 @@ export default function App() {
       timers.forEach((timer) => window.clearTimeout(timer));
     };
   }, [progressPulse]);
+
+  useEffect(() => {
+    const prev = prevLosingPlayerRef.current;
+    prevLosingPlayerRef.current = losingPlayer;
+    if (losingPlayer === null || prev === losingPlayer) return;
+
+    setEndgamePulse(true);
+    setFracturePlayer(losingPlayer);
+    const timer = window.setTimeout(() => {
+      setEndgamePulse(false);
+      setFracturePlayer((current) => (current === losingPlayer ? null : current));
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [losingPlayer]);
 
   useEffect(() => {
     if (!winCelebration) return;
@@ -1793,6 +1855,11 @@ export default function App() {
         className="app-shell game-shell"
         data-density={compactMode ? "compact" : "comfortable"}
       >
+        <CriticalVignette
+          criticalPlayer={criticalPlayer}
+          criticalIntensity={criticalIntensity}
+          endgamePulse={endgamePulse && !shotsMode}
+        />
         <ToastStack />
         {winCelebration && <WinCelebration player={winCelebration.player} />}
         <TurnRecapToast
@@ -2281,6 +2348,8 @@ export default function App() {
               isActive={active === 0}
               isCpu={playVsComputer && 0 === aiConfig.player}
               cpuPersonality={playVsComputer && 0 === aiConfig.player ? aiConfig.personality : undefined}
+              fracture={fracturePlayer === 0}
+              reduceMotion={settings.reduceMotion}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
                 canDraw: canDraw && active === 0,
@@ -2341,6 +2410,8 @@ export default function App() {
               isActive={active === 1}
               isCpu={playVsComputer && 1 === aiConfig.player}
               cpuPersonality={playVsComputer && 1 === aiConfig.player ? aiConfig.personality : undefined}
+              fracture={fracturePlayer === 1}
+              reduceMotion={settings.reduceMotion}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
                 canDraw: canDraw && active === 1,
@@ -2711,6 +2782,8 @@ function PlayerPanel(props: {
   undoRef?: React.Ref<HTMLButtonElement>;
   isCpu?: boolean;
   cpuPersonality?: AiPersonality;
+  fracture?: boolean;
+  reduceMotion?: boolean;
 }) {
   const tCount = terraformCount(props.planetSlots);
   const cTypes = colonizeTypesCount(props.planetSlots);
@@ -2718,7 +2791,14 @@ function PlayerPanel(props: {
 
   return (
     <div
-      className={`player-panel ${props.isActive ? "player-panel--active" : "player-panel--inactive"}`}
+      className={[
+        "player-panel",
+        props.isActive ? "player-panel--active" : "player-panel--inactive",
+        props.fracture ? "player-panel--fracture" : "",
+        props.fracture && !props.reduceMotion ? "player-panel--fracture-shake" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-testid={props.panelTestId}
     >
       <div className="player-panel__header" data-testid={props.headerTestId}>
