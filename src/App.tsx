@@ -64,6 +64,8 @@ import { createAiRunner } from "./ai/aiRunner";
 import type { AiConfig, AiPersonality } from "./ai/aiTypes";
 import { DEMO_ARENA_EVENT_V1, DEMO_FLASH_STATE_V1, DEMO_REPLAY_LOG_V1, DEMO_STATE_V1 } from "./demo/demoState";
 import { isDemoModeRequested, loadDemoStateIfRequested } from "./demo/loadDemoState";
+import { initAudioUnlock, playSfx } from "./ui/utils/sfx";
+import { loadSettings, saveSettings, type UserSettings } from "./ui/utils/settings";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -332,6 +334,8 @@ export default function App() {
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<UserSettings>(() => loadSettings());
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportCode, setExportCode] = useState("");
@@ -577,8 +581,9 @@ export default function App() {
   useEffect(() => {
     if (arenaEvent?.kind === "IMPACT_RESOLVED") {
       lastImpactEventRef.current = arenaEvent;
+      playSfx("impact_land", settings, { volumeMul: 1.1 });
     }
-  }, [arenaEvent]);
+  }, [arenaEvent, settings]);
 
   useEffect(() => {
     if (arenaEvent?.kind === "IMPACT_RESOLVED") {
@@ -649,6 +654,7 @@ export default function App() {
     ([0, 1] as const).forEach((player) => {
       const newlyUnlocked = diffProgress(prev[player], next[player]);
       if (newlyUnlocked.length > 0) {
+        playSfx("unlock", settings);
         newlyUnlocked.forEach((type) => {
           pushToast({
             id: `unlock-${player}-${type}-${now}-${Math.random().toString(36).slice(2, 7)}`,
@@ -733,7 +739,7 @@ export default function App() {
     return Number.isFinite(parsed) ? parsed : Date.now();
   }
 
-  function dispatchWithLog(action: Action) {
+  function dispatchWithLog(action: Action): boolean {
     const before = state;
     const intent = toActionIntent(action);
     if (intent) {
@@ -746,7 +752,8 @@ export default function App() {
           detail: validation.reason,
           at: Date.now(),
         });
-        return;
+        playSfx("error", settings, { volumeMul: 0.6 });
+        return false;
       }
     }
     const computedNext = reducer(before, action);
@@ -763,15 +770,30 @@ export default function App() {
       return pushHistory(prev, nextPresent, HISTORY_LIMIT);
     });
 
-    if (computedNext === before) return;
+    if (computedNext === before) return false;
     if (action.type === "NEW_GAME") {
       initialStateRef.current = structuredClone(computedNext);
       setActionLog([]);
       replayEntryCounterRef.current = 0;
       setReplayImportBundle(null);
-      return;
+      return true;
     }
-    if (!shouldRecordReplay(action)) return;
+    if (!shouldRecordReplay(action)) return true;
+    switch (action.type) {
+      case "PLAY_TERRAFORM":
+      case "PLAY_COLONIZE":
+        playSfx("orb_place", settings);
+        break;
+      case "END_PLAY":
+        playSfx("end_play", settings);
+        break;
+      case "ADVANCE":
+        playSfx("advance", settings);
+        break;
+      default:
+        break;
+    }
+
     const result = getDrawResult(action, before, computedNext, before.active);
     const entry: ReplayEntryV1 = {
       v: 1,
@@ -783,6 +805,7 @@ export default function App() {
       ...(result ? { result } : {}),
     };
     setActionLog((prev) => [...prev, entry]);
+    return true;
   }
 
   function startGame() {
@@ -834,7 +857,8 @@ export default function App() {
     tutorialOpen ||
     turnRecapOpen ||
     showHowTo ||
-    shortcutsOpen;
+    shortcutsOpen ||
+    settingsOpen;
   const handoffBlocked =
     menuOpen ||
     exportOpen ||
@@ -844,6 +868,7 @@ export default function App() {
     tutorialOpen ||
     showHowTo ||
     shortcutsOpen ||
+    settingsOpen ||
     logOpen;
 
   const aiConfig: AiConfig = {
@@ -861,6 +886,22 @@ export default function App() {
   useEffect(() => {
     uiOverlayRef.current = uiOverlayOpen;
   }, [uiOverlayOpen]);
+
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.motion = settings.reduceMotion ? "reduced" : "full";
+  }, [settings.reduceMotion]);
+
+  useEffect(() => {
+    const unlock = () => initAudioUnlock();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   useEffect(() => {
     aiConfigRef.current = aiConfig;
@@ -942,10 +983,11 @@ export default function App() {
 
   const menuAction = useCallback(
     (action: () => void) => () => {
+      playSfx("click", settings);
       action();
       closeMenus();
     },
-    [closeMenus]
+    [closeMenus, settings]
   );
 
   const shortcutContext = useMemo<ShortcutContext>(
@@ -1278,6 +1320,7 @@ export default function App() {
     setViewMenuOpen(false);
     setHelpMenuOpen(false);
     setShortcutsOpen(false);
+    setSettingsOpen(false);
     setReplayExportOpen(false);
     setReplayImportOpen(false);
   }
@@ -1559,7 +1602,8 @@ export default function App() {
     if (e.shiftKey) {
       const redrawCheck = validateIntent(state, { type: "GAS_REDRAW", handIndex: i }, validationCtx);
       if (redrawCheck.ok) {
-        dispatchWithLog({ type: "GAS_REDRAW", handIndex: i });
+        const dispatched = dispatchWithLog({ type: "GAS_REDRAW", handIndex: i });
+        if (!dispatched) return;
         emitActionEvent({ type: "GAS_REDRAW", at: Date.now(), player: active });
         clearSelection();
       }
@@ -1582,8 +1626,10 @@ export default function App() {
       } else {
         const swapCheck = validateIntent(state, { type: "WATER_SWAP", a: waterSwapPick, b: slotIndex }, validationCtx);
         if (swapCheck.ok) {
-          dispatchWithLog({ type: "WATER_SWAP", slotA: waterSwapPick, slotB: slotIndex });
-          emitActionEvent({ type: "WATER_SWAP", at: Date.now(), player: active });
+          const dispatched = dispatchWithLog({ type: "WATER_SWAP", slotA: waterSwapPick, slotB: slotIndex });
+          if (dispatched) {
+            emitActionEvent({ type: "WATER_SWAP", at: Date.now(), player: active });
+          }
         }
         setWaterSwapPick(null);
       }
@@ -1595,14 +1641,16 @@ export default function App() {
     const { handIndex, orb } = selected;
 
     if (orb.kind === "TERRAFORM") {
-      dispatchWithLog({ type: "PLAY_TERRAFORM", handIndex, slotIndex });
+      const dispatched = dispatchWithLog({ type: "PLAY_TERRAFORM", handIndex, slotIndex });
+      if (!dispatched) return;
       emitActionEvent({ type: "PLAY_TERRAFORM", at: Date.now(), player: active, terra: orb.t });
       pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
       clearSelection();
       return;
     }
     if (orb.kind === "COLONIZE") {
-      dispatchWithLog({ type: "PLAY_COLONIZE", handIndex, slotIndex });
+      const dispatched = dispatchWithLog({ type: "PLAY_COLONIZE", handIndex, slotIndex });
+      if (!dispatched) return;
       emitActionEvent({ type: "PLAY_COLONIZE", at: Date.now(), player: active, colonize: orb.c });
       pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
       clearSelection();
@@ -1611,7 +1659,8 @@ export default function App() {
   }
 
   function onDiscardIndex(i: number) {
-    dispatchWithLog({ type: "DISCARD_FROM_HAND", index: i });
+    const dispatched = dispatchWithLog({ type: "DISCARD_FROM_HAND", index: i });
+    if (!dispatched) return;
     clearSelection();
   }
 
@@ -1631,7 +1680,9 @@ export default function App() {
       source: active,
       target,
     });
-    dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
+    const dispatched = dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
+    if (!dispatched) return;
+    playSfx("impact_cast", settings);
     emitActionEvent({ type: "PLAY_IMPACT", at: Date.now(), player: active, impact: selected.orb.i, target });
     clearSelection();
   }
@@ -1639,7 +1690,8 @@ export default function App() {
   function onCoachAction(hint: CoachHint) {
     if (hint.actionLabel === "Draw" && canDraw) {
       clearSelection();
-      dispatchWithLog({ type: "DRAW_2" });
+      const dispatched = dispatchWithLog({ type: "DRAW_2" });
+      if (!dispatched) return;
       emitActionEvent({ type: "DRAW_2", at: Date.now(), player: active });
       pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
     }
@@ -1661,14 +1713,16 @@ export default function App() {
 
   function handleDraw2() {
     clearSelection();
-    dispatchWithLog({ type: "DRAW_2" });
+    const dispatched = dispatchWithLog({ type: "DRAW_2" });
+    if (!dispatched) return;
     emitActionEvent({ type: "DRAW_2", at: Date.now(), player: active });
     pushUiEvent({ kind: "DRAW", at: Date.now(), player: active });
   }
 
   function handleEndPlay() {
     clearSelection();
-    dispatchWithLog({ type: "END_PLAY" });
+    const dispatched = dispatchWithLog({ type: "END_PLAY" });
+    if (!dispatched) return;
     emitActionEvent({ type: "END_PLAY", at: Date.now(), player: active });
   }
 
@@ -1678,7 +1732,8 @@ export default function App() {
     const recap = buildTurnRecap(turnEvents, recapPlayer);
     setTurnRecap(recap);
     setTurnRecapOpen(true);
-    dispatchWithLog({ type: "ADVANCE" });
+    const dispatched = dispatchWithLog({ type: "ADVANCE" });
+    if (!dispatched) return;
     emitActionEvent({ type: "ADVANCE", at: Date.now(), player: active });
     setTurnEvents([]);
   }
@@ -1720,6 +1775,19 @@ export default function App() {
     setTurnRecap(null);
     setLogOpen(false);
     setShortcutsOpen(false);
+    setSettingsOpen(false);
+  }
+
+
+
+  function updateSettings(next: UserSettings) {
+    const normalized: UserSettings = {
+      soundEnabled: next.soundEnabled,
+      volume: Math.min(1, Math.max(0, next.volume)),
+      reduceMotion: next.reduceMotion,
+    };
+    setSettings(normalized);
+    saveSettings(normalized);
   }
 
   const topbarTitle = "Primordial Orbs";
@@ -1856,6 +1924,7 @@ export default function App() {
                 <MenuItem onSelect={menuAction(() => setCompactMode((prev) => !prev))}>
                   {compactMode ? "Comfortable Density" : "Compact Density"}
                 </MenuItem>
+                <MenuItem onSelect={menuAction(() => setSettingsOpen(true))}>Settings...</MenuItem>
                 {playVsComputer && (
                   <MenuItem onSelect={menuAction(() => setAiPaused((prev) => !prev))}>
                     {aiPaused ? "Resume AI" : "Pause AI"}
@@ -2054,6 +2123,52 @@ export default function App() {
                 <button type="button" onClick={handleReplayImportLoad}>
                   Load
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {settingsOpen && (
+          <div className="overlay-backdrop" role="dialog" aria-modal="true">
+            <div className="overlay-panel" style={{ width: "min(420px, 94vw)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <h2 style={{ margin: 0 }}>Settings</h2>
+                <button type="button" onClick={() => setSettingsOpen(false)}>Close</button>
+              </div>
+              <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span>Sound</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.soundEnabled}
+                    onChange={(event) => updateSettings({ ...settings, soundEnabled: event.target.checked })}
+                  />
+                </label>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span>Volume: {Math.round(settings.volume * 100)}%</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    disabled={!settings.soundEnabled}
+                    value={Math.round(settings.volume * 100)}
+                    onChange={(event) =>
+                      updateSettings({
+                        ...settings,
+                        volume: Number(event.target.value) / 100,
+                      })
+                    }
+                  />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span>Reduce Motion</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.reduceMotion}
+                    onChange={(event) => updateSettings({ ...settings, reduceMotion: event.target.checked })}
+                  />
+                </label>
               </div>
             </div>
           </div>
