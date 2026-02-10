@@ -214,30 +214,68 @@
 .player-panel__header {
   display: flex;
   justify-content: space-between;
-  gap: var(--s2);
   align-items: center;
+  gap: var(--s3);
 }
 
-.player-panel__title {
+.player-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex: 1;
+  min-width: 0;
+}
+
+.player-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.player-header__title {
+  margin: 0;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.player-header__badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #3c4f70;
+}
+
+.player-header__mid {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+.player-header__mini-group {
   display: flex;
   align-items: center;
   gap: var(--s2);
 }
 
-.player-panel__header h3 {
-  margin: 0;
-  font-size: 15px;
+.player-header__mini-label {
+  font-size: var(--fs-1);
+  color: rgba(237, 239, 246, 0.7);
+}
+
+.player-header__mid .progress-track {
+  gap: 0;
 }
 
 .player-panel__stats {
   text-align: right;
   font-size: var(--fs-1);
-}
-
-.player-panel__progress {
-  margin-top: 6px;
-  display: flex;
-  justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .planet-icon {
@@ -639,11 +677,12 @@
 
 .toast-stack {
   position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 20;
-  display: grid;
-  gap: var(--s2);
+  top: 14px;
+  right: 14px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   width: min(320px, 90vw);
 }
 
@@ -658,6 +697,7 @@
 
 .turn-handoff {
   border: 1px solid var(--border);
+  pointer-events: none;
 
   position: fixed;
   top: 18px;
@@ -670,7 +710,6 @@
   align-items: center;
   gap: 10px;
   color: #f5f7ff;
-  cursor: pointer;
   animation: handoffInOut 850ms ease-in-out 1 forwards;
 }
 
@@ -904,11 +943,6 @@
     flex-basis: auto;
   }
 
-  .toast-stack {
-    right: 50%;
-    transform: translateX(50%);
-    top: 12px;
-  }
 }
 
 

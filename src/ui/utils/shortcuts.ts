@@ -27,6 +27,7 @@ export function handleKeyDown(e: KeyboardEvent, ctx: ShortcutContext): void {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
   const key = e.key.toLowerCase();
+  if (e.repeat && (key === "a" || key === "e" || key === "d" || key === "u")) return;
   if (ctx.uiOverlayOpen) {
     if (key === "escape") {
       if (ctx.menuOpen) ctx.closeMenus();

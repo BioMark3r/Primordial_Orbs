@@ -28,11 +28,14 @@ export function ProgressTrack(props: {
   testId?: string;
 }) {
   const { progress, pulseTypes, size = "md", title = "Life", testId } = props;
+  const showLabel = title.trim().length > 0;
   return (
     <div data-testid={testId} className={`progress-track progress-track--${size}`} aria-label={`Player ${props.player + 1} progress`}>
-      <div className="progress-track__label">
-        {title}: {progress.unlockedCount}/4
-      </div>
+      {showLabel && (
+        <div className="progress-track__label">
+          {title}: {progress.unlockedCount}/4
+        </div>
+      )}
       <div className="progress-track__icons" role="list">
         {TYPES.map((type) => {
           const unlocked = progress.unlocked[type];
