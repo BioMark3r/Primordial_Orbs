@@ -2,8 +2,9 @@ import { render, screen } from "@testing-library/react";
 import App from "./App";
 
 describe("App", () => {
-  it("renders the How to Play control", () => {
+  it("renders the splash screen on first load", () => {
     render(<App />);
-    expect(screen.getAllByText("How to Play")[0]).toBeInTheDocument();
+    expect(screen.getByText("PRIMORDIAL ORBS")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enter the Cataclysm Arena" })).toBeInTheDocument();
   });
 });
