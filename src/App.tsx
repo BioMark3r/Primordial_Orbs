@@ -380,17 +380,6 @@ export default function App() {
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
   const isDev = import.meta.env.DEV;
 
-  useEffect(() => {
-    if (!isDev) return;
-    const root = window as Window & {
-      __po_validate?: (intent: ActionIntent) => ReturnType<typeof validateIntent>;
-    };
-    root.__po_validate = (intent: ActionIntent) => validateIntent(state, intent, validationCtx);
-    return () => {
-      delete root.__po_validate;
-    };
-  }, [isDev, state, validationCtx]);
-
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
     padding: 12,
