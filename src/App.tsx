@@ -360,16 +360,9 @@ export default function App() {
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    const resetToSplash = () => setScreen("SPLASH");
-
-    // Ensure a fresh load starts on splash, and also reset when the page
-    // is restored from the browser back/forward cache.
-    resetToSplash();
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) resetToSplash();
-    };
-    window.addEventListener("pageshow", onPageShow);
-    return () => window.removeEventListener("pageshow", onPageShow);
+    // Ensure every fresh mount starts on the splash screen.
+    // This avoids browsers restoring an in-progress screen from a cached session state.
+    setScreen("SPLASH");
   }, []);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
