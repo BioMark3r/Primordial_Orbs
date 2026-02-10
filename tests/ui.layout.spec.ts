@@ -42,7 +42,7 @@ for (const viewport of viewports) {
 
       const panel = page.getByTestId("player-panel-0");
       const undo = page.getByTestId("btn-undo");
-      const stats = page.getByTestId("panel-stats-right");
+      const stats = page.getByTestId("panel-stats-right-0");
 
       await expect(panel).toBeVisible();
       await expect(undo).toBeVisible();
