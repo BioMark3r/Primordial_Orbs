@@ -64,6 +64,25 @@
   justify-content: center;
 }
 
+
+.arena-view__planet--target-pulse {
+  border-radius: 999px;
+  box-shadow: 0 0 0 0 rgba(151, 203, 255, 0.7);
+  animation: arenaTargetPulse 0.85s ease-out 1;
+}
+
+@keyframes arenaTargetPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(151, 203, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(151, 203, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(151, 203, 255, 0);
+  }
+}
+
 .arena-view__title {
   font-weight: 800;
   letter-spacing: 1px;

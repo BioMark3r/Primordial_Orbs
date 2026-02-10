@@ -29,7 +29,7 @@ function getImpactLabel(event: UIEvent | null, fallback?: string) {
 function getImpactTarget(event: UIEvent | null) {
   if (!event) return "—";
   if (event.kind === "IMPACT_CAST" || event.kind === "IMPACT_RESOLVED") {
-    return `→ Player ${event.target}`;
+    return `→ Player ${event.target + 1}`;
   }
   return "—";
 }
@@ -53,11 +53,11 @@ export function ArenaView({
     landed: boolean;
   } | null>(null);
   const [impactResult, setImpactResult] = useState<string | null>(null);
+  const [targetPulse, setTargetPulse] = useState<0 | 1 | null>(null);
 
   const impactLabel = useMemo(() => getImpactLabel(lastEvent, lastImpactName), [lastEvent, lastImpactName]);
   const impactTarget = useMemo(() => getImpactTarget(lastEvent), [lastEvent]);
   const impactEvent = lastEvent?.kind === "IMPACT_CAST" || lastEvent?.kind === "IMPACT_RESOLVED" ? lastEvent : null;
-  const targetPulse = impactEvent ? impactEvent.target : null;
 
   useEffect(() => {
     if (lastEvent?.kind !== "IMPACT_CAST") return;
@@ -73,43 +73,46 @@ export function ArenaView({
   }, [lastEvent]);
 
   useEffect(() => {
-    if (!impactEvent) return;
+    if (impactEvent?.kind !== "IMPACT_RESOLVED") return;
     const fx = fxForImpact(impactEvent.impact);
     const fxKey = `${impactEvent.kind}-${impactEvent.at}`;
-    setBowlFx({ key: fxKey, className: fx.bowlClass, accent: fx.accent, landed: impactEvent.kind === "IMPACT_RESOLVED" });
+    setBowlFx({ key: fxKey, className: fx.bowlClass, accent: fx.accent, landed: true });
     const clearFx = window.setTimeout(() => {
       setBowlFx((prev) => (prev?.key === fxKey ? null : prev));
     }, 900);
 
-    if (impactEvent.kind === "IMPACT_RESOLVED") {
-      setBowlPulse(true);
-      const result = `${fx.label}: ${impactEvent.affectedSlots?.length ?? 0} slot(s) changed`;
-      setImpactResult(result);
-      const clearResult = window.setTimeout(() => setImpactResult(null), 1000);
-      const clearPulse = window.setTimeout(() => setBowlPulse(false), 420);
-      return () => {
-        window.clearTimeout(clearFx);
-        window.clearTimeout(clearResult);
-        window.clearTimeout(clearPulse);
-      };
-    }
+    setBowlPulse(true);
+    setTargetPulse(impactEvent.target);
+    const affectedCount = impactEvent.affectedSlots?.length ?? 0;
+    const slotLabel = affectedCount === 1 ? "slot" : "slots";
+    const result = `${fx.label}: ${affectedCount} ${slotLabel} changed`;
+    setImpactResult(result);
+
+    const clearResult = window.setTimeout(() => setImpactResult(null), 1000);
+    const clearPulse = window.setTimeout(() => setBowlPulse(false), 420);
+    const clearTargetPulse = window.setTimeout(() => {
+      setTargetPulse((prev) => (prev === impactEvent.target ? null : prev));
+    }, 850);
 
     return () => {
       window.clearTimeout(clearFx);
+      window.clearTimeout(clearResult);
+      window.clearTimeout(clearPulse);
+      window.clearTimeout(clearTargetPulse);
     };
   }, [impactEvent]);
 
   return (
     <div className="arena-view">
       <div className="arena-view__header">
-        <div className="arena-view__planet arena-view__planet--left">
+        <div className={`arena-view__planet arena-view__planet--left${targetPulse === 0 ? " arena-view__planet--target-pulse" : ""}`}>
           <PlanetIcon viz={p0Viz} size={34} label="Player 1 planet" pulse={targetPulse === 0} />
         </div>
         <div className="arena-view__title-wrap">
           <div className="arena-view__title">Cataclysm Arena</div>
           <div className="arena-view__subtitle">Active: Player {activePlayer + 1}</div>
         </div>
-        <div className="arena-view__planet arena-view__planet--right">
+        <div className={`arena-view__planet arena-view__planet--right${targetPulse === 1 ? " arena-view__planet--target-pulse" : ""}`}>
           <PlanetIcon viz={p1Viz} size={34} label="Player 2 planet" pulse={targetPulse === 1} />
         </div>
       </div>
