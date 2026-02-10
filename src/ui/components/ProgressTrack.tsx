@@ -25,10 +25,11 @@ export function ProgressTrack(props: {
   pulseTypes?: ColonizeType[];
   size?: "sm" | "md";
   title?: string;
+  testId?: string;
 }) {
-  const { progress, pulseTypes, size = "md", title = "Life" } = props;
+  const { progress, pulseTypes, size = "md", title = "Life", testId } = props;
   return (
-    <div className={`progress-track progress-track--${size}`} aria-label={`Player ${props.player + 1} progress`}>
+    <div data-testid={testId} className={`progress-track progress-track--${size}`} aria-label={`Player ${props.player + 1} progress`}>
       <div className="progress-track__label">
         {title}: {progress.unlockedCount}/4
       </div>
