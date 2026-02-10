@@ -2264,7 +2264,7 @@ export default function App() {
               headerTestId="player-header-0"
               actionsRowTestId="actions-row-0"
               undoButtonTestId="btn-undo"
-              statsRightTestId="panel-stats-right"
+              statsRightTestId="panel-stats-right-0"
               core={state.players[0].planet.core}
               planetSlots={state.players[0].planet.slots}
               planetViz={p0Viz}
@@ -2323,6 +2323,8 @@ export default function App() {
               panelTestId="player-panel-1"
               headerTestId="player-header-1"
               actionsRowTestId="actions-row-1"
+              undoButtonTestId="btn-undo-1"
+              statsRightTestId="panel-stats-right-1"
               core={state.players[1].planet.core}
               planetSlots={state.players[1].planet.slots}
               planetViz={p1Viz}
@@ -2733,8 +2735,8 @@ function PlayerPanel(props: {
       </div>
 
       {props.showTurnControls && props.turnControls && (
-        <div className="panel-actions-row" id={props.controlsId} data-testid={props.actionsRowTestId}>
-          <div className="panel-actions-left player-panel__controls">
+        <div className="actionsRow" id={props.controlsId} data-testid={props.actionsRowTestId}>
+          <div className="actionsLeft player-panel__controls">
             <Tooltip
               content={props.turnControls.drawDisabledReason ?? ""}
               disabled={!props.turnControls.drawDisabledReason}
@@ -2799,14 +2801,10 @@ function PlayerPanel(props: {
               Undo
             </button>
           </div>
-          <div
-            className="panel-stats-right"
-            aria-label={`Player ${props.player + 1} planet totals`}
-            data-testid={props.statsRightTestId}
-          >
-            <span className="panel-stats-right__stat">Terraform {tCount}/6 {ok ? "OK" : "LOW"}</span>
-            <span className="panel-stats-right__divider" aria-hidden>•</span>
-            <span className="panel-stats-right__stat">Colonize {cTypes}/4</span>
+          <div className="actionsRight" aria-label={`Player ${props.player + 1} planet totals`} data-testid={props.statsRightTestId}>
+            <span className="statChip">Terraform {tCount}/6 {ok ? "OK" : "LOW"}</span>
+            <span className="statSep" aria-hidden>•</span>
+            <span className="statChip">Colonize {cTypes}/4</span>
           </div>
         </div>
       )}
