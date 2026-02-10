@@ -60,6 +60,8 @@ import type { ReplayBundleV1, ReplayEntryV1 } from "./ui/utils/actionLog";
 import { replayFromStart, validateReplayMatchesCurrent } from "./ui/utils/replay";
 import { DeterminismPanel } from "./ui/components/DeterminismPanel";
 import { TurnHandoffOverlay } from "./ui/components/TurnHandoffOverlay";
+import { createAiRunner } from "./ai/aiRunner";
+import type { AiConfig } from "./ai/aiTypes";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -120,6 +122,31 @@ function toActionIntent(action: Action): ActionIntent | null {
       return { type: "WATER_SWAP", a: action.slotA, b: action.slotB };
     case "GAS_REDRAW":
       return { type: "GAS_REDRAW", handIndex: action.handIndex };
+    case "END_PLAY":
+      return { type: "END_PLAY" };
+    case "ADVANCE":
+      return { type: "ADVANCE" };
+    default:
+      return null;
+  }
+}
+
+function intentToAction(intent: ActionIntent): Action | null {
+  switch (intent.type) {
+    case "DRAW_2":
+      return { type: "DRAW_2" };
+    case "DISCARD_FROM_HAND":
+      return { type: "DISCARD_FROM_HAND", index: intent.handIndex };
+    case "PLAY_TERRAFORM":
+      return { type: "PLAY_TERRAFORM", handIndex: intent.handIndex, slotIndex: intent.slotIndex };
+    case "PLAY_COLONIZE":
+      return { type: "PLAY_COLONIZE", handIndex: intent.handIndex, slotIndex: intent.slotIndex };
+    case "PLAY_IMPACT":
+      return { type: "PLAY_IMPACT", handIndex: intent.handIndex, target: intent.target };
+    case "WATER_SWAP":
+      return { type: "WATER_SWAP", slotA: intent.a, slotB: intent.b };
+    case "GAS_REDRAW":
+      return { type: "GAS_REDRAW", handIndex: intent.handIndex };
     case "END_PLAY":
       return { type: "END_PLAY" };
     case "ADVANCE":
@@ -266,6 +293,10 @@ export default function App() {
   const [mode] = useState<Mode>("LOCAL_2P"); // Local 2P wired
   const [p0Core, setP0Core] = useState<Core>("LAND");
   const [p1Core, setP1Core] = useState<Core>("ICE");
+  const [playVsComputer, setPlayVsComputer] = useState(false);
+  const [aiDifficulty, setAiDifficulty] = useState<AiConfig["difficulty"]>("EASY");
+  const [aiSpeed, setAiSpeed] = useState<AiConfig["speed"]>("NORMAL");
+  const [aiPaused, setAiPaused] = useState(false);
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
   const [hoveredImpactIndex, setHoveredImpactIndex] = useState<number | null>(null);
   const [seedInput, setSeedInput] = useState<string>(() => String(initialSeed));
@@ -329,6 +360,15 @@ export default function App() {
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
+  const stateRef = useRef(state);
+  const uiOverlayRef = useRef(false);
+  const aiConfigRef = useRef<AiConfig>({
+    enabled: false,
+    player: 1,
+    difficulty: "EASY",
+    speed: "NORMAL",
+  });
+  const aiRunnerRef = useRef<ReturnType<typeof createAiRunner> | null>(null);
 
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
@@ -703,7 +743,7 @@ export default function App() {
     resetTransientUi();
     const seed = resolveSeed();
     setSeedInput(String(seed));
-    dispatchWithLog({ type: "NEW_GAME", mode, coreP0: p0Core, coreP1: p1Core, seed });
+    dispatchWithLog({ type: "NEW_GAME", mode: playVsComputer ? "VS_AI" : mode, coreP0: p0Core, coreP1: p1Core, seed });
     setScreen("GAME");
   }
 
@@ -728,6 +768,87 @@ export default function App() {
     showHowTo ||
     shortcutsOpen ||
     logOpen;
+
+  const aiConfig: AiConfig = {
+    enabled: playVsComputer && !aiPaused,
+    player: 1,
+    difficulty: aiDifficulty,
+    speed: aiSpeed,
+  };
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
+    uiOverlayRef.current = uiOverlayOpen;
+  }, [uiOverlayOpen]);
+
+  useEffect(() => {
+    aiConfigRef.current = aiConfig;
+  }, [aiConfig]);
+
+  const aiAbilitiesEnabled = useCallback((snapshot: GameState, p: 0 | 1) => {
+    const until = snapshot.players[p].abilities.disabled_until_turn;
+    return until === undefined || snapshot.turn > until;
+  }, []);
+
+  const dispatchIntent = useCallback(
+    (intent: ActionIntent) => {
+      const snapshot = stateRef.current;
+      const ctx = {
+        activePlayer: snapshot.active,
+        playsRemaining: snapshot.counters.playsRemaining,
+        impactsRemaining: snapshot.counters.impactsRemaining,
+        abilitiesEnabled: (p: 0 | 1) => aiAbilitiesEnabled(snapshot, p),
+        handSizeLimit: DEFAULT_HAND_SIZE_LIMIT,
+        hasUndoHistory: history.past.length > 0 && mode === "LOCAL_2P" && snapshot.phase !== "GAME_OVER",
+      };
+      const check = validateIntent(snapshot, intent, ctx);
+      if (!check.ok) {
+        return false;
+      }
+      const action = intentToAction(intent);
+      if (!action) return false;
+      dispatchWithLog(action);
+      return true;
+    },
+    [aiAbilitiesEnabled, history.past.length, mode],
+  );
+
+  useEffect(() => {
+    aiRunnerRef.current = createAiRunner({
+      ai: aiConfigRef.current,
+      dispatchIntent,
+      validateIntent,
+      getState: () => stateRef.current,
+      uiOverlayOpen: () => uiOverlayRef.current,
+      isGameOver: () => stateRef.current.phase === "GAME_OVER",
+    });
+    return () => {
+      aiRunnerRef.current?.cancel();
+      aiRunnerRef.current = null;
+    };
+  }, [dispatchIntent]);
+
+  useEffect(() => {
+    if (!playVsComputer) {
+      aiRunnerRef.current?.cancel();
+      return;
+    }
+    if (screen !== "GAME") {
+      aiRunnerRef.current?.cancel();
+      return;
+    }
+    if (state.phase === "GAME_OVER" || uiOverlayOpen || state.active !== aiConfig.player) {
+      aiRunnerRef.current?.cancel();
+      return;
+    }
+    aiRunnerRef.current?.startTurn();
+    return () => {
+      aiRunnerRef.current?.cancel();
+    };
+  }, [aiConfig.player, playVsComputer, screen, state.active, state.phase, uiOverlayOpen]);
 
   const closeMenus = useCallback(() => {
     setGameMenuOpen(false);
@@ -963,6 +1084,42 @@ export default function App() {
               </div>
             </div>
 
+            <div style={{ marginTop: 14, padding: 10, border: "1px solid #cfd8ea", borderRadius: 10 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={playVsComputer}
+                  onChange={(e) => setPlayVsComputer(e.target.checked)}
+                />
+                <span style={{ fontWeight: 700 }}>Play vs Computer</span>
+              </label>
+              {playVsComputer && (
+                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontWeight: 600 }}>Difficulty</span>
+                    <select
+                      value={aiDifficulty}
+                      onChange={(e) => setAiDifficulty(e.target.value as AiConfig["difficulty"])}
+                      style={{ padding: 8, borderRadius: 8 }}
+                    >
+                      <option value="EASY">Easy</option>
+                    </select>
+                  </label>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontWeight: 600 }}>AI Speed</span>
+                    <select
+                      value={aiSpeed}
+                      onChange={(e) => setAiSpeed(e.target.value as AiConfig["speed"])}
+                      style={{ padding: 8, borderRadius: 8 }}
+                    >
+                      <option value="FAST">Fast</option>
+                      <option value="NORMAL">Normal</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+            </div>
+
             <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button onClick={startGame} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Start Game
@@ -1068,6 +1225,7 @@ export default function App() {
   }
 
   function handleLoadNow() {
+    aiRunnerRef.current?.cancel();
     const result = loadFromLocalStorage();
     if (result.ok) {
       applyLoadedState(result.payload);
@@ -1259,6 +1417,7 @@ export default function App() {
   }
 
   function handleReplayFromStart() {
+    aiRunnerRef.current?.cancel();
     const bundle = replayImportBundle ?? buildReplayBundle();
     if (!bundle) {
       pushToast({
@@ -1394,10 +1553,17 @@ export default function App() {
   }
 
   function handleNewGame() {
+    aiRunnerRef.current?.cancel();
     resetTransientUi();
     const seed = resolveSeed();
     setSeedInput(String(seed));
-    dispatchWithLog({ type: "NEW_GAME", mode: "LOCAL_2P", coreP0: p0Core, coreP1: p1Core, seed });
+    dispatchWithLog({
+      type: "NEW_GAME",
+      mode: playVsComputer ? "VS_AI" : "LOCAL_2P",
+      coreP0: p0Core,
+      coreP1: p1Core,
+      seed,
+    });
   }
 
   function handleDraw2() {
@@ -1425,6 +1591,7 @@ export default function App() {
   }
 
   function handleUndo() {
+    aiRunnerRef.current?.cancel();
     clearSelection();
     const undoCheck = validateIntent(state, { type: "UNDO" }, validationCtx);
     if (!undoCheck.ok) {
@@ -1585,6 +1752,11 @@ export default function App() {
                 <MenuItem onSelect={menuAction(() => setLogOpen((prev) => !prev))}>
                   {logOpen ? "Hide Log" : "Show Log"}
                 </MenuItem>
+                {playVsComputer && (
+                  <MenuItem onSelect={menuAction(() => setAiPaused((prev) => !prev))}>
+                    {aiPaused ? "Resume AI" : "Pause AI"}
+                  </MenuItem>
+                )}
                 {isDev && (
                   <>
                     <MenuItem onSelect={menuAction(() => setShowInspector((prev) => !prev))}>
@@ -1915,6 +2087,7 @@ export default function App() {
               flashSlots={active === 0 ? activeFlashSlots : otherFlashSlots}
               flashFx={active === 0 ? activeFlashFx : otherFlashFx}
               isActive={active === 0}
+              isCpu={playVsComputer && 0 === aiConfig.player}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
                 canDraw: canDraw && active === 0,
@@ -1951,7 +2124,7 @@ export default function App() {
               />
             </div>
             <PlayerPanel
-              title={`Player 2${active === 1 ? " (Active)" : ""}`}
+              title={`Player 2${playVsComputer ? " (CPU)" : ""}${active === 1 ? " (Active)" : ""}`}
               player={1}
               core={state.players[1].planet.core}
               planetSlots={state.players[1].planet.slots}
@@ -1967,6 +2140,7 @@ export default function App() {
               flashSlots={active === 1 ? activeFlashSlots : otherFlashSlots}
               flashFx={active === 1 ? activeFlashFx : otherFlashFx}
               isActive={active === 1}
+              isCpu={playVsComputer && 1 === aiConfig.player}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
                 canDraw: canDraw && active === 1,
@@ -1998,6 +2172,7 @@ export default function App() {
             <div className={`hand-panel hand-panel--active${isLastPlay ? " hand-last-play" : ""}`} id="ui-hand-panel">
               <div className="hand-panel__header">
                 <h3 className="hand-panel__title">Hand (Player {active + 1})</h3>
+                {playVsComputer && active === 1 && !aiPaused && <div style={{ fontSize: 12, color: "#9cc1ff" }}>Computer thinking…</div>}
                 <div className="hand-panel__hint">
                   Click Terraform/Colonize then a slot. Select an Impact to choose its target.
                   {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
@@ -2328,6 +2503,7 @@ function PlayerPanel(props: {
   endPlayRef?: React.Ref<HTMLButtonElement>;
   advanceRef?: React.Ref<HTMLButtonElement>;
   undoRef?: React.Ref<HTMLButtonElement>;
+  isCpu?: boolean;
 }) {
   const tCount = terraformCount(props.planetSlots);
   const cTypes = colonizeTypesCount(props.planetSlots);
@@ -2339,7 +2515,12 @@ function PlayerPanel(props: {
         <div className="player-panel__title">
           <PlanetIcon viz={props.planetViz} size={40} label={`${props.title} planet`} />
           <div>
-            <h3>{props.title}</h3>
+            <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {props.title}
+              {props.isCpu && (
+                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 999, background: "#3c4f70" }}>CPU</span>
+              )}
+            </h3>
             <div style={{ color: "rgba(237,239,246,0.7)", marginTop: 2 }}>
               Core: <CoreBadge core={props.core} />
             </div>
