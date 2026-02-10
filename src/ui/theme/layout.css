@@ -290,8 +290,11 @@
 
 .actionsRow {
   margin-top: 8px;
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "controls"
+    "stats";
   gap: var(--s2);
   min-width: 0;
 }
@@ -306,17 +309,20 @@
 
 
 .actionsLeft.player-panel__controls {
+  grid-area: controls;
   flex-wrap: nowrap;
   padding-bottom: 0;
 }
 
 .actionsRight {
-  margin-left: auto;
+  grid-area: stats;
   display: flex;
   gap: var(--s2);
   align-items: center;
-  white-space: nowrap;
-  flex: 0 0 auto;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .statChip {
@@ -326,6 +332,7 @@
   background: var(--panel-2);
   font-size: var(--fs-1);
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .statSep {
