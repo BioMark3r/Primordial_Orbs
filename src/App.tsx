@@ -358,6 +358,19 @@ export default function App() {
   const replayEntryCounterRef = useRef(0);
   const drawRef = useRef<HTMLButtonElement | null>(null);
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const resetToSplash = () => setScreen("SPLASH");
+
+    // Ensure a fresh load starts on splash, and also reset when the page
+    // is restored from the browser back/forward cache.
+    resetToSplash();
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) resetToSplash();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
   const stateRef = useRef(state);
@@ -373,17 +386,6 @@ export default function App() {
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
   const isDev = import.meta.env.DEV;
-
-  useEffect(() => {
-    if (!isDev) return;
-    const root = window as Window & {
-      __po_validate?: (intent: ActionIntent) => ReturnType<typeof validateIntent>;
-    };
-    root.__po_validate = (intent: ActionIntent) => validateIntent(state, intent, validationCtx);
-    return () => {
-      delete root.__po_validate;
-    };
-  }, [isDev, state, validationCtx]);
 
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
@@ -458,6 +460,17 @@ export default function App() {
     if (typeof window.matchMedia !== "function") return true;
     return window.matchMedia("(pointer: fine)").matches;
   }, []);
+
+  useEffect(() => {
+    if (!isDev) return;
+    const root = window as Window & {
+      __po_validate?: (intent: ActionIntent) => ReturnType<typeof validateIntent>;
+    };
+    root.__po_validate = (intent: ActionIntent) => validateIntent(state, intent, validationCtx);
+    return () => {
+      delete root.__po_validate;
+    };
+  }, [isDev, state, validationCtx]);
 
   useEffect(() => {
     if (!flashState) return;
