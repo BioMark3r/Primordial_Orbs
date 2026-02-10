@@ -280,6 +280,8 @@
   padding: 6px;
   border-radius: var(--radius-sm);
   min-height: calc(var(--slot) + 16px);
+  width: 100%;
+  box-sizing: border-box;
   position: relative;
   overflow: hidden;
 }
