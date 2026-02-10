@@ -2714,76 +2714,79 @@ function PlayerPanel(props: {
           isCpu={props.isCpu}
           cpuPersonality={props.cpuPersonality}
         />
-        <div className="player-panel__stats" aria-label={`Player ${props.player + 1} planet totals`}>
-          <div><b>Terraform:</b> {tCount}/6 {ok ? "OK" : "LOW"}</div>
-          <div><b>Colonize types:</b> {cTypes}/4</div>
-        </div>
       </div>
 
       {props.showTurnControls && props.turnControls && (
-        <div className="player-panel__controls" id={props.controlsId}>
-          <Tooltip
-            content={props.turnControls.drawDisabledReason ?? ""}
-            disabled={!props.turnControls.drawDisabledReason}
-          >
-            <button
-              className="ui-btn ui-btn--primary"
-              id={props.drawId}
-              ref={props.drawRef}
-              disabled={!props.turnControls.canDraw}
-              aria-disabled={!props.turnControls.canDraw || undefined}
-              title={props.turnControls.drawDisabledReason ?? undefined}
-              onClick={props.turnControls.onDraw2}
+        <div className="panel-actions-row" id={props.controlsId}>
+          <div className="panel-actions-left player-panel__controls">
+            <Tooltip
+              content={props.turnControls.drawDisabledReason ?? ""}
+              disabled={!props.turnControls.drawDisabledReason}
             >
-              Draw
-            </button>
-          </Tooltip>
-          <Tooltip
-            content={props.turnControls.endPlayDisabledReason ?? ""}
-            disabled={!props.turnControls.endPlayDisabledReason}
-          >
-            <button
-              className={`ui-btn ui-btn--primary${props.turnControls.emphasizeEndPlay ? " btn-nudge" : ""}`}
-              id={props.endPlayId}
-              ref={props.endPlayRef}
-              disabled={!props.turnControls.canEndPlay}
-              aria-disabled={!props.turnControls.canEndPlay || undefined}
-              title={props.turnControls.endPlayDisabledReason ?? undefined}
-              onClick={props.turnControls.onEndPlay}
+              <button
+                className="ui-btn ui-btn--primary"
+                id={props.drawId}
+                ref={props.drawRef}
+                disabled={!props.turnControls.canDraw}
+                aria-disabled={!props.turnControls.canDraw || undefined}
+                title={props.turnControls.drawDisabledReason ?? undefined}
+                onClick={props.turnControls.onDraw2}
+              >
+                Draw
+              </button>
+            </Tooltip>
+            <Tooltip
+              content={props.turnControls.endPlayDisabledReason ?? ""}
+              disabled={!props.turnControls.endPlayDisabledReason}
             >
-              End Play
-            </button>
-          </Tooltip>
-          {props.turnControls.emphasizeEndPlay && (
-            <div className="turn-nudge-text">Ready to End Play</div>
-          )}
-          <Tooltip
-            content={props.turnControls.advanceDisabledReason ?? ""}
-            disabled={!props.turnControls.advanceDisabledReason}
-          >
-            <button
-              id={props.advanceId}
-              ref={props.advanceRef}
-              disabled={!props.turnControls.canAdvance}
-              aria-disabled={!props.turnControls.canAdvance || undefined}
-              className={`ui-btn ui-btn--primary${props.turnControls.emphasizeAdvance ? " btn-nudge btn-nudge-advance" : ""}`}
-              title={props.turnControls.advanceDisabledReason ?? undefined}
-              onClick={props.turnControls.onAdvance}
+              <button
+                className={`ui-btn ui-btn--primary${props.turnControls.emphasizeEndPlay ? " btn-nudge" : ""}`}
+                id={props.endPlayId}
+                ref={props.endPlayRef}
+                disabled={!props.turnControls.canEndPlay}
+                aria-disabled={!props.turnControls.canEndPlay || undefined}
+                title={props.turnControls.endPlayDisabledReason ?? undefined}
+                onClick={props.turnControls.onEndPlay}
+              >
+                End Play
+              </button>
+            </Tooltip>
+            {props.turnControls.emphasizeEndPlay && (
+              <div className="turn-nudge-text">Ready to End Play</div>
+            )}
+            <Tooltip
+              content={props.turnControls.advanceDisabledReason ?? ""}
+              disabled={!props.turnControls.advanceDisabledReason}
             >
-              Advance
+              <button
+                id={props.advanceId}
+                ref={props.advanceRef}
+                disabled={!props.turnControls.canAdvance}
+                aria-disabled={!props.turnControls.canAdvance || undefined}
+                className={`ui-btn ui-btn--primary${props.turnControls.emphasizeAdvance ? " btn-nudge btn-nudge-advance" : ""}`}
+                title={props.turnControls.advanceDisabledReason ?? undefined}
+                onClick={props.turnControls.onAdvance}
+              >
+                Advance
+              </button>
+            </Tooltip>
+            {props.turnControls.emphasizeAdvance && (
+              <div className="turn-nudge-text turn-nudge-text--advance">Ready to Advance</div>
+            )}
+            <button
+              className="ui-btn ui-btn--ghost"
+              ref={props.undoRef}
+              disabled={!props.turnControls.canUndo}
+              onClick={props.turnControls.onUndo}
+            >
+              Undo
             </button>
-          </Tooltip>
-          {props.turnControls.emphasizeAdvance && (
-            <div className="turn-nudge-text turn-nudge-text--advance">Ready to Advance</div>
-          )}
-          <button
-            className="ui-btn ui-btn--ghost"
-            ref={props.undoRef}
-            disabled={!props.turnControls.canUndo}
-            onClick={props.turnControls.onUndo}
-          >
-            Undo
-          </button>
+          </div>
+          <div className="panel-stats-right" aria-label={`Player ${props.player + 1} planet totals`}>
+            <span className="panel-stats-right__stat">Terraform {tCount}/6 {ok ? "OK" : "LOW"}</span>
+            <span className="panel-stats-right__divider" aria-hidden>•</span>
+            <span className="panel-stats-right__stat">Colonize {cTypes}/4</span>
+          </div>
         </div>
       )}
 
