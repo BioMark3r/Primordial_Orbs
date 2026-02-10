@@ -3,13 +3,10 @@ import logoUrl from "./assets/logo.png";
 import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
-import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
 import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
 import { ToastStack } from "./ui/components/ToastStack";
-import { ProgressTrack } from "./ui/components/ProgressTrack";
-import { PlanetIcon } from "./ui/components/PlanetIcon";
 import { WinCelebration } from "./ui/components/WinCelebration";
 import { CoachStrip } from "./ui/components/CoachStrip";
 import { TutorialOverlay } from "./ui/components/TutorialOverlay";
@@ -60,6 +57,7 @@ import type { ReplayBundleV1, ReplayEntryV1 } from "./ui/utils/actionLog";
 import { replayFromStart, validateReplayMatchesCurrent } from "./ui/utils/replay";
 import { DeterminismPanel } from "./ui/components/DeterminismPanel";
 import { TurnHandoffOverlay } from "./ui/components/TurnHandoffOverlay";
+import { PlayerHeader } from "./ui/components/PlayerHeader";
 import { createAiRunner } from "./ai/aiRunner";
 import type { AiConfig, AiPersonality } from "./ai/aiTypes";
 import { DEMO_ARENA_EVENT_V1, DEMO_FLASH_STATE_V1, DEMO_REPLAY_LOG_V1, DEMO_STATE_V1 } from "./demo/demoState";
@@ -79,19 +77,6 @@ export type UIEvent =
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
 const RULEBOOK_URL = "/rulebook.html";
-
-function personalityLabel(personality: AiPersonality): string {
-  switch (personality) {
-    case "BALANCED":
-      return "Balanced";
-    case "BUILDER":
-      return "Builder";
-    case "AGGRESSIVE":
-      return "Aggressive";
-    default:
-      return "Balanced";
-  }
-}
 
 function openRulebook() {
   window.open(RULEBOOK_URL, "_blank", "noopener,noreferrer");
@@ -855,7 +840,6 @@ export default function App() {
     replayExportOpen ||
     replayImportOpen ||
     tutorialOpen ||
-    turnRecapOpen ||
     showHowTo ||
     shortcutsOpen ||
     settingsOpen;
@@ -2720,35 +2704,19 @@ function PlayerPanel(props: {
   return (
     <div className={`player-panel ${props.isActive ? "player-panel--active" : "player-panel--inactive"}`}>
       <div className="player-panel__header">
-        <div className="player-panel__title">
-          <PlanetIcon viz={props.planetViz} size={40} label={`${props.title} planet`} />
-          <div>
-            <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {props.title}
-              {props.isCpu && (
-                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 999, background: "#3c4f70" }}>
-                  {`CPU (${personalityLabel(props.cpuPersonality ?? "BALANCED")})`}
-                </span>
-              )}
-            </h3>
-            <div style={{ color: "rgba(237,239,246,0.7)", marginTop: 2 }}>
-              Core: <CoreBadge core={props.core} />
-            </div>
-          </div>
-        </div>
-        <div className="player-panel__stats">
+        <PlayerHeader
+          title={props.title}
+          player={props.player}
+          core={props.core}
+          progress={props.progress}
+          pulseTypes={props.pulseTypes}
+          planetViz={props.planetViz}
+          isCpu={props.isCpu}
+          cpuPersonality={props.cpuPersonality}
+        />
+        <div className="player-panel__stats" aria-label={`Player ${props.player + 1} planet totals`}>
           <div><b>Terraform:</b> {tCount}/6 {ok ? "OK" : "LOW"}</div>
           <div><b>Colonize types:</b> {cTypes}/4</div>
-          <div className="player-panel__progress">
-            <ProgressTrack
-              player={props.player}
-              testId={`progress-track-p${props.player}`}
-              progress={props.progress}
-              pulseTypes={props.pulseTypes}
-              size="sm"
-              title="Life"
-            />
-          </div>
         </div>
       </div>
 

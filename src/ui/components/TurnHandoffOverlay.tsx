@@ -28,11 +28,9 @@ export function TurnHandoffOverlay({
   if (!open) return null;
 
   return (
-    <button
-      type="button"
+    <div
       className="turn-handoff ui-overlayCard"
       style={{ animationDuration: `${durationMs}ms` }}
-      onClick={onDone}
       role="status"
       aria-live="polite"
     >
@@ -41,6 +39,6 @@ export function TurnHandoffOverlay({
         <div className="turn-handoff__title">Player {player + 1}&apos;s Turn</div>
         <div className="turn-handoff__subtitle">Draw to begin</div>
       </div>
-    </button>
+    </div>
   );
 }
