@@ -1,5 +1,6 @@
 :root {
   color-scheme: dark;
+
   --bg: #07080f;
   --panel: #101525;
   --panel-soft: #151b2f;
@@ -12,10 +13,17 @@
   --warn: #f97316;
   --example: #c084fc;
   --shadow: 0 20px 60px rgba(8, 12, 30, 0.55);
+
+  --maxw: 1200px;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
@@ -39,7 +47,7 @@ header {
 }
 
 .header-inner {
-  max-width: 1200px;
+  max-width: var(--maxw);
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -89,8 +97,13 @@ header {
   background: transparent;
 }
 
+.btn:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.6);
+  outline-offset: 2px;
+}
+
 .layout {
-  max-width: 1200px;
+  max-width: var(--maxw);
   margin: 0 auto;
   padding: 24px;
   display: grid;
@@ -144,6 +157,7 @@ main {
   border-radius: 18px;
   padding: 28px;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 main section {
@@ -272,10 +286,21 @@ footer {
   }
 }
 
+/* ---------- Print / PDF ---------- */
+@page {
+  margin: 0.75in;
+}
+
 @media print {
+  :root {
+    color-scheme: light;
+  }
+
   body {
-    background: #fff;
-    color: #111;
+    background: #fff !important;
+    color: #111 !important;
+    font-size: 12pt;
+    line-height: 1.45;
   }
 
   header,
@@ -285,12 +310,66 @@ footer {
     display: none !important;
   }
 
+  .layout {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
   main {
-    box-shadow: none;
-    border: none;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 18px;
   }
 
   figure {
+    page-break-inside: avoid;
     break-inside: avoid;
+    background: transparent !important;
+    border: 1px solid #ddd !important;
+  }
+
+  figcaption {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    color: #333 !important;
+  }
+
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  .callout,
+  .quick-start,
+  .flow-list {
+    background: transparent !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+
+  .callout strong {
+    color: #111 !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
   }
 }
