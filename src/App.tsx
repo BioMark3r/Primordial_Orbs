@@ -358,6 +358,12 @@ export default function App() {
   const replayEntryCounterRef = useRef(0);
   const drawRef = useRef<HTMLButtonElement | null>(null);
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    // Ensure every fresh mount starts on the splash screen.
+    // This avoids browsers restoring an in-progress screen from a cached session state.
+    setScreen("SPLASH");
+  }, []);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
   const stateRef = useRef(state);
