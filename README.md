@@ -1,81 +1,155 @@
-# Primordial Orbs — Local 2P (Browser MVP)
+# 🌍 Primordial Orbs
 
-This is a playable Local 2-player prototype of **Primordial Orbs**, built with **Vite + React + TypeScript**.
+**Primordial Orbs** is a turn-based, two-player strategy game about terraforming planets, evolving life, and destabilizing your opponent through catastrophic events.  
+This repository contains the **local hotseat + solo-play MVP**, built as a one-screen web game with a strong emphasis on clarity, polish, and testability.
 
-## Run
+---
 
+## ✨ Current Features
+
+- Local 2-player hotseat play
+- Solo play vs basic AI (personality toggles)
+- Terraforming, Colonization, and Impact systems
+- Asymmetric planet cores with passive abilities
+- Action log + full replay from start
+- Undo / History system
+- Turn Coach hints + guided first turn
+- One-screen responsive UI (no scrolling)
+- Visual polish:
+  - Marble-style orbs with etched symbols
+  - Subtle shimmer on hover/selection
+  - Cataclysm Arena FX
+- Deterministic **Demo Mode** for testing
+- Automated **Playwright UI layout guardrails**
+
+> Networking multiplayer is a **future goal** — architecture decisions are being made with that in mind, but no network code exists yet.
+
+---
+
+## 🧱 Tech Stack
+
+- **Frontend:** React + TypeScript (strict)
+- **Styling:** CSS tokens + component primitives (no UI framework)
+- **State:** Deterministic reducer-driven game engine
+- **Testing:** Playwright (UI layout + visual regression)
+- **Tooling:** ChatGPT Codex used for structured PR-sized changes
+
+No backend, no database, no canvas.
+
+---
+
+## 🚀 Getting Started
+
+### Install
 ```bash
 npm install
+```
+
+### Run locally
+```bash
 npm run dev
 ```
 
-Open the local URL printed by Vite (commonly http://localhost:5173).
-
-## How to Play (MVP)
-
-1. **Title → Setup**
-   - Choose Player 0 and Player 1 planet cores.
-   - Click **Start Game**.
-
-2. **Turn Loop**
-   - **DRAW**: Click **Draw 2**.
-     - If your hand exceeds 3, discard down to 3.
-   - **PLAY**: You have **2 plays** and **1 impact** max per turn.
-     - Terraform / Colonize: click a hand orb, then click a slot to place.
-     - Impact: click an Impact orb (auto-targets opponent).
-     - Core actions:
-       - **Water**: with no hand selected, click two Terraform slots to swap (once/turn).
-       - **Gas**: **Shift-click** a hand orb to discard+draw (once/turn).
-   - **End Play**
-   - **Advance** (Resolve → Check Win → next player)
-
-3. **Win**
-   - First player to have **4 different colonization types** (Plant, Animal, Sentient, High-Tech) wins.
-
-## Core Passives (Wired)
-
-- **Land**: First Terraform each turn is free (does not consume a play).  
-  Weakness: Terraform-destroying impacts remove +1 Terraform.
-- **Water**: Once per turn, swap two Terraform slots.  
-  Weakness: Disease impacts have +1 severity.
-- **Ice**: First impact against you each turn has -1 severity (min 1).  
-  Weakness: On an Ice-core planet, placing Lava melts one Ice terraform.
-- **Lava**: Your impacts have +1 severity (if abilities enabled).  
-  Weakness: If unstable, you take 2 instability strikes instead of 1.
-- **Gas**: Once per turn, Shift-click a hand orb to discard+draw.  
-  Weakness: Cannot place Ice terraform.
-
-## Notes
-
-- **Temporal Vortex** is implemented: it rewinds the target planet by **one recorded step** (the most recent planet change).
-
-
-- Planet size is fixed to **Medium (6 slots)** for MVP.
-- Impacts are deterministic (no physics arena yet).
-- Solo/AI files are included for future expansion but not wired.
-
-## Rulebook Screenshots (Automated)
-
-Generate rulebook screenshots with Playwright:
-
-```bash
-npm run shots:rulebook
+Open:
+```
+http://localhost:5173
 ```
 
-This script captures deterministic screenshots at `1365x768` and writes PNG files into `public/rulebook/`:
+---
 
-- `00_splash.png`
-- `01_setup.png`
-- `02_game_overview.png`
-- `03_hand_panel.png`
-- `04_arena_fx.png`
-- `05_core_status.png`
-- `06_impact_preview.png`
-- `07_progress_track.png`
-- `08_replay_tools.png`
-- `09_help_menu.png`
+## 🧪 Demo / Test Mode
 
+To run the game in a **stable, deterministic state** (used by tests and screenshots):
 
-## Splash Screen
-- A short splash screen displays the logo on load.
-- Click **Enter** to skip, or **Quick Start** to jump to Setup.
+```
+http://localhost:5173/?demo=1
+```
+
+Optional flags:
+- `&shots=1` – disables animations/transitions for stable screenshots
+
+---
+
+## 🧠 Controls
+
+- **Mouse:** All actions clickable
+- **Keyboard shortcuts:**
+  - `D` – Draw
+  - `E` – End Play
+  - `A` – Advance
+  - `U` – Undo  
+
+---
+
+## 🧩 Project Structure (high level)
+
+```
+src/
+ ├─ engine/
+ ├─ ui/
+ │   ├─ components
+ │   ├─ icons
+ │   ├─ theme
+ │   └─ utils
+ └─ main.tsx
+tests/
+ ├─ ui.layout.spec.ts
+ └─ helpers/layout.ts
+```
+
+---
+
+## 🧪 UI Layout Guardrails
+
+Run UI tests:
+```bash
+npm run test:ui
+```
+
+Update visual baselines:
+```bash
+npm run test:ui:update
+```
+
+---
+
+## 🎨 Visual Design System
+
+- Theme tokens: `src/ui/theme/tokens.css`
+- Components: `components.css`
+- Orbs: `orbs.css`
+
+---
+
+## 🤖 AI & Solo Play
+
+AI is simple and deterministic, designed for playtesting.
+
+---
+
+## 🔊 Audio (Planned)
+
+Hooks exist, assets not yet included.
+
+---
+
+## 🛠 Development Philosophy
+
+- One PR = one focused improvement
+- Prefer clarity over cleverness
+- No silent layout regressions
+
+---
+
+## 🧭 Roadmap
+
+- External playtesting
+- Balance tuning
+- Expanded solo mode
+- Networking foundation
+
+---
+
+## 📜 License
+
+TBD
