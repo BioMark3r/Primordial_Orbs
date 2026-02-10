@@ -43,6 +43,7 @@ export function OrbToken(props: {
 
   const cls = [
     "orb",
+    "orb--shimmerable",
     `orb--${categoryClass}`,
     props.selected ? "orb--selected" : "",
     props.disabled ? "orb--disabled" : "",
