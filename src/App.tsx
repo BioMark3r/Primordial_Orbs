@@ -358,6 +358,19 @@ export default function App() {
   const replayEntryCounterRef = useRef(0);
   const drawRef = useRef<HTMLButtonElement | null>(null);
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const resetToSplash = () => setScreen("SPLASH");
+
+    // Ensure a fresh load starts on splash, and also reset when the page
+    // is restored from the browser back/forward cache.
+    resetToSplash();
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) resetToSplash();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
   const stateRef = useRef(state);
