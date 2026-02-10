@@ -62,6 +62,8 @@ import { DeterminismPanel } from "./ui/components/DeterminismPanel";
 import { TurnHandoffOverlay } from "./ui/components/TurnHandoffOverlay";
 import { createAiRunner } from "./ai/aiRunner";
 import type { AiConfig, AiPersonality } from "./ai/aiTypes";
+import { DEMO_ARENA_EVENT_V1, DEMO_FLASH_STATE_V1, DEMO_REPLAY_LOG_V1, DEMO_STATE_V1 } from "./demo/demoState";
+import { isDemoModeRequested, loadDemoStateIfRequested } from "./demo/loadDemoState";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -292,8 +294,13 @@ function getFirstTurnHint(core: Core) {
 }
 
 export default function App() {
-  const initialSeed = useMemo(() => Date.now(), []);
-  const initial = useMemo(() => newGame("LOCAL_2P", "LAND", "ICE", initialSeed), [initialSeed]);
+  const demoRequested = useMemo(() => isDemoModeRequested(), []);
+  const demoState = useMemo(() => loadDemoStateIfRequested(), [demoRequested]);
+  const initialSeed = useMemo(() => (demoState ? demoState.seed : Date.now()), [demoState]);
+  const initial = useMemo(
+    () => demoState ?? newGame("LOCAL_2P", "LAND", "ICE", initialSeed),
+    [demoState, initialSeed]
+  );
   const [history, setHistory] = useState<HistoryState<GameState>>({
     past: [],
     present: initial,
@@ -302,8 +309,9 @@ export default function App() {
   const state = history.present;
   const [lastAction, setLastAction] = useState<Action | null>(null);
 
-  const [screen, setScreen] = useState<Screen>("SPLASH");
+  const [screen, setScreen] = useState<Screen>(demoState ? "GAME" : "SPLASH");
   const [mode] = useState<Mode>("LOCAL_2P"); // Local 2P wired
+  const [isDemoActive, setIsDemoActive] = useState(Boolean(demoState));
   const [p0Core, setP0Core] = useState<Core>("LAND");
   const [p1Core, setP1Core] = useState<Core>("ICE");
   const [playVsComputer, setPlayVsComputer] = useState(false);
@@ -313,7 +321,7 @@ export default function App() {
   const [aiPaused, setAiPaused] = useState(false);
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
   const [hoveredImpactIndex, setHoveredImpactIndex] = useState<number | null>(null);
-  const [seedInput, setSeedInput] = useState<string>(() => String(initialSeed));
+  const [seedInput, setSeedInput] = useState<string>(() => String(initial.seed));
   const [showInspector, setShowInspector] = useState(false);
   const [showDeterminismTools, setShowDeterminismTools] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
@@ -374,10 +382,11 @@ export default function App() {
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    if (demoState) return;
     // Ensure every fresh mount starts on the splash screen.
     // This avoids browsers restoring an in-progress screen from a cached session state.
     setScreen("SPLASH");
-  }, []);
+  }, [demoState]);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
   const stateRef = useRef(state);
@@ -394,6 +403,25 @@ export default function App() {
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
   const isDev = import.meta.env.DEV;
+
+  useEffect(() => {
+    if (!demoState) return;
+    setActionLog(structuredClone(DEMO_REPLAY_LOG_V1));
+    setArenaEvent(structuredClone(DEMO_ARENA_EVENT_V1));
+    setFlashState({
+      target: DEMO_FLASH_STATE_V1.target,
+      slots: [...DEMO_FLASH_STATE_V1.slots],
+      fxImpact: DEMO_FLASH_STATE_V1.fxImpact,
+      until: Date.now() + 60_000,
+    });
+    setLogOpen(true);
+    setTutorialOpen(false);
+    setTutorialIndex(0);
+    setTutorialMode("GUIDED");
+    initialStateRef.current = structuredClone(demoState);
+    autosaveStateRef.current = demoState;
+    autosaveAtRef.current = Date.now();
+  }, [demoState]);
 
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
@@ -558,6 +586,13 @@ export default function App() {
   }, [arenaEvent]);
 
   useEffect(() => {
+    if (isDemoActive) {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      return;
+    }
     if (screen !== "GAME") {
       prevStateRef.current = state;
       return;
@@ -595,7 +630,7 @@ export default function App() {
       lastImpactProcessedRef.current = shouldUseImpact.at;
     }
     prevStateRef.current = state;
-  }, [screen, state]);
+  }, [isDemoActive, screen, state]);
 
   useEffect(() => {
     const next: { 0: ProgressState; 1: ProgressState } = { 0: p0Progress, 1: p1Progress };
@@ -753,8 +788,39 @@ export default function App() {
     resetTransientUi();
     const seed = resolveSeed();
     setSeedInput(String(seed));
+    setIsDemoActive(false);
     dispatchWithLog({ type: "NEW_GAME", mode: playVsComputer ? "VS_AI" : mode, coreP0: p0Core, coreP1: p1Core, seed });
     setScreen("GAME");
+  }
+
+  function handleLoadDemoState() {
+    const snapshot = structuredClone(DEMO_STATE_V1);
+    resetTransientUi();
+    setHistory({ past: [], present: snapshot, future: [] });
+    setSeedInput(String(snapshot.seed));
+    setActionLog(structuredClone(DEMO_REPLAY_LOG_V1));
+    setArenaEvent(structuredClone(DEMO_ARENA_EVENT_V1));
+    setFlashState({
+      target: DEMO_FLASH_STATE_V1.target,
+      slots: [...DEMO_FLASH_STATE_V1.slots],
+      fxImpact: DEMO_FLASH_STATE_V1.fxImpact,
+      until: Date.now() + 60_000,
+    });
+    setLogOpen(true);
+    setTutorialOpen(false);
+    setTutorialIndex(0);
+    setTutorialMode("GUIDED");
+    initialStateRef.current = structuredClone(snapshot);
+    autosaveStateRef.current = snapshot;
+    autosaveAtRef.current = Date.now();
+    setIsDemoActive(true);
+    setScreen("GAME");
+    pushToast({
+      id: `demo-load-${Date.now()}`,
+      tone: "good",
+      title: "Demo state loaded.",
+      at: Date.now(),
+    });
   }
 
   const menuOpen = gameMenuOpen || viewMenuOpen || helpMenuOpen;
@@ -780,7 +846,7 @@ export default function App() {
     logOpen;
 
   const aiConfig: AiConfig = {
-    enabled: playVsComputer && !aiPaused,
+    enabled: playVsComputer && !aiPaused && !isDemoActive,
     player: 1,
     difficulty: aiDifficulty,
     speed: aiSpeed,
@@ -1252,6 +1318,7 @@ export default function App() {
     const result = loadFromLocalStorage();
     if (result.ok) {
       applyLoadedState(result.payload);
+      setIsDemoActive(false);
       pushToast({
         id: `load-${Date.now()}`,
         tone: "good",
@@ -1310,6 +1377,7 @@ export default function App() {
     const result = importMatchCode(importCode);
     if (result.ok) {
       applyLoadedState(result.payload);
+      setIsDemoActive(false);
       setImportOpen(false);
       setImportCode("");
       setImportPayload(null);
@@ -1420,6 +1488,7 @@ export default function App() {
   }
 
   function applyReplayState(replayed: GameState, bundle: ReplayBundleV1) {
+    setIsDemoActive(false);
     setHistory({ past: [], present: replayed, future: [] });
     setSeedInput(String(replayed.seed));
     autosaveStateRef.current = replayed;
@@ -1745,6 +1814,7 @@ export default function App() {
                 <MenuItem onSelect={menuAction(() => setScreen("SETUP"))}>Setup</MenuItem>
                 <MenuItem onSelect={menuAction(handleSaveNow)}>Save</MenuItem>
                 <MenuItem onSelect={menuAction(handleLoadNow)}>Load</MenuItem>
+                {isDev && <MenuItem onSelect={menuAction(handleLoadDemoState)}>Load Demo State</MenuItem>}
                 <MenuItem onSelect={menuAction(handleExportOpen)}>Export Match Code</MenuItem>
                 <MenuItem
                   onSelect={menuAction(() => {

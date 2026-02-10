@@ -7,6 +7,9 @@ import "./ui/theme/arena.css";
 import "./ui/theme/fx.css";
 import "./ui/theme/layout.css";
 import "./ui/theme/tutorial.css";
+import { applyScreenshotStabilityModeIfRequested } from "./demo/loadDemoState";
+
+applyScreenshotStabilityModeIfRequested();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
