@@ -1,0 +1,51 @@
+:root {
+  /* Base */
+  --bg: #070a12;
+  --panel: rgba(14, 18, 32, 0.78);
+  --panel-2: rgba(14, 18, 32, 0.62);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-2: rgba(255, 255, 255, 0.08);
+
+  --text: #edeff6;
+  --muted: rgba(237, 239, 246, 0.72);
+
+  /* Accents */
+  --accent: rgba(140, 170, 255, 0.85);
+  --accent-soft: rgba(140, 170, 255, 0.22);
+  --warn: rgba(255, 180, 80, 0.9);
+  --warn-soft: rgba(255, 180, 80, 0.22);
+  --good: rgba(120, 220, 170, 0.9);
+  --good-soft: rgba(120, 220, 170, 0.18);
+
+  /* Geometry */
+  --radius: 14px;
+  --radius-sm: 10px;
+
+  /* Shadows */
+  --shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 10px 30px rgba(0, 0, 0, 0.35);
+
+  /* Spacing scale */
+  --s1: 6px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 22px;
+
+  /* Typography */
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs-1: 12px;
+  --fs-2: 14px;
+  --fs-3: 16px;
+
+  /* Focus */
+  --focus: 0 0 0 2px var(--accent-soft), 0 0 0 4px rgba(140, 170, 255, 0.14);
+}
+
+[data-density="compact"] {
+  --s2: 6px;
+  --s3: 10px;
+  --s4: 14px;
+  --radius: 12px;
+}

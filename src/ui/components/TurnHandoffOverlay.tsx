@@ -30,7 +30,7 @@ export function TurnHandoffOverlay({
   return (
     <button
       type="button"
-      className="turn-handoff"
+      className="turn-handoff ui-overlayCard"
       style={{ animationDuration: `${durationMs}ms` }}
       onClick={onDone}
       role="status"

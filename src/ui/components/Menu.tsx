@@ -13,7 +13,7 @@ export const Menu = forwardRef<HTMLDivElement, MenuProps>(function Menu(
   return (
     <div
       ref={ref}
-      className="menuPopover"
+      className="menuPopover ui-menu"
       role="menu"
       style={align === "left" ? { left: 0 } : { right: 0 }}
     >

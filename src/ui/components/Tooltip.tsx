@@ -32,7 +32,7 @@ export function Tooltip({ content, children, disabled = false, placement = "top"
     >
       {children}
       {open && (
-        <span id={tooltipId} role="tooltip" className={`tooltip tooltip--${placement}`}>
+        <span id={tooltipId} role="tooltip" className={`tooltip ui-tooltip tooltip--${placement}`}>
           {content}
         </span>
       )}
