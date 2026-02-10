@@ -5,6 +5,7 @@ import { useClickOutside } from "../hooks/useClickOutside";
 
 type MenuButtonProps = {
   label: string;
+  testId?: string;
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -12,7 +13,7 @@ type MenuButtonProps = {
   children: ReactNode;
 };
 
-export function MenuButton({ label, open, onToggle, onClose, align = "right", children }: MenuButtonProps) {
+export function MenuButton({ label, testId, open, onToggle, onClose, align = "right", children }: MenuButtonProps) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const refs = useMemo(() => [buttonRef, menuRef], []);
@@ -39,6 +40,7 @@ export function MenuButton({ label, open, onToggle, onClose, align = "right", ch
       <button
         type="button"
         ref={buttonRef}
+        data-testid={testId}
         className="menuButton"
         onClick={onToggle}
         aria-haspopup="menu"

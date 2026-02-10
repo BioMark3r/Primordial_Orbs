@@ -54,21 +54,26 @@ Open the local URL printed by Vite (commonly http://localhost:5173).
 - Impacts are deterministic (no physics arena yet).
 - Solo/AI files are included for future expansion but not wired.
 
-## Rulebook Screenshots (Dev Note)
+## Rulebook Screenshots (Automated)
 
-To refresh the rulebook screenshots:
+Generate rulebook screenshots with Playwright:
 
-1. Run the app locally.
-2. Use your OS/browser screenshot tool to capture the relevant panels.
-3. Crop to the game UI frame for consistency.
-4. Save into `public/rulebook/` with these exact filenames (replace the SVG placeholders):
-   - `ui-overview.svg`
-   - `setup.svg`
-   - `hand-play.svg`
-   - `arena-impact.svg`
-   - `core-status.svg`
-   - `impact-preview.svg`
-   - `tutorial.svg`
+```bash
+npm run shots:rulebook
+```
+
+This script captures deterministic screenshots at `1365x768` and writes PNG files into `public/rulebook/`:
+
+- `00_splash.png`
+- `01_setup.png`
+- `02_game_overview.png`
+- `03_hand_panel.png`
+- `04_arena_fx.png`
+- `05_core_status.png`
+- `06_impact_preview.png`
+- `07_progress_track.png`
+- `08_replay_tools.png`
+- `09_help_menu.png`
 
 
 ## Splash Screen

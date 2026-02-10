@@ -988,7 +988,7 @@ export default function App() {
 
   if (screen === "SPLASH") {
     return (
-      <div style={{ ...containerStyle, display: "grid", placeItems: "center", minHeight: "100vh" }}>
+      <div data-testid="screen-splash" style={{ ...containerStyle, display: "grid", placeItems: "center", minHeight: "100vh" }}>
         <div style={{ width: "100%", maxWidth: 720, textAlign: "center" }}>
           <img
             src={logoUrl}
@@ -1018,7 +1018,7 @@ export default function App() {
 
   if (screen === "SETUP") {
     return (
-      <div style={containerStyle}>
+      <div data-testid="screen-setup" style={containerStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <h2 style={{ margin: 0 }}>Setup</h2>
           <button onClick={() => setScreen("SPLASH")}>Back</button>
@@ -1144,7 +1144,7 @@ export default function App() {
             </div>
 
             <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={startGame} style={{ padding: "10px 14px", borderRadius: 10 }}>
+              <button data-testid="start-game" onClick={startGame} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Start Game
               </button>
               <button
@@ -1665,7 +1665,7 @@ export default function App() {
 
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
-      <div style={containerStyle} className="app-shell game-shell">
+      <div data-testid="screen-game" style={containerStyle} className="app-shell game-shell">
         <ToastStack />
         {winCelebration && <WinCelebration player={winCelebration.player} />}
         <TurnRecapToast
@@ -1684,7 +1684,7 @@ export default function App() {
             onDone={() => setTurnHandoff(null)}
           />
         )}
-        <div className="game-topbar">
+        <div className="game-topbar" data-testid="topbar">
           <div className="game-topbar-left">
             <div className="game-topbar-title">{topbarTitle}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
@@ -1726,6 +1726,7 @@ export default function App() {
             <div className="game-topbar-menus">
               <MenuButton
                 label="Game"
+                testId="menu-game"
                 open={gameMenuOpen}
                 onToggle={() => toggleMenu("game")}
                 onClose={closeMenus}
@@ -1768,6 +1769,7 @@ export default function App() {
               </MenuButton>
               <MenuButton
                 label="View"
+                testId="menu-view"
                 open={viewMenuOpen}
                 onToggle={() => toggleMenu("view")}
                 onClose={closeMenus}
@@ -1793,6 +1795,7 @@ export default function App() {
               </MenuButton>
               <MenuButton
                 label="Help"
+                testId="menu-help"
                 open={helpMenuOpen}
                 onToggle={() => toggleMenu("help")}
                 onClose={closeMenus}
@@ -2076,7 +2079,8 @@ export default function App() {
             </div>
           )}
 
-          <CoreStatusStrip
+          <div data-testid="core-status">
+            <CoreStatusStrip
             state={state}
             active={active}
             canWaterSwap={canWaterSwap}
@@ -2086,6 +2090,7 @@ export default function App() {
             pulseKey={corePulse?.key}
             usedKeys={usedKeys}
           />
+          </div>
           <CoachStrip
             hints={coachHints}
             onAction={onCoachAction}
@@ -2138,15 +2143,16 @@ export default function App() {
               undoRef={active === 0 ? undoRef : undefined}
             />
             <div id="ui-arena" style={{ display: "contents" }}>
-              <ArenaView
-                lastEvent={arenaEvent}
-                bagCount={state.bag.length}
-                discardCount={state.discard.length}
-                activePlayer={active}
-                p0Viz={p0Viz}
-                p1Viz={p1Viz}
-              />
-            </div>
+              <div data-testid="arena">
+                <ArenaView
+                  lastEvent={arenaEvent}
+                  bagCount={state.bag.length}
+                  discardCount={state.discard.length}
+                  activePlayer={active}
+                  p0Viz={p0Viz}
+                  p1Viz={p1Viz}
+                />
+              </div>
             <PlayerPanel
               title={`Player 2${playVsComputer ? " (CPU)" : ""}${active === 1 ? " (Active)" : ""}`}
               player={1}
@@ -2194,7 +2200,7 @@ export default function App() {
           </div>
 
         <div className="game-bottom-row">
-            <div className={`hand-panel hand-panel--active${isLastPlay ? " hand-last-play" : ""}`} id="ui-hand-panel">
+            <div data-testid="hand-panel" className={`hand-panel hand-panel--active${isLastPlay ? " hand-last-play" : ""}`} id="ui-hand-panel">
               <div className="hand-panel__header">
                 <h3 className="hand-panel__title">Hand (Player {active + 1})</h3>
                 {playVsComputer && active === 1 && !aiPaused && <div style={{ fontSize: 12, color: "#9cc1ff" }}>Computer thinking…</div>}
@@ -2310,7 +2316,7 @@ export default function App() {
             </div>
 
             {impactPreview && (
-              <div className="impact-panel">
+              <div className="impact-panel" data-testid="impact-preview">
                 <ImpactPreviewPanel preview={impactPreview} />
               </div>
             )}
@@ -2560,6 +2566,7 @@ function PlayerPanel(props: {
           <div className="player-panel__progress">
             <ProgressTrack
               player={props.player}
+              testId={`progress-track-p${props.player}`}
               progress={props.progress}
               pulseTypes={props.pulseTypes}
               size="sm"
