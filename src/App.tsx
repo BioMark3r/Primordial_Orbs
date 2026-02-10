@@ -3,7 +3,6 @@ import logoUrl from "./assets/logo.png";
 import type { Action, Core, GameState, Impact, Mode, Orb } from "./engine/types";
 import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
-import { canPlaceColonize, canPlaceTerraform } from "./engine/rules";
 import { CoreBadge } from "./ui/components/CoreBadge";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
@@ -43,6 +42,7 @@ import { hasSeenTutorial, markSeenTutorial } from "./ui/utils/tutorialStorage";
 import { buildTurnRecap } from "./ui/utils/turnRecap";
 import type { TurnRecap } from "./ui/utils/turnRecap";
 import { getButtonDisabledReason, getOrbDisabledReason } from "./ui/utils/disabledReasons";
+import { DEFAULT_HAND_SIZE_LIMIT, validateIntent, type ActionIntent } from "./ui/utils/actionValidation";
 import {
   exportMatchCode,
   importMatchCode,
@@ -104,8 +104,29 @@ function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
   const until = state.players[p].abilities.disabled_until_turn;
   return until === undefined || state.turn > until;
 }
-function hasPlant(state: GameState, p: 0 | 1): boolean {
-  return state.players[p].planet.slots.some((s) => s?.kind === "COLONIZE" && s.c === "PLANT");
+function toActionIntent(action: Action): ActionIntent | null {
+  switch (action.type) {
+    case "DRAW_2":
+      return { type: "DRAW_2" };
+    case "DISCARD_FROM_HAND":
+      return { type: "DISCARD_FROM_HAND", handIndex: action.index };
+    case "PLAY_TERRAFORM":
+      return { type: "PLAY_TERRAFORM", handIndex: action.handIndex, slotIndex: action.slotIndex };
+    case "PLAY_COLONIZE":
+      return { type: "PLAY_COLONIZE", handIndex: action.handIndex, slotIndex: action.slotIndex };
+    case "PLAY_IMPACT":
+      return { type: "PLAY_IMPACT", handIndex: action.handIndex, target: action.target };
+    case "WATER_SWAP":
+      return { type: "WATER_SWAP", a: action.slotA, b: action.slotB };
+    case "GAS_REDRAW":
+      return { type: "GAS_REDRAW", handIndex: action.handIndex };
+    case "END_PLAY":
+      return { type: "END_PLAY" };
+    case "ADVANCE":
+      return { type: "ADVANCE" };
+    default:
+      return null;
+  }
 }
 
 function usedAbilityKeys(player: GameState["players"][number]) {
@@ -313,6 +334,17 @@ export default function App() {
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
   const isDev = import.meta.env.DEV;
 
+  useEffect(() => {
+    if (!isDev) return;
+    const root = window as Window & {
+      __po_validate?: (intent: ActionIntent) => ReturnType<typeof validateIntent>;
+    };
+    root.__po_validate = (intent: ActionIntent) => validateIntent(state, intent, validationCtx);
+    return () => {
+      delete root.__po_validate;
+    };
+  }, [isDev, state, validationCtx]);
+
   const containerStyle: React.CSSProperties = {
     fontFamily: "system-ui, sans-serif",
     padding: 12,
@@ -326,8 +358,6 @@ export default function App() {
   const other: 0 | 1 = active === 0 ? 1 : 0;
 
   const activeHand = state.players[active].hand;
-  const activePlanet = state.players[active].planet;
-  const otherPlanet = state.players[other].planet;
 
   const p0Progress = useMemo(
     () => computeProgressFromPlanet(state.players[0].planet.slots),
@@ -347,28 +377,41 @@ export default function App() {
   const isLastPlay = isPlayPhase && playsRemaining === 1;
   const endPlayReady = isPlayPhase && playsRemaining === 0 && impactsRemaining === 0;
 
-  const canDraw = state.phase === "DRAW";
-  const canEndPlay = state.phase === "PLAY";
-  const canAdvance = state.phase === "RESOLVE" || state.phase === "CHECK_WIN";
-  const advanceReady = !isPlayPhase && canAdvance;
-  const canPlayImpact = state.phase === "PLAY" && playsRemaining > 0 && impactsRemaining > 0;
-  const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
-  const canUndo = mode === "LOCAL_2P" && history.past.length > 0 && state.phase !== "GAME_OVER";
-  const drawDisabledReason = canDraw ? null : getButtonDisabledReason(state.phase, "DRAW");
-  const endPlayDisabledReason = canEndPlay ? null : getButtonDisabledReason(state.phase, "END_PLAY");
-  const advanceDisabledReason = canAdvance ? null : getButtonDisabledReason(state.phase, "ADVANCE");
+  const validationCtx = useMemo(
+    () => ({
+      activePlayer: active,
+      playsRemaining,
+      impactsRemaining,
+      abilitiesEnabled: (p: 0 | 1) => abilitiesEnabled(state, p),
+      handSizeLimit: DEFAULT_HAND_SIZE_LIMIT,
+      hasUndoHistory: history.past.length > 0 && mode === "LOCAL_2P" && state.phase !== "GAME_OVER",
+    }),
+    [active, history.past.length, impactsRemaining, mode, playsRemaining, state],
+  );
 
-  const canWaterSwap =
-    state.phase === "PLAY" &&
-    activePlanet.core === "WATER" &&
-    !state.players[active].abilities.water_swap_used_turn &&
-    abilitiesEnabled(state, active);
+  const drawDisabledReason = getButtonDisabledReason(state, "DRAW", validationCtx);
+  const endPlayDisabledReason = getButtonDisabledReason(state, "END_PLAY", validationCtx);
+  const advanceDisabledReason = getButtonDisabledReason(state, "ADVANCE", validationCtx);
+
+  const canDraw = drawDisabledReason === null;
+  const canEndPlay = endPlayDisabledReason === null;
+  const canAdvance = advanceDisabledReason === null;
+  const advanceReady = !isPlayPhase && canAdvance;
+  const canPlayImpact =
+    selected.kind === "HAND" &&
+    selected.orb.kind === "IMPACT" &&
+    validateIntent(
+      state,
+      { type: "PLAY_IMPACT", handIndex: selected.handIndex, target: impactTarget === "SELF" ? active : other },
+      validationCtx,
+    ).ok;
+  const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
+  const canUndo = validationCtx.hasUndoHistory ?? false;
+
+  const canWaterSwap = validateIntent(state, { type: "WATER_SWAP", a: 0, b: 1 }, validationCtx).ok;
 
   const canGasRedraw =
-    state.phase === "PLAY" &&
-    activePlanet.core === "GAS" &&
-    !state.players[active].abilities.gas_redraw_used_turn &&
-    abilitiesEnabled(state, active);
+    activeHand.length > 0 && validateIntent(state, { type: "GAS_REDRAW", handIndex: 0 }, validationCtx).ok;
 
   const allowAutoFocus = useMemo(() => {
     if (typeof window === "undefined") return true;
@@ -606,6 +649,20 @@ export default function App() {
 
   function dispatchWithLog(action: Action) {
     const before = state;
+    const intent = toActionIntent(action);
+    if (intent) {
+      const validation = validateIntent(before, intent, validationCtx);
+      if (!validation.ok) {
+        pushToast({
+          id: `invalid-action-${Date.now()}`,
+          tone: "warn",
+          title: "Action blocked",
+          detail: validation.reason,
+          at: Date.now(),
+        });
+        return;
+      }
+    }
     const computedNext = reducer(before, action);
     setLastAction(action);
     setHistory((prev) => {
@@ -1247,10 +1304,13 @@ export default function App() {
     if (!orb) return;
 
     // GAS passive: Shift-click any hand orb to redraw it (once per turn)
-    if (canGasRedraw && e.shiftKey) {
-      dispatchWithLog({ type: "GAS_REDRAW", handIndex: i });
-      emitActionEvent({ type: "GAS_REDRAW", at: Date.now(), player: active });
-      clearSelection();
+    if (e.shiftKey) {
+      const redrawCheck = validateIntent(state, { type: "GAS_REDRAW", handIndex: i }, validationCtx);
+      if (redrawCheck.ok) {
+        dispatchWithLog({ type: "GAS_REDRAW", handIndex: i });
+        emitActionEvent({ type: "GAS_REDRAW", at: Date.now(), player: active });
+        clearSelection();
+      }
       return;
     }
 
@@ -1263,15 +1323,16 @@ export default function App() {
   }
 
   function onClickSlot(slotIndex: number) {
-    if (state.phase !== "PLAY") return;
-
     // WATER passive: when nothing selected from hand, allow swap by clicking two terraform slots
     if (canWaterSwap && selected.kind === "NONE") {
       if (waterSwapPick === null) {
         setWaterSwapPick(slotIndex);
       } else {
-        dispatchWithLog({ type: "WATER_SWAP", slotA: waterSwapPick, slotB: slotIndex });
-        emitActionEvent({ type: "WATER_SWAP", at: Date.now(), player: active });
+        const swapCheck = validateIntent(state, { type: "WATER_SWAP", a: waterSwapPick, b: slotIndex }, validationCtx);
+        if (swapCheck.ok) {
+          dispatchWithLog({ type: "WATER_SWAP", slotA: waterSwapPick, slotB: slotIndex });
+          emitActionEvent({ type: "WATER_SWAP", at: Date.now(), player: active });
+        }
         setWaterSwapPick(null);
       }
       return;
@@ -1365,7 +1426,18 @@ export default function App() {
 
   function handleUndo() {
     clearSelection();
-    dispatchWithLog({ type: "UNDO" });
+    const undoCheck = validateIntent(state, { type: "UNDO" }, validationCtx);
+    if (!undoCheck.ok) {
+      pushToast({
+        id: `undo-blocked-${Date.now()}`,
+        tone: "warn",
+        title: "Undo unavailable",
+        detail: undoCheck.reason,
+        at: Date.now(),
+      });
+      return;
+    }
+    setHistory((prev) => undo(prev));
   }
 
   function handleOpenGuidedTutorial() {
@@ -1400,8 +1472,6 @@ export default function App() {
   const otherFlashFx = flashState?.target === other ? flashState.fxImpact ?? null : null;
 
   const logLines = state.log.slice(0, 120);
-  const slotIndices = activePlanet.slots.map((_, index) => index);
-  const canPlaceAnyTerraform = slotIndices.some((slotIndex) => canPlaceTerraform(state, active, slotIndex));
 
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
@@ -1952,19 +2022,16 @@ export default function App() {
                 {activeHand.map((o, i) => {
                   const isSel = selected.kind === "HAND" && selected.handIndex === i;
                   const isImpact = o.kind === "IMPACT";
-                  const isTerraform = o.kind === "TERRAFORM";
-                  const isColonize = o.kind === "COLONIZE";
-                  const canPlaceColonizeNow = isColonize
-                    ? slotIndices.some((slotIndex) => canPlaceColonize(state, active, o.c, slotIndex))
-                    : false;
-                  const isTerraformBlocked = isTerraform && activePlanet.core === "GAS" && o.t === "ICE";
-                  const canPlayTerraform = isPlayPhase && playsRemaining > 0 && canPlaceAnyTerraform && !isTerraformBlocked;
-                  const canPlayColonize = isPlayPhase && playsRemaining > 0 && canPlaceColonizeNow;
-                  const canPlayOrb = isImpact ? canPlayImpact : isTerraform ? canPlayTerraform : canPlayColonize;
-                  const isDisabled = !canPlayOrb;
-                  const disabledReason = isDisabled
-                    ? getOrbDisabledReason(state, o, active, state.phase, playsRemaining, impactsRemaining)
-                    : null;
+                  const disabledReason = getOrbDisabledReason(
+                    state,
+                    o,
+                    active,
+                    state.phase,
+                    playsRemaining,
+                    impactsRemaining,
+                    (p: 0 | 1) => abilitiesEnabled(state, p),
+                  );
+                  const isDisabled = disabledReason !== null;
                   const handTokenClass = `hand-token${isDisabled ? " orb-disabled" : ""}`;
 
                   const orbToken = (
