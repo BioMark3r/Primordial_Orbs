@@ -1,242 +1,264 @@
-# Primordial Orbs — Rulebook (2-Player)
+# Primordial Orbs — MVP Rulebook (Post-Polish)
 
-## 1. What is Primordial Orbs?
-
-**Primordial Orbs** is a head-to-head planet-building game for two players.  
-You are rival terraformers shaping newborn worlds—laying down land, water, ice, lava, and gas—then seeding life and guiding it from the primordial ooze to advanced civilizations.
-
-But growth comes with risk. As life flourishes, your planet becomes more **vulnerable**… and your opponent gains stronger tools to destabilize you through disasters, cosmic events, and time-warping anomalies.
-
-**Win by achieving Ascension:** have **4 different Colonization types** on your planet at the same time:
-- Plant
-- Animal
-- Sentient
-- High-Tech
+Welcome to **Primordial Orbs**, a fast head-to-head planet builder where every turn asks: _grow your world_ or _wreck theirs_.
 
 ---
 
-## 2. Components
+## 1) Overview / Win Condition
 
-This browser MVP represents the physical game pieces digitally.
+You and your rival each shape a planet from raw Terraform orbs, then develop life through four milestones:
 
-### Orbs (Marbles)
-**Terraforming Orbs**
-- Land, Water, Ice, Lava, Gas
+- **Plant**
+- **Animal**
+- **Sentient**
+- **High-Tech**
 
-**Colonizing Orbs**
-- Plant, Animal, Sentient, High-Tech
-
-**Planetary Impact Orbs**
-- Meteor
-- Tornado
-- Earthquake
-- Solar Flare
-- Disease
-- Temporal Vortex
-- Black Hole (unique)
-
-### Planet Board
-Each player has a planet with:
-- **6 slots** (MVP “Medium” planet)
-- Slot 0 starts with your **Core Terraform** orb
+### How you win
+Unlock all four colonization types on your planet at the same time. The first player to do that wins.
 
 ---
 
-## 3. Key Ideas
+## 2) Components (digital UI components)
 
-### 3.1 Planet Core
-At setup, you choose a **Core** (one Terraform type). It defines:
-- Your starting world
-- Your **core passive ability**
-- Your **core weakness**
+Everything is represented in the browser UI:
 
-### 3.2 Terraform Minimum
-A planet must remain stable to support life.
+- **Setup screen** (core selection, seed, mode options)
+- **Two player panels** (one planet each)
+- **Hand panel** (Terraform / Colonize / Impact orbs)
+- **Turn controls** (Draw, End Play, Advance, Undo)
+- **Core Status strip** (passives, readiness, weaknesses at a glance)
+- **Impact Preview panel** (severity math + effect summary before you commit)
+- **Progress Track** (Plant/Animal/Sentient/High-Tech unlocks)
+- **Action Log drawer**
+- **Top menus**: Game ▾, View ▾, Help ▾
+- **Overlays**: turn handoff, turn recap toast, tutorials, save/load code dialogs
 
-In the MVP:
-- You must keep at least **3 Terraform orbs** on your planet.
-- If you fall below this, you gain an **Instability Strike** during Resolve.
-- **Lava core** is volatile: it gains **2 strikes** instead of 1 when unstable.
-
-### 3.3 Vulnerability
-The more colonization you have, the more fragile your world becomes.
-
-In the MVP:
-- **Vulnerability = total number of Colonization orbs on your planet**
-- Many impacts scale in severity using vulnerability.
+![Setup screen](public/rulebook/01_setup.png)
+![Game overview](public/rulebook/02_game_overview.png)
 
 ---
 
-## 4. Setup
+## 3) Setup
 
-1. Place the planet boards (one per player).
-2. Each player chooses a **Core Terraform type** and places it in **slot 0**.
-3. Shuffle all remaining orbs into the Anomaly (draw bag).
+1. From Setup, choose each player's **Core**.
+2. Planet size is currently **Medium (fixed)**.
+3. Optional: set a **Seed** for reproducible matches.
+4. Optional: enable **Play vs Computer**.
+   - Difficulty: **Easy**
+   - Personality: **Balanced / Builder / Aggressive**
+   - AI Speed: **Fast / Normal**
+5. Click **Start Game**.
 
-You are ready to begin.
+Quick note: slot labels are shown as **Slot 1..N** (not 0-based), even though internal logic uses indexes.
 
----
-
-## 5. Turn Structure
-
-Players alternate turns. Each turn follows the same flow:
-
-### Phase A — DRAW
-- Draw **2** orbs.
-- Your hand limit is **3**.
-- If you exceed 3, discard down to 3 before you can proceed.
-
-### Phase B — PLAY
-You have:
-- **2 Plays** total, and
-- **1 Impact** maximum per turn.
-
-A Play can be:
-- Place a Terraform orb
-- Place a Colonization orb
-- Play an Impact orb
-
-You may end Play early.
-
-### Phase C — RESOLVE
-- If your Terraform count is below the minimum (3), you gain **Instability Strike(s)**.
-
-### Phase D — CHECK WIN
-- If you have **all 4 colonization types**, you win immediately.
-- Otherwise, the next player begins their turn.
+![Splash](public/rulebook/00_splash.png)
 
 ---
 
-## 6. Playing Orbs
+## 4) Turn Flow (with clear numbered steps)
 
-### 6.1 Terraform Orbs
-Terraform orbs fill empty slots on your planet.
+Every turn runs in this order:
 
-**Land Core Passive (MVP):**  
-Your **first Terraform placement each turn is free** (does not consume a Play).
+1. **Draw**
+   - Click **Draw** to draw 2 orbs.
+   - Hand cap is 3; if over cap, discard down before continuing.
 
-**Gas Core Weakness (MVP):**  
-A Gas-core planet **cannot place Ice Terraform**.
+2. **Play**
+   - Spend your turn economy (details in next section).
+   - Place Terraform/Colonize, play an Impact, or use core actions when legal.
 
-### 6.2 Colonization Orbs
-Colonization represents life and civilization. Each type has prerequisites:
+3. **End Play**
+   - Click **End Play** when you're done acting.
+   - If available, the UI nudges this button with a highlight and “Ready to End Play”.
 
-- **Plant:** requires Land + Water present
-- **Animal:** requires Plant
-- **Sentient:** requires Animal
-- **High-Tech:** requires Sentient and at least 3 Terraform types present
-
-Colonization increases your vulnerability, which makes many impacts hit harder.
-
----
-
-## 7. Impact Orbs (Disasters)
-
-When you play an Impact, it targets your opponent by default.
-
-### 7.1 Severity
-Impacts have a **severity** value:
-
-**Severity = 1 + target vulnerability**
-
-Some effects modify severity (core passives/weaknesses, mitigation).
-
-### 7.2 Plant Mitigation (if you have Plant)
-If you have a Plant colonization orb:
-- The first time each turn you are hit by an Impact, Plant reduces severity by **1** (minimum 1).
-
-### 7.3 High-Tech Redirect (if you have High-Tech)
-If you have High-Tech colonization:
-- Once per game, you may automatically redirect a **Meteor** or **Black Hole** back at the attacker.
-
-(MVP: it triggers automatically the first time it applies.)
+4. **Advance**
+   - Click **Advance** to resolve and pass turn.
+   - A short **Turn Recap** overlay appears (what happened this turn), then control hands off.
 
 ---
 
-## 8. The Impacts
+## 5) Actions (Terraform / Colonize / Impacts)
 
-### Meteor
-A direct strike that tears away Terraform.
+## Terraform
+- Select a Terraform orb in hand, then click an empty slot on your active planet.
+- You generally need Terraform stability to support colonization.
 
-- Removes Terraform equal to **severity**  
-- **Land weakness:** removes **+1** additional Terraform
+## Colonize
+- Select a Colonize orb, then click an empty valid slot.
+- Colonization types feed your progress track and win condition.
 
-### Tornado
-Localized chaos.
+## Impacts
+- Select an Impact orb in hand.
+- Choose target (default is opponent), then play it.
+- Impacts are limited by your per-turn Impact budget.
 
-- Removes Terraform equal to **max(1, floor(severity/2))**  
-- **Land weakness:** removes **+1** additional Terraform
+### Play Phase economy (important)
+During Play, watch the top counters:
 
-### Earthquake
-Planetwide disruption.
+- **Plays remaining**
+- **Impacts remaining**
 
-- Removes Terraform equal to **severity**  
-- **Land weakness:** removes **+1** additional Terraform
+The UI enforces legal actions:
 
-### Disease
-Degrades life step-by-step (repeated by severity):
+- Invalid actions are disabled.
+- Disabled buttons show tooltip reasons.
+- End Play / Advance can pulse with “ready” nudges when appropriate.
 
-- Sentient → Animal  
-- Animal → Plant  
-- Plant → removed
-
-**Water weakness:** Disease severity is **+1**.
-
-### Solar Flare
-Disables advanced systems.
-
-- The target’s **abilities are disabled through the next turn**.
-- This shuts off: core passives, Plant mitigation, High-Tech redirect.
-
-### Black Hole (unique)
-The most dangerous impact.
-
-- If the target has any Colonization, it removes **one Colonization** (prioritizing High-Tech first).
-- If there is no Colonization to remove, it removes **1 Terraform** (Land weakness adds +1).
-
-### Temporal Vortex
-Time bends… and reality rewrites itself.
-
-**MVP implementation (deterministic):**
-- Rewinds the target planet by **one recorded step** (the most recent planet change).
-- This can undo placements, swaps, or impact damage—whatever changed the planet last.
-
-If there’s nothing to rewind, the Vortex fizzles.
+![Hand panel](public/rulebook/03_hand_panel.png)
 
 ---
 
-## 9. Planet Cores — Passives & Weaknesses
+## 6) Core Passives
 
-Each core gives you a personality and a pressure point.
+Each core has a passive and a weakness. The game surfaces this in two ways:
 
-### LAND
-- **Passive:** First Terraform each turn is free.
-- **Weakness:** Terraform-destroying impacts remove **+1** Terraform.
+1. **Core Status strip** (ready/used state for key passives)
+2. **Toasts + visual pulse** when passives trigger
 
-### WATER
-- **Passive:** Once per turn, swap two Terraform slots on your planet.
-- **Weakness:** Disease severity **+1**.
+Current core identities:
 
-### ICE
-- **Passive:** First impact against you each turn is **-1 severity** (min 1).
-- **Weakness:** On an Ice-core planet, placing Lava melts one Ice Terraform.
+- **Land**: first Terraform each turn can be free.
+- **Water**: swap two Terraform slots once per turn.
+- **Ice**: first impact against you each turn is reduced.
+- **Lava**: your impacts hit harder.
+- **Gas**: once per turn, Shift-click hand orb to redraw.
 
-### LAVA
-- **Passive:** Your impacts have **+1 severity**.
-- **Weakness:** If unstable, you take **2 instability strikes** instead of 1.
+If Solar Flare disables abilities, the strip reflects it.
 
-### GAS
-- **Passive:** Once per turn, discard+draw from hand (Gas Redraw).
-- **Weakness:** Cannot place Ice Terraform.
+![Core status](public/rulebook/05_core_status.png)
 
 ---
 
-## 10. Browser MVP Notes
+## 7) Impacts & Targeting + Impact Preview
 
-This build is designed for fast playtesting:
-- Impacts are deterministic (no physical arena randomness yet).
-- Planet size is fixed at 6 slots (Medium).
-- All effects are logged so you can validate balance.
+When you select an Impact, the **Impact Preview** panel shows:
 
-If you want the physical version to feel more “tactile chaos,” the next step is to map impacts to a physics bowl / marble collision resolution.
+- source and target player
+- base severity and modifier-adjusted severity
+- active modifiers (core/passive interactions)
+- effect summary before resolution
 
+### Targeting
+- Default impact target is your **opponent**.
+- You can retarget (for effects or edge plays) before committing.
+
+### Temporal Vortex (implemented)
+Temporal Vortex rewinds the target planet by one recorded planet-state step (deterministic behavior). If no state is available, it fizzles.
+
+![Impact preview](public/rulebook/06_impact_preview.png)
+![Arena effects](public/rulebook/04_arena_fx.png)
+
+---
+
+## 8) Progress Track / Colonization Types
+
+The track shows four unlocks:
+
+1. Plant
+2. Animal
+3. Sentient
+4. High-Tech
+
+When you unlock a new type:
+
+- icon lights up
+- short celebration feedback appears
+
+Unlock all four to trigger win celebration and end the match.
+
+![Progress track](public/rulebook/07_progress_track.png)
+
+---
+
+## 9) Solo vs CPU
+
+Enable **Play vs Computer** in Setup.
+
+### CPU mode in this build
+- Difficulty available: **Easy**
+- Personalities:
+  - **Balanced**: mixed growth and pressure
+  - **Builder**: more colonization/terraform priority
+  - **Aggressive**: more impact pressure
+- **AI Speed** toggle controls pacing (Fast/Normal)
+
+This is deterministic enough to replay with the same seed + action flow.
+
+---
+
+## 10) Hotseat / Local 2P
+
+Local two-player (hotseat) play is fully supported.
+
+- Inactive side is visually dimmed while active side is highlighted.
+- Turn transition shows a brief handoff overlay (“Player X’s Turn — Draw to begin”).
+- This keeps pass-and-play readable without hiding board state.
+
+---
+
+## 11) Menus & Tools (Save/Load, Match Code, Replay, Log)
+
+Top-right menus:
+
+### Game ▾
+- New Game / Quit / Setup
+- **Save / Load** (local storage snapshot)
+- **Export Match Code / Import Match Code**
+  - Match Code = serialized game state for sharing/restoring the exact current position.
+- **Export Replay / Import Replay**
+  - Replay bundle = start state + action history data for reproduction.
+- **Replay From Start**
+  - Replays the current match sequence from initial state.
+
+### View ▾
+- Show/Hide **Action Log**
+- Pause/Resume AI (when in vs CPU)
+
+### Help ▾
+- **Tutorial (Guided)**
+- **Tutorial (Manual)**
+- **How to Play**
+- **Keyboard Shortcuts**
+- **Rulebook**
+
+### Action Log + replay determinism notes
+- Action Log is your running event history for quick debugging and learning.
+- Replay tools are designed for reproducibility.
+- For best deterministic results, keep seed + replay bundle together.
+
+![Help menu](public/rulebook/09_help_menu.png)
+
+---
+
+## 12) Keyboard Shortcuts
+
+- **D** — Draw 2
+- **E** — End Play
+- **A** — Advance Turn
+- **U** — Undo
+- **L** — Toggle Log
+- **?** or **Shift + /** — Open Tutorial
+- **Esc** — Clear Selection
+
+---
+
+## 13) FAQ / Troubleshooting
+
+### “Why can’t I click Draw / End Play / Advance?”
+If a turn button is disabled, hover it for the reason tooltip. The game only enables legal actions for the current phase/state.
+
+### “My impact didn’t do what I expected.”
+Open/observe Impact Preview first; it includes current modifiers (vulnerability, passives, weakness adjustments, mitigation).
+
+### “How do I share a match?”
+Use **Game ▾ → Export Match Code**. Your opponent can import it with **Import Match Code**.
+
+### “What’s the difference between Match Code and Replay?”
+- **Match Code** restores a single current snapshot.
+- **Replay Bundle** restores the starting point and action timeline for playback.
+
+### “Does slot numbering start at 0?”
+In the UI, slot labels are player-facing **1 to N**.
+
+### “Can I play solo?”
+Yes—enable **Play vs Computer** in Setup and choose personality/speed.
