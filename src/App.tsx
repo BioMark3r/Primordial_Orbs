@@ -58,6 +58,7 @@ import {
 } from "./ui/utils/actionLog";
 import type { ReplayBundleV1, ReplayEntryV1 } from "./ui/utils/actionLog";
 import { replayFromStart, validateReplayMatchesCurrent } from "./ui/utils/replay";
+import { DeterminismPanel } from "./ui/components/DeterminismPanel";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -247,6 +248,7 @@ export default function App() {
   const [hoveredImpactIndex, setHoveredImpactIndex] = useState<number | null>(null);
   const [seedInput, setSeedInput] = useState<string>(() => String(initialSeed));
   const [showInspector, setShowInspector] = useState(false);
+  const [showDeterminismTools, setShowDeterminismTools] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
   const [showHowTo, setShowHowTo] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
@@ -1153,6 +1155,26 @@ export default function App() {
     }
   }
 
+  function applyReplayState(replayed: GameState, bundle: ReplayBundleV1) {
+    setHistory({ past: [], present: replayed, future: [] });
+    setSeedInput(String(replayed.seed));
+    autosaveStateRef.current = replayed;
+    autosaveAtRef.current = Date.now();
+    initialStateRef.current = structuredClone(bundle.initial);
+    setActionLog(bundle.entries);
+  }
+
+  function handleDeterminismReplaceState(replayed: GameState, bundle: ReplayBundleV1) {
+    applyReplayState(replayed, bundle);
+    pushToast({
+      id: `determinism-replace-${Date.now()}`,
+      tone: "good",
+      title: "State replaced from replay.",
+      detail: `Applied ${bundle.entries.length} replayed actions.`,
+      at: Date.now(),
+    });
+  }
+
   function handleReplayFromStart() {
     const bundle = replayImportBundle ?? buildReplayBundle();
     if (!bundle) {
@@ -1167,12 +1189,7 @@ export default function App() {
     }
     try {
       const replayed = replayFromStart(bundle, reducer);
-      setHistory({ past: [], present: replayed, future: [] });
-      setSeedInput(String(replayed.seed));
-      autosaveStateRef.current = replayed;
-      autosaveAtRef.current = Date.now();
-      initialStateRef.current = structuredClone(bundle.initial);
-      setActionLog(bundle.entries);
+      applyReplayState(replayed, bundle);
       const verified =
         replayImportBundle === null ? validateReplayMatchesCurrent(replayed, state) : null;
       pushToast({
@@ -1465,9 +1482,14 @@ export default function App() {
                   {logOpen ? "Hide Log" : "Show Log"}
                 </MenuItem>
                 {isDev && (
-                  <MenuItem onSelect={menuAction(() => setShowInspector((prev) => !prev))}>
-                    {showInspector ? "Hide Inspector" : "Show Inspector"}
-                  </MenuItem>
+                  <>
+                    <MenuItem onSelect={menuAction(() => setShowInspector((prev) => !prev))}>
+                      {showInspector ? "Hide Inspector" : "Show Inspector"}
+                    </MenuItem>
+                    <MenuItem onSelect={menuAction(() => setShowDeterminismTools((prev) => !prev))}>
+                      {showDeterminismTools ? "Hide Dev Tools" : "Dev Tools..."}
+                    </MenuItem>
+                  </>
                 )}
               </MenuButton>
               <MenuButton
@@ -1698,6 +1720,15 @@ export default function App() {
         />
 
         <div className="game-content">
+          {isDev && showDeterminismTools && (
+            <DeterminismPanel
+              bundle={replayImportBundle ?? buildReplayBundle()}
+              presentState={state}
+              reducer={reducer}
+              onReplaceState={handleDeterminismReplaceState}
+            />
+          )}
+
           {isDev && showInspector && (
             <div
               style={{
