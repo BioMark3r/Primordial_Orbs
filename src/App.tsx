@@ -2260,6 +2260,11 @@ export default function App() {
             <PlayerPanel
               title={`Player 1${active === 0 ? " (Active)" : ""}`}
               player={0}
+              panelTestId="player-panel-0"
+              headerTestId="player-header-0"
+              actionsRowTestId="actions-row-0"
+              undoButtonTestId="btn-undo"
+              statsRightTestId="panel-stats-right"
               core={state.players[0].planet.core}
               planetSlots={state.players[0].planet.slots}
               planetViz={p0Viz}
@@ -2315,6 +2320,9 @@ export default function App() {
             <PlayerPanel
               title={`Player 2${playVsComputer ? " (CPU)" : ""}${active === 1 ? " (Active)" : ""}`}
               player={1}
+              panelTestId="player-panel-1"
+              headerTestId="player-header-1"
+              actionsRowTestId="actions-row-1"
               core={state.players[1].planet.core}
               planetSlots={state.players[1].planet.slots}
               planetViz={p1Viz}
@@ -2654,6 +2662,11 @@ function CoreStatusCard({
 
 function PlayerPanel(props: {
   id?: string;
+  panelTestId?: string;
+  headerTestId?: string;
+  actionsRowTestId?: string;
+  undoButtonTestId?: string;
+  statsRightTestId?: string;
   title: string;
   player: 0 | 1;
   core: Core;
@@ -2702,8 +2715,11 @@ function PlayerPanel(props: {
   const ok = tCount >= props.terraformMin;
 
   return (
-    <div className={`player-panel ${props.isActive ? "player-panel--active" : "player-panel--inactive"}`}>
-      <div className="player-panel__header">
+    <div
+      className={`player-panel ${props.isActive ? "player-panel--active" : "player-panel--inactive"}`}
+      data-testid={props.panelTestId}
+    >
+      <div className="player-panel__header" data-testid={props.headerTestId}>
         <PlayerHeader
           title={props.title}
           player={props.player}
@@ -2717,7 +2733,7 @@ function PlayerPanel(props: {
       </div>
 
       {props.showTurnControls && props.turnControls && (
-        <div className="panel-actions-row" id={props.controlsId}>
+        <div className="panel-actions-row" id={props.controlsId} data-testid={props.actionsRowTestId}>
           <div className="panel-actions-left player-panel__controls">
             <Tooltip
               content={props.turnControls.drawDisabledReason ?? ""}
@@ -2776,13 +2792,18 @@ function PlayerPanel(props: {
             <button
               className="ui-btn ui-btn--ghost"
               ref={props.undoRef}
+              data-testid={props.undoButtonTestId}
               disabled={!props.turnControls.canUndo}
               onClick={props.turnControls.onUndo}
             >
               Undo
             </button>
           </div>
-          <div className="panel-stats-right" aria-label={`Player ${props.player + 1} planet totals`}>
+          <div
+            className="panel-stats-right"
+            aria-label={`Player ${props.player + 1} planet totals`}
+            data-testid={props.statsRightTestId}
+          >
             <span className="panel-stats-right__stat">Terraform {tCount}/6 {ok ? "OK" : "LOW"}</span>
             <span className="panel-stats-right__divider" aria-hidden>•</span>
             <span className="panel-stats-right__stat">Colonize {cTypes}/4</span>

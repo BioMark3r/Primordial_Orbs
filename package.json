@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "shots:rulebook": "playwright test tests/rulebook.screenshots.spec.ts"
+    "shots:rulebook": "playwright test tests/rulebook.screenshots.spec.ts",
+    "test:ui": "playwright test tests/ui.layout.spec.ts",
+    "test:ui:update": "playwright test tests/ui.layout.spec.ts --update-snapshots"
   },
   "dependencies": {
     "react": "^18.2.0",
