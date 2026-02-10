@@ -5,11 +5,14 @@ type PileWidgetProps = {
   count: number;
   subtitle?: string;
   icon?: React.ReactNode;
+  compact?: boolean;
 };
 
-export function PileWidget({ title, count, subtitle, icon }: PileWidgetProps) {
+export function PileWidget({ title, count, subtitle, icon, compact = false }: PileWidgetProps) {
+  const className = compact ? "pile-widget ui-panel--compact pile-widget--compact" : "pile-widget";
+
   return (
-    <div className="pile-widget">
+    <div className={className}>
       <div className="pile-widget__stack">
         <div className="pile-widget__card" />
         <div className="pile-widget__card" />
@@ -19,7 +22,7 @@ export function PileWidget({ title, count, subtitle, icon }: PileWidgetProps) {
       </div>
       <div className="pile-widget__info">
         <div className="pile-widget__title">{title}</div>
-        {subtitle && <div className="pile-widget__subtitle">{subtitle}</div>}
+        {subtitle && !compact && <div className="pile-widget__subtitle">{subtitle}</div>}
       </div>
     </div>
   );

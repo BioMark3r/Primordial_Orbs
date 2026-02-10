@@ -96,8 +96,8 @@
 
 .arena-view__body {
   display: grid;
-  gap: 16px;
-  margin-top: 12px;
+  gap: 12px;
+  margin-top: 10px;
 }
 
 .arena-view__bowl-wrap {
@@ -181,7 +181,7 @@
 
 .arena-view__readout {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .arena-view__label {
@@ -241,13 +241,15 @@
 
 .arena-view__piles {
   display: grid;
-  gap: 10px;
+  gap: var(--s2);
 }
 
 .pile-widget {
   display: flex;
-  gap: 12px;
+  gap: var(--s3);
   align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
   background: rgba(12, 16, 28, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
@@ -256,8 +258,9 @@
 
 .pile-widget__stack {
   position: relative;
-  width: 48px;
-  height: 40px;
+  width: 40px;
+  height: 32px;
+  flex: 0 0 auto;
 }
 
 .pile-widget__card {
@@ -298,16 +301,59 @@
 
 .pile-widget__info {
   display: grid;
-  gap: 4px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .pile-widget__title {
   font-weight: 700;
+  font-size: var(--fs-2);
+  white-space: nowrap;
 }
 
 .pile-widget__subtitle {
   font-size: 12px;
   color: rgba(237, 239, 246, 0.6);
+}
+
+.pile-widget--compact {
+  padding: var(--s2);
+  border-color: var(--border-2);
+  background: var(--panel-2);
+  border-radius: var(--radius-sm);
+  gap: var(--s2);
+  box-shadow: none;
+}
+
+.pile-widget--compact .pile-widget__stack {
+  width: 34px;
+  height: 28px;
+}
+
+.pile-widget--compact .pile-widget__card {
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
+}
+
+.pile-widget--compact .pile-widget__badge {
+  right: -5px;
+  bottom: -5px;
+  font-size: var(--fs-1);
+  padding: 1px 6px;
+}
+
+.pile-widget--compact .pile-widget__info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  width: 100%;
+}
+
+.pile-widget--compact .pile-widget__title {
+  font-size: var(--fs-1);
+  letter-spacing: 0.01em;
 }
 
 .slot-flash {

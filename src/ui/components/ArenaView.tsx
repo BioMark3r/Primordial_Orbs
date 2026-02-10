@@ -152,8 +152,8 @@ export function ArenaView({
           </div>
           {impactResult && <div className="arena-view__impact-result">{impactResult}</div>}
           <div className="arena-view__piles">
-            <PileWidget title="Temporal Anomaly" count={bagCount} subtitle="Draw source" />
-            <PileWidget title="Discard Pile" count={discardCount} subtitle="Spent orbs" />
+            <PileWidget title="Temporal Anomaly" count={bagCount} subtitle="Draw source" compact />
+            <PileWidget title="Discard Pile" count={discardCount} subtitle="Spent orbs" compact />
           </div>
         </div>
       </div>

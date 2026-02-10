@@ -171,7 +171,7 @@
 
 .game-arena-row {
   margin-top: 0;
-  gap: 10px;
+  gap: var(--s2);
   align-items: stretch;
   min-height: 0;
   grid-template-columns: 1fr 0.9fr 1fr;
