@@ -59,6 +59,7 @@ import {
 import type { ReplayBundleV1, ReplayEntryV1 } from "./ui/utils/actionLog";
 import { replayFromStart, validateReplayMatchesCurrent } from "./ui/utils/replay";
 import { DeterminismPanel } from "./ui/components/DeterminismPanel";
+import { TurnHandoffOverlay } from "./ui/components/TurnHandoffOverlay";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -291,7 +292,9 @@ export default function App() {
     1: { types: ColonizeType[]; until: number } | null;
   }>({ 0: null, 1: null });
   const [winCelebration, setWinCelebration] = useState<{ player: 0 | 1; until: number } | null>(null);
+  const [turnHandoff, setTurnHandoff] = useState<{ open: boolean; player: 0 | 1 } | null>(null);
   const prevStateRef = useRef<GameState | null>(null);
+  const prevActiveRef = useRef(state.active);
   const prevPhaseRef = useRef(state.phase);
   const lastImpactEventRef = useRef<ImpactResolvedSummary | null>(null);
   const lastImpactProcessedRef = useRef<number | null>(null);
@@ -658,6 +661,16 @@ export default function App() {
     turnRecapOpen ||
     showHowTo ||
     shortcutsOpen;
+  const handoffBlocked =
+    menuOpen ||
+    exportOpen ||
+    importOpen ||
+    replayExportOpen ||
+    replayImportOpen ||
+    tutorialOpen ||
+    showHowTo ||
+    shortcutsOpen ||
+    logOpen;
 
   const closeMenus = useCallback(() => {
     setGameMenuOpen(false);
@@ -770,6 +783,18 @@ export default function App() {
     }
     prevPhaseRef.current = state.phase;
   }, [allowAutoFocus, impactsRemaining, playsRemaining, state.phase]);
+
+  useEffect(() => {
+    if (screen !== "GAME" || lastAction?.type === "NEW_GAME") {
+      prevActiveRef.current = state.active;
+      return;
+    }
+    const prev = prevActiveRef.current;
+    if (prev !== state.active && !handoffBlocked) {
+      setTurnHandoff({ open: true, player: state.active });
+    }
+    prevActiveRef.current = state.active;
+  }, [handoffBlocked, lastAction, screen, state.active]);
 
 
   if (screen === "SPLASH") {
@@ -925,6 +950,7 @@ export default function App() {
     setTurnEvents([]);
     setTurnRecap(null);
     setTurnRecapOpen(false);
+    setTurnHandoff(null);
     pendingDiffRef.current = null;
   }
 
@@ -1390,6 +1416,14 @@ export default function App() {
             setTurnRecap(null);
           }}
         />
+        {turnHandoff && (
+          <TurnHandoffOverlay
+            open={turnHandoff.open}
+            player={turnHandoff.player}
+            viz={turnHandoff.player === 0 ? p0Viz : p1Viz}
+            onDone={() => setTurnHandoff(null)}
+          />
+        )}
         <div className="game-topbar">
           <div className="game-topbar-left">
             <div className="game-topbar-title">{topbarTitle}</div>
@@ -1891,7 +1925,7 @@ export default function App() {
           </div>
 
         <div className="game-bottom-row">
-            <div className={`hand-panel${isLastPlay ? " hand-last-play" : ""}`} id="ui-hand-panel">
+            <div className={`hand-panel hand-panel--active${isLastPlay ? " hand-last-play" : ""}`} id="ui-hand-panel">
               <div className="hand-panel__header">
                 <h3 className="hand-panel__title">Hand (Player {active + 1})</h3>
                 <div className="hand-panel__hint">
@@ -2233,7 +2267,7 @@ function PlayerPanel(props: {
   const ok = tCount >= props.terraformMin;
 
   return (
-    <div className={`player-panel${props.isActive ? " player-panel--active" : ""}`}>
+    <div className={`player-panel ${props.isActive ? "player-panel--active" : "player-panel--inactive"}`}>
       <div className="player-panel__header">
         <div className="player-panel__title">
           <PlanetIcon viz={props.planetViz} size={40} label={`${props.title} planet`} />
