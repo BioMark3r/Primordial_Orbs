@@ -200,6 +200,7 @@
   padding: var(--s3);
   background: var(--panel);
   box-shadow: var(--shadow-sm);
+  overflow-x: hidden;
 }
 
 .player-panel--active {
@@ -213,9 +214,9 @@
 
 .player-panel__header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: var(--s3);
+  min-width: 0;
 }
 
 .player-header__row {
@@ -253,7 +254,7 @@
 .player-header__mid {
   display: flex;
   align-items: center;
-  gap: var(--s4);
+  gap: var(--s3);
   min-width: 0;
 }
 
@@ -272,12 +273,6 @@
   gap: 0;
 }
 
-.player-panel__stats {
-  text-align: right;
-  font-size: var(--fs-1);
-  white-space: nowrap;
-}
-
 .planet-icon {
   display: inline-flex;
   align-items: center;
@@ -293,6 +288,49 @@
   animation: planetPulse 0.9s ease-in-out 2;
 }
 
+.panel-actions-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.panel-actions-left {
+  display: flex;
+  gap: var(--s2);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+
+.panel-actions-left.player-panel__controls {
+  flex-wrap: nowrap;
+  padding-bottom: 0;
+}
+.panel-stats-right {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+  font-size: var(--fs-1);
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.panel-stats-right__stat {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-2);
+  background: var(--panel-2);
+}
+
+.panel-stats-right__divider {
+  opacity: 0.4;
+}
+
 .player-panel__controls {
   margin-top: 8px;
   display: flex;
@@ -300,6 +338,8 @@
   gap: var(--s2);
   position: relative;
   padding-bottom: 16px;
+  margin-top: 0;
+  flex: 1 1 auto;
 }
 
 .player-panel__controls button {
