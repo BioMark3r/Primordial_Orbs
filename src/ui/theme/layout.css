@@ -196,9 +196,12 @@
 }
 
 .player-panel--active {
-  background: rgba(120, 220, 140, 0.18);
-  border-color: rgba(160, 255, 190, 0.45);
-  box-shadow: 0 0 0 1px rgba(160, 255, 190, 0.2);
+  box-shadow: 0 0 0 1px rgba(140, 170, 255, 0.18);
+}
+
+.player-panel--inactive {
+  opacity: 0.72;
+  filter: saturate(0.85);
 }
 
 .player-panel__header {
@@ -286,6 +289,15 @@
   flex: 1 1 420px;
   min-width: 280px;
   background: rgba(8, 12, 20, 0.65);
+}
+
+.hand-panel--active {
+  box-shadow: 0 0 0 1px rgba(140, 170, 255, 0.18);
+}
+
+.hand-panel--inactive {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .hand-last-play {
@@ -628,6 +640,61 @@
   background: rgba(10, 14, 24, 0.95);
   color: #f5f7ff;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+
+.turn-handoff {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 19;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(14, 18, 32, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f5f7ff;
+  cursor: pointer;
+  animation: handoffInOut 850ms ease-in-out 1 forwards;
+}
+
+.turn-handoff__text {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.turn-handoff__title {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.turn-handoff__subtitle {
+  font-size: 12px;
+  color: rgba(237, 239, 246, 0.75);
+}
+
+@keyframes handoffInOut {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
 }
 
 .turn-recap-toast {
