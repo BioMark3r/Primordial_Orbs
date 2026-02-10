@@ -1,4 +1,5 @@
 import type { GameState, Impact } from "../engine/types";
+import type { AiPersonality } from "./aiTypes";
 import { computeProgressFromPlanet } from "../ui/utils/progress";
 import {
   DEFAULT_HAND_SIZE_LIMIT,
@@ -116,65 +117,63 @@ function pickDiscardIndex(state: GameState, player: 0 | 1): number | null {
   return bestIndex >= 0 ? bestIndex : 0;
 }
 
-function scoreColonizeMove(state: GameState, player: 0 | 1, move: Placement): number {
-  const handOrb = state.players[player].hand[move.handIndex];
-  if (!handOrb || handOrb.kind !== "COLONIZE") return Number.NEGATIVE_INFINITY;
+type Weights = {
+  unlockColonize: number;
+  anyColonize: number;
+  terraformSafety: number;
+  terraformGeneral: number;
+  impactPlay: number;
+  endPlay: number;
+};
 
-  const progress = computeProgressFromPlanet(state.players[player].planet.slots);
-  let score = 0;
+const IMPACT_STRENGTH_BONUS: Record<Impact, number> = {
+  BLACK_HOLE: 5,
+  TEMPORAL_VORTEX: 4,
+  SOLAR_FLARE: 3,
+  DISEASE: 3,
+  QUAKE: 2,
+  METEOR: 2,
+  TORNADO: 1,
+};
 
-  if (!progress.unlocked[handOrb.c]) {
-    score += 3;
+type Candidate = { intent: ActionIntent; score: number; priority: number };
+
+export function weightsFor(personality: AiPersonality): Weights {
+  if (personality === "BUILDER") {
+    return {
+      unlockColonize: 10,
+      anyColonize: 6,
+      terraformSafety: 9,
+      terraformGeneral: 7,
+      impactPlay: 3,
+      endPlay: 1,
+    };
   }
-
-  const chainBonus: Record<typeof handOrb.c, number> = {
-    PLANT: 1,
-    ANIMAL: progress.unlocked.PLANT ? 1 : 0,
-    SENTIENT: progress.unlocked.ANIMAL ? 1 : 0,
-    HIGH_TECH: progress.unlocked.SENTIENT ? 1 : 0,
+  if (personality === "AGGRESSIVE") {
+    return {
+      unlockColonize: 7,
+      anyColonize: 3,
+      terraformSafety: 6,
+      terraformGeneral: 4,
+      impactPlay: 10,
+      endPlay: 1,
+    };
+  }
+  return {
+    unlockColonize: 9,
+    anyColonize: 4,
+    terraformSafety: 8,
+    terraformGeneral: 5,
+    impactPlay: 6,
+    endPlay: 1,
   };
-
-  score += chainBonus[handOrb.c];
-  return score;
 }
 
-function pickTerraformPlacement(state: GameState, player: 0 | 1, placements: Placement[]): Placement | null {
-  if (placements.length === 0) return null;
-
-  const terraformCounts: Record<string, number> = {};
-  state.players[player].planet.slots.forEach((slot) => {
-    if (slot?.kind === "TERRAFORM") {
-      terraformCounts[slot.t] = (terraformCounts[slot.t] ?? 0) + 1;
-    }
-  });
-
-  const sorted = [...placements].sort((a, b) => {
-    const orbA = state.players[player].hand[a.handIndex];
-    const orbB = state.players[player].hand[b.handIndex];
-    const countA = orbA?.kind === "TERRAFORM" ? terraformCounts[orbA.t] ?? 0 : 0;
-    const countB = orbB?.kind === "TERRAFORM" ? terraformCounts[orbB.t] ?? 0 : 0;
-    if (countA !== countB) return countA - countB;
-    return a.handIndex - b.handIndex;
-  });
-
-  return sorted[0] ?? null;
-}
-
-function pickImpact(impacts: ImpactPlay[]): ImpactPlay | null {
-  if (impacts.length === 0) return null;
-  const rank: Record<Impact, number> = {
-    BLACK_HOLE: 0,
-    TEMPORAL_VORTEX: 1,
-    DISEASE: 2,
-    SOLAR_FLARE: 3,
-    QUAKE: 4,
-    METEOR: 5,
-    TORNADO: 6,
-  };
-  return [...impacts].sort((a, b) => rank[a.impact] - rank[b.impact])[0] ?? null;
-}
-
-export function chooseNextIntentEasy(state: GameState, aiPlayer: 0 | 1): ActionIntent | null {
+export function chooseNextIntentEasy(
+  state: GameState,
+  aiPlayer: 0 | 1,
+  personality: AiPersonality,
+): ActionIntent | null {
   const ctx = buildValidationContext(state, aiPlayer);
 
   if (state.active !== aiPlayer || state.phase === "GAME_OVER") return null;
@@ -194,45 +193,69 @@ export function chooseNextIntentEasy(state: GameState, aiPlayer: 0 | 1): ActionI
   }
 
   if (state.phase === "PLAY") {
+    const weights = weightsFor(personality);
     const terraformPlacements = listValidTerraformPlacements(state, aiPlayer);
     const colonizePlacements = listValidColonizePlacements(state, aiPlayer);
     const opponent = aiPlayer === 0 ? 1 : 0;
     const impacts = listValidImpacts(state, aiPlayer, opponent);
-
-    const bestColonize = [...colonizePlacements]
-      .sort((a, b) => scoreColonizeMove(state, aiPlayer, b) - scoreColonizeMove(state, aiPlayer, a))[0] ?? null;
-    if (bestColonize) {
-      return { type: "PLAY_COLONIZE", handIndex: bestColonize.handIndex, slotIndex: bestColonize.slotIndex };
-    }
-
+    const progress = computeProgressFromPlanet(state.players[aiPlayer].planet.slots);
     const terraformOnPlanet = state.players[aiPlayer].planet.slots.filter((slot) => slot?.kind === "TERRAFORM").length;
-    if (terraformOnPlanet <= 3) {
-      const terraform = pickTerraformPlacement(state, aiPlayer, terraformPlacements);
-      if (terraform) {
-        return { type: "PLAY_TERRAFORM", handIndex: terraform.handIndex, slotIndex: terraform.slotIndex };
-      }
+    const terraformMinimum = 3;
+    const candidates: Candidate[] = [];
+
+    colonizePlacements.forEach((move) => {
+      const handOrb = state.players[aiPlayer].hand[move.handIndex];
+      if (!handOrb || handOrb.kind !== "COLONIZE") return;
+      const unlocksNewType = !progress.unlocked[handOrb.c];
+      const jitter = unlocksNewType ? state.turn % 3 : 0;
+      candidates.push({
+        intent: { type: "PLAY_COLONIZE", handIndex: move.handIndex, slotIndex: move.slotIndex },
+        score: (unlocksNewType ? weights.unlockColonize : weights.anyColonize) + jitter,
+        priority: 3,
+      });
+    });
+
+    terraformPlacements.forEach((move) => {
+      candidates.push({
+        intent: { type: "PLAY_TERRAFORM", handIndex: move.handIndex, slotIndex: move.slotIndex },
+        score: terraformOnPlanet <= terraformMinimum ? weights.terraformSafety : weights.terraformGeneral,
+        priority: 1,
+      });
+    });
+
+    impacts.forEach((move) => {
+      candidates.push({
+        intent: { type: "PLAY_IMPACT", handIndex: move.handIndex, target: move.target },
+        score: weights.impactPlay + IMPACT_STRENGTH_BONUS[move.impact],
+        priority: 2,
+      });
+    });
+
+    if (validateIntent(state, { type: "END_PLAY" }, ctx).ok) {
+      candidates.push({ intent: { type: "END_PLAY" }, score: weights.endPlay, priority: 0 });
     }
 
-    if (state.counters.impactsRemaining > 0 && impacts.length > 0 && Math.random() < 0.4) {
-      const impact = pickImpact(impacts);
-      if (impact) {
-        return { type: "PLAY_IMPACT", handIndex: impact.handIndex, target: impact.target };
-      }
+    if (candidates.length > 0) {
+      const best = candidates.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.priority !== a.priority) return b.priority - a.priority;
+        if (a.intent.type !== b.intent.type) return a.intent.type.localeCompare(b.intent.type);
+        if ("handIndex" in a.intent && "handIndex" in b.intent && a.intent.handIndex !== b.intent.handIndex) {
+          return a.intent.handIndex - b.intent.handIndex;
+        }
+        if ("slotIndex" in a.intent && "slotIndex" in b.intent && a.intent.slotIndex !== b.intent.slotIndex) {
+          return a.intent.slotIndex - b.intent.slotIndex;
+        }
+        return 0;
+      })[0];
+      return best?.intent ?? null;
     }
 
-    const terraform = pickTerraformPlacement(state, aiPlayer, terraformPlacements);
-    if (terraform) {
-      return { type: "PLAY_TERRAFORM", handIndex: terraform.handIndex, slotIndex: terraform.slotIndex };
+    if (validateIntent(state, { type: "END_PLAY" }, ctx).ok) {
+      return { type: "END_PLAY" };
     }
 
-    if (impacts.length > 0) {
-      const impact = pickImpact(impacts);
-      if (impact) {
-        return { type: "PLAY_IMPACT", handIndex: impact.handIndex, target: impact.target };
-      }
-    }
-
-    return validateIntent(state, { type: "END_PLAY" }, ctx).ok ? { type: "END_PLAY" } : null;
+    return validateIntent(state, { type: "ADVANCE" }, ctx).ok ? { type: "ADVANCE" } : null;
   }
 
   if ((state.phase === "RESOLVE" || state.phase === "CHECK_WIN") && validateIntent(state, { type: "ADVANCE" }, ctx).ok) {

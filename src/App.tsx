@@ -61,7 +61,7 @@ import { replayFromStart, validateReplayMatchesCurrent } from "./ui/utils/replay
 import { DeterminismPanel } from "./ui/components/DeterminismPanel";
 import { TurnHandoffOverlay } from "./ui/components/TurnHandoffOverlay";
 import { createAiRunner } from "./ai/aiRunner";
-import type { AiConfig } from "./ai/aiTypes";
+import type { AiConfig, AiPersonality } from "./ai/aiTypes";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -75,6 +75,19 @@ export type UIEvent =
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
 const RULEBOOK_URL = "/rulebook.html";
+
+function personalityLabel(personality: AiPersonality): string {
+  switch (personality) {
+    case "BALANCED":
+      return "Balanced";
+    case "BUILDER":
+      return "Builder";
+    case "AGGRESSIVE":
+      return "Aggressive";
+    default:
+      return "Balanced";
+  }
+}
 
 function openRulebook() {
   window.open(RULEBOOK_URL, "_blank", "noopener,noreferrer");
@@ -296,6 +309,7 @@ export default function App() {
   const [playVsComputer, setPlayVsComputer] = useState(false);
   const [aiDifficulty, setAiDifficulty] = useState<AiConfig["difficulty"]>("EASY");
   const [aiSpeed, setAiSpeed] = useState<AiConfig["speed"]>("NORMAL");
+  const [aiPersonality, setAiPersonality] = useState<AiPersonality>("BALANCED");
   const [aiPaused, setAiPaused] = useState(false);
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
   const [hoveredImpactIndex, setHoveredImpactIndex] = useState<number | null>(null);
@@ -373,6 +387,7 @@ export default function App() {
     player: 1,
     difficulty: "EASY",
     speed: "NORMAL",
+    personality: "BALANCED",
   });
   const aiRunnerRef = useRef<ReturnType<typeof createAiRunner> | null>(null);
 
@@ -769,6 +784,7 @@ export default function App() {
     player: 1,
     difficulty: aiDifficulty,
     speed: aiSpeed,
+    personality: aiPersonality,
   };
 
   useEffect(() => {
@@ -1109,6 +1125,18 @@ export default function App() {
                     >
                       <option value="FAST">Fast</option>
                       <option value="NORMAL">Normal</option>
+                    </select>
+                  </label>
+                  <label style={{ display: "grid", gap: 6, gridColumn: "1 / -1" }}>
+                    <span style={{ fontWeight: 600 }}>Personality</span>
+                    <select
+                      value={aiPersonality}
+                      onChange={(e) => setAiPersonality(e.target.value as AiPersonality)}
+                      style={{ padding: 8, borderRadius: 8 }}
+                    >
+                      <option value="BALANCED">Balanced</option>
+                      <option value="BUILDER">Builder</option>
+                      <option value="AGGRESSIVE">Aggressive</option>
                     </select>
                   </label>
                 </div>
@@ -2083,6 +2111,7 @@ export default function App() {
               flashFx={active === 0 ? activeFlashFx : otherFlashFx}
               isActive={active === 0}
               isCpu={playVsComputer && 0 === aiConfig.player}
+              cpuPersonality={playVsComputer && 0 === aiConfig.player ? aiConfig.personality : undefined}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
                 canDraw: canDraw && active === 0,
@@ -2136,6 +2165,7 @@ export default function App() {
               flashFx={active === 1 ? activeFlashFx : otherFlashFx}
               isActive={active === 1}
               isCpu={playVsComputer && 1 === aiConfig.player}
+              cpuPersonality={playVsComputer && 1 === aiConfig.player ? aiConfig.personality : undefined}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
                 canDraw: canDraw && active === 1,
@@ -2499,6 +2529,7 @@ function PlayerPanel(props: {
   advanceRef?: React.Ref<HTMLButtonElement>;
   undoRef?: React.Ref<HTMLButtonElement>;
   isCpu?: boolean;
+  cpuPersonality?: AiPersonality;
 }) {
   const tCount = terraformCount(props.planetSlots);
   const cTypes = colonizeTypesCount(props.planetSlots);
@@ -2513,7 +2544,9 @@ function PlayerPanel(props: {
             <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {props.title}
               {props.isCpu && (
-                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 999, background: "#3c4f70" }}>CPU</span>
+                <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 999, background: "#3c4f70" }}>
+                  {`CPU (${personalityLabel(props.cpuPersonality ?? "BALANCED")})`}
+                </span>
               )}
             </h3>
             <div style={{ color: "rgba(237,239,246,0.7)", marginTop: 2 }}>

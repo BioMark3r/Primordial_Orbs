@@ -49,7 +49,7 @@ export function createAiRunner(ctx: AiContext) {
       }
 
       let intent: ActionIntent | null =
-        ctx.ai.difficulty === "EASY" ? chooseNextIntentEasy(state, ctx.ai.player) : null;
+        ctx.ai.difficulty === "EASY" ? chooseNextIntentEasy(state, ctx.ai.player, ctx.ai.personality) : null;
 
       if (intent === null) {
         if (ctx.validateIntent(state, { type: "END_PLAY" }, {
