@@ -25,12 +25,12 @@ export function ToastStack() {
   return (
     <div className="toast-stack" role="status" aria-live="polite">
       {visibleToasts.map((toast) => (
-        <div key={toast.id} className={`toast toast--${toast.tone}`}>
+        <div key={toast.id} className={`toast ui-toast toast--${toast.tone}`}>
           <div className="toast__body">
             <div className="toast__title">{toast.title}</div>
             {toast.detail && <div className="toast__detail">{toast.detail}</div>}
           </div>
-          <button className="toast__close" onClick={() => removeToast(toast.id)} aria-label="Dismiss toast">
+          <button className="toast__close ui-btn ui-btn--ghost" onClick={() => removeToast(toast.id)} aria-label="Dismiss toast">
             ✕
           </button>
         </div>

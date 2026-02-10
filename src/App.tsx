@@ -330,6 +330,7 @@ export default function App() {
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [compactMode, setCompactMode] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -1085,7 +1086,7 @@ export default function App() {
   if (screen === "SETUP") {
     return (
       <div data-testid="screen-setup" style={containerStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <div className="game-inspector__header">
           <h2 style={{ margin: 0 }}>Setup</h2>
           <button onClick={() => setScreen("SPLASH")}>Back</button>
         </div>
@@ -1734,7 +1735,12 @@ export default function App() {
 
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
-      <div data-testid="screen-game" style={containerStyle} className="app-shell game-shell">
+      <div
+        data-testid="screen-game"
+        style={containerStyle}
+        className="app-shell game-shell"
+        data-density={compactMode ? "compact" : "comfortable"}
+      >
         <ToastStack />
         {winCelebration && <WinCelebration player={winCelebration.player} />}
         <TurnRecapToast
@@ -1756,18 +1762,18 @@ export default function App() {
         <div className="game-topbar" data-testid="topbar">
           <div className="game-topbar-left">
             <div className="game-topbar-title">{topbarTitle}</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span className="game-status-pill">Active: Player {active + 1}</span>
-              {gameOverLabel && <span className="game-status-pill">{gameOverLabel}</span>}
+            <div className="game-topbar-chipRow">
+              <span className="game-status-pill ui-chip">Active: Player {active + 1}</span>
+              {gameOverLabel && <span className="game-status-pill ui-chip">{gameOverLabel}</span>}
               {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
-                <span className="game-status-pill" title="Solar Flare">Abilities Disabled</span>
+                <span className="game-status-pill ui-chip" title="Solar Flare">Abilities Disabled</span>
               )}
             </div>
           </div>
 
           <div className="game-topbar-right">
-            <span className="game-status-pill">Phase: {state.phase}</span>
-            <span className="game-status-pill">Turn: {state.turn}</span>
+            <span className="game-status-pill ui-chip">Phase: {state.phase}</span>
+            <span className="game-status-pill ui-chip">Turn: {state.turn}</span>
             {isPlayPhase && (
               <>
                 <span
@@ -1846,6 +1852,9 @@ export default function App() {
               >
                 <MenuItem onSelect={menuAction(() => setLogOpen((prev) => !prev))}>
                   {logOpen ? "Hide Log" : "Show Log"}
+                </MenuItem>
+                <MenuItem onSelect={menuAction(() => setCompactMode((prev) => !prev))}>
+                  {compactMode ? "Comfortable Density" : "Compact Density"}
                 </MenuItem>
                 {playVsComputer && (
                   <MenuItem onSelect={menuAction(() => setAiPaused((prev) => !prev))}>
@@ -2102,20 +2111,12 @@ export default function App() {
           )}
 
           {isDev && showInspector && (
-            <div
-              style={{
-                padding: 10,
-                border: "1px solid #666",
-                borderRadius: 10,
-                background: "#fafafa",
-                color: "#1f1f1f",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <h3 style={{ margin: 0 }}>Game Inspector</h3>
-                <div style={{ fontSize: 12, color: "#666" }}>Dev-only</div>
+            <div className="game-inspector ui-panel">
+              <div className="game-inspector__header">
+                <h3 className="game-inspector__title">Game Inspector</h3>
+                <div className="game-inspector__meta">Dev-only</div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginTop: 8 }}>
+              <div className="game-inspector__stats">
                 <div><b>Seed:</b> {state.seed}</div>
                 <div><b>Phase:</b> {state.phase}</div>
                 <div><b>Turn:</b> {state.turn}</div>
@@ -2123,26 +2124,15 @@ export default function App() {
                 <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
                 <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
               </div>
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontWeight: 700 }}>Last Action</div>
-                <pre style={{ marginTop: 6, whiteSpace: "pre-wrap", color: "#1f1f1f" }}>
+              <div className="game-inspector__section">
+                <div className="game-inspector__sectionTitle">Last Action</div>
+                <pre className="game-inspector__pre">
                   {lastAction ? JSON.stringify(lastAction, null, 2) : "None"}
                 </pre>
               </div>
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontWeight: 700 }}>State JSON</div>
-                <pre
-                  style={{
-                    marginTop: 6,
-                    maxHeight: 200,
-                    overflow: "auto",
-                    background: "#fff",
-                    padding: 8,
-                    borderRadius: 8,
-                    border: "1px solid #ddd",
-                    color: "#1f1f1f",
-                  }}
-                >
+              <div className="game-inspector__section">
+                <div className="game-inspector__sectionTitle">State JSON</div>
+                <pre className="game-inspector__json">
                   {JSON.stringify(state, null, 2)}
                 </pre>
               </div>
@@ -2294,7 +2284,7 @@ export default function App() {
               )}
 
               <div className="hand-scroll">
-                {activeHand.length === 0 && <div style={{ color: "#777" }}>No orbs in hand.</div>}
+                {activeHand.length === 0 && <div className="hand-empty">No orbs in hand.</div>}
                 {activeHand.map((o, i) => {
                   const isSel = selected.kind === "HAND" && selected.handIndex === i;
                   const isImpact = o.kind === "IMPACT";
@@ -2340,23 +2330,23 @@ export default function App() {
                         orbToken
                       )}
                       <div className="orb-label">{orbShort(o)}</div>
-                      {isImpact && !isDisabled && <div style={{ fontSize: 10, color: "#cfd5ff" }}>Select target</div>}
+                      {isImpact && !isDisabled && <div className="hand-impact-hint">Select target</div>}
                     </div>
                   );
                 })}
               </div>
 
               {selected.kind === "HAND" && selected.orb.kind !== "IMPACT" && (
-                <div style={{ marginTop: 8, color: "#ddd", fontSize: 12 }}>
+                <div className="hand-selection-note">
                   Selected: <b>{orbLabel(selected.orb)}</b> → click an empty slot on the active planet.
-                  <button style={{ marginLeft: 8 }} onClick={clearSelection}>Clear</button>
+                  <button className="ui-btn ui-btn--ghost" onClick={clearSelection}>Clear</button>
                 </div>
               )}
               {selected.kind === "HAND" && selected.orb.kind === "IMPACT" && (
-                <div style={{ marginTop: 8, padding: 8, border: "1px solid #2a2f44", borderRadius: 10, background: "rgba(10,14,24,0.75)" }}>
-                  <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12 }}>Impact Targeting</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 12 }}>
-                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div className="impact-target-box ui-panel">
+                  <div className="impact-target-title">Impact Targeting</div>
+                  <div className="impact-target-row">
+                    <label className="impact-target-option">
                       <input
                         type="radio"
                         name="impact-target"
@@ -2366,7 +2356,7 @@ export default function App() {
                       />
                       Opponent
                     </label>
-                    <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <label className="impact-target-option">
                       <input
                         type="radio"
                         name="impact-target"
@@ -2376,10 +2366,10 @@ export default function App() {
                       />
                       Self
                     </label>
-                    <button onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
+                    <button className="ui-btn ui-btn--primary" onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
                       Fire Impact
                     </button>
-                    <button onClick={clearSelection}>Clear</button>
+                    <button className="ui-btn ui-btn--ghost" onClick={clearSelection}>Clear</button>
                   </div>
                 </div>
               )}
@@ -2654,6 +2644,7 @@ function PlayerPanel(props: {
             disabled={!props.turnControls.drawDisabledReason}
           >
             <button
+              className="ui-btn ui-btn--primary"
               id={props.drawId}
               ref={props.drawRef}
               disabled={!props.turnControls.canDraw}
@@ -2669,11 +2660,11 @@ function PlayerPanel(props: {
             disabled={!props.turnControls.endPlayDisabledReason}
           >
             <button
+              className={`ui-btn ui-btn--primary${props.turnControls.emphasizeEndPlay ? " btn-nudge" : ""}`}
               id={props.endPlayId}
               ref={props.endPlayRef}
               disabled={!props.turnControls.canEndPlay}
               aria-disabled={!props.turnControls.canEndPlay || undefined}
-              className={props.turnControls.emphasizeEndPlay ? "btn-nudge" : undefined}
               title={props.turnControls.endPlayDisabledReason ?? undefined}
               onClick={props.turnControls.onEndPlay}
             >
@@ -2692,7 +2683,7 @@ function PlayerPanel(props: {
               ref={props.advanceRef}
               disabled={!props.turnControls.canAdvance}
               aria-disabled={!props.turnControls.canAdvance || undefined}
-              className={props.turnControls.emphasizeAdvance ? "btn-nudge btn-nudge-advance" : undefined}
+              className={`ui-btn ui-btn--primary${props.turnControls.emphasizeAdvance ? " btn-nudge btn-nudge-advance" : ""}`}
               title={props.turnControls.advanceDisabledReason ?? undefined}
               onClick={props.turnControls.onAdvance}
             >
@@ -2703,6 +2694,7 @@ function PlayerPanel(props: {
             <div className="turn-nudge-text turn-nudge-text--advance">Ready to Advance</div>
           )}
           <button
+            className="ui-btn ui-btn--ghost"
             ref={props.undoRef}
             disabled={!props.turnControls.canUndo}
             onClick={props.turnControls.onUndo}
@@ -2754,13 +2746,13 @@ function PlayerPanel(props: {
                   aria-hidden
                 />
               )}
-              <div className="player-panel__slot-content" style={{ display: "grid", justifyItems: "center", gap: 4 }}>
+              <div className="player-panel__slot-content">
                 {s ? (
                   <OrbToken orb={s} size="slot" selected={waterPick} disabled={locked} title={orbTooltip(s)} />
                 ) : (
                   <span className="slot-empty" />
                 )}
-                <div style={{ fontSize: 11, color: "rgba(237,239,246,0.7)" }}>
+                <div className="player-panel__slot-label">
                   Slot {i + 1}{locked ? " • Locked" : ""}
                 </div>
                 {showHint && !s && !locked && <div className="slot-hint">Place here</div>}

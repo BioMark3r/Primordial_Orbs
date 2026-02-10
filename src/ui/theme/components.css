@@ -1,0 +1,125 @@
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.ui-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s1);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: var(--fs-2);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.ui-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ui-btn--primary {
+  background: rgba(140, 170, 255, 0.18);
+  border: 1px solid rgba(140, 170, 255, 0.28);
+}
+
+.ui-btn--ghost {
+  background: transparent;
+  border: 1px solid var(--border-2);
+}
+
+.ui-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.ui-btn[disabled],
+.ui-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ui-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-2);
+  background: var(--panel-2);
+  font-size: var(--fs-1);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ui-chip--warn {
+  border-color: var(--warn-soft);
+  color: rgba(255, 180, 80, 0.95);
+}
+
+.ui-chip--good {
+  border-color: var(--good-soft);
+  color: rgba(120, 220, 170, 0.95);
+}
+
+.ui-menu {
+  background: rgba(14, 18, 32, 0.92);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 6px;
+}
+
+.ui-menuItem {
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--text);
+}
+
+.ui-menuItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ui-menuItem:focus-visible {
+  box-shadow: var(--focus);
+  outline: none;
+}
+
+.ui-tooltip {
+  background: rgba(14, 18, 32, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  color: rgba(237, 239, 246, 0.92);
+  font-size: var(--fs-1);
+}
+
+.ui-toast,
+.ui-overlayCard {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-btn,
+  .ui-toast,
+  .ui-overlayCard {
+    transition: none;
+    animation: none;
+  }
+}

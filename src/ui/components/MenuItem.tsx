@@ -10,7 +10,7 @@ export function MenuItem({ children, onSelect, tone = "default", ...rest }: Menu
   return (
     <button
       type="button"
-      className={`menuItem${tone === "danger" ? " menuItem--danger" : ""}`}
+      className={`menuItem ui-menuItem${tone === "danger" ? " menuItem--danger" : ""}`}
       role="menuitem"
       onClick={onSelect}
       {...rest}

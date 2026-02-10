@@ -21,7 +21,7 @@ export function TurnRecapToast({ recap, open, durationMs = 1400, onDone }: TurnR
 
   return (
     <div
-      className={`turn-recap-toast${open ? " turn-recap-toast--open" : ""}`}
+      className={`turn-recap-toast ui-toast${open ? " turn-recap-toast--open" : ""}`}
       role="status"
       aria-live="polite"
     >
