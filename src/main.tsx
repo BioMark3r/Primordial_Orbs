@@ -9,6 +9,7 @@ import "./ui/theme/arena.css";
 import "./ui/theme/fx.css";
 import "./ui/theme/layout.css";
 import "./ui/theme/tutorial.css";
+import "./ui/theme/orbs.css";
 import { applyScreenshotStabilityModeIfRequested } from "./demo/loadDemoState";
 
 applyScreenshotStabilityModeIfRequested();

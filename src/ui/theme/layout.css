@@ -1022,7 +1022,8 @@
   .turn-recap-toast,
   .hand-last-play,
   .btn-nudge,
-  .marble-actionable {
+  .marble-actionable,
+  .orb--actionable .orb__shell {
     animation: none !important;
     transition: none !important;
   }

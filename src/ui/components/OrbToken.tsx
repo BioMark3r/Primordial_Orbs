@@ -1,16 +1,28 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import type { Orb } from "../../engine/types";
-import { drawOrb, orbStyleForOrb } from "../render/orbRenderer";
+import { getOrbSymbol } from "../icons/orbSymbols";
+import { ORB_COLORS, type OrbColor, type OrbColorKey } from "../theme/orbColors";
 
 type Size = "sm" | "md" | "lg" | "slot";
 
 const px: Record<Size, number | string> = { sm: 34, md: 52, lg: 74, slot: "var(--slot)" };
+const FALLBACK_COLORS: OrbColor = {
+  base: "#6B7280",
+  hi: "#E5E7EB",
+  lo: "#111827",
+  etch: "rgba(255,255,255,0.22)",
+};
 
-function orbColorClass(orb: Orb): string {
-  const slug = (value: string) => value.toLowerCase().replace(/_/g, "-");
-  if (orb.kind === "TERRAFORM") return `marble--terraform-${slug(orb.t)}`;
-  if (orb.kind === "COLONIZE") return `marble--colonize-${slug(orb.c)}`;
-  return `marble--impact-${slug(orb.i)}`;
+function colorKeyForOrb(orb: Orb): string {
+  if (orb.kind === "TERRAFORM") return `TERRAFORM_${orb.t}`;
+  if (orb.kind === "COLONIZE") return `COLONIZE_${orb.c === "HIGH_TECH" ? "HIGHTECH" : orb.c}`;
+  return `IMPACT_${orb.i}`;
+}
+
+function categoryForOrb(orb: Orb): "terraform" | "colonize" | "impact" {
+  if (orb.kind === "TERRAFORM") return "terraform";
+  if (orb.kind === "COLONIZE") return "colonize";
+  return "impact";
 }
 
 export function OrbToken(props: {
@@ -25,66 +37,38 @@ export function OrbToken(props: {
 }) {
   const size = props.size ?? "md";
   const d = px[size];
-  const numericSize = typeof d === "string" ? 62 : d;
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let frame = 0;
-    let lastDimension = 0;
-    const raf = window.requestAnimationFrame ?? ((callback: FrameRequestCallback) => window.setTimeout(() => callback(0), 16));
-    const caf = window.cancelAnimationFrame ?? ((handle: number) => window.clearTimeout(handle));
-    const now = () => (typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now());
-
-    const render = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const parent = canvas.parentElement;
-      const dimension = parent?.clientWidth || numericSize;
-      if (dimension <= 0) return;
-      const scale = window.devicePixelRatio || 1;
-      if (dimension !== lastDimension || canvas.width !== dimension * scale) {
-        canvas.width = dimension * scale;
-        canvas.height = dimension * scale;
-        canvas.style.width = `${dimension}px`;
-        canvas.style.height = `${dimension}px`;
-        lastDimension = dimension;
-      }
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.setTransform(scale, 0, 0, scale, 0, 0);
-      ctx.clearRect(0, 0, dimension, dimension);
-      const r = dimension * 0.46;
-      drawOrb(ctx, dimension / 2, dimension / 2, r, orbStyleForOrb(props.orb), now() / 1000);
-      frame = raf(render);
-    };
-
-    frame = raf(render);
-    return () => caf(frame);
-  }, [numericSize, props.orb]);
+  const orbKey = colorKeyForOrb(props.orb);
+  const colors = ORB_COLORS[orbKey as OrbColorKey] ?? FALLBACK_COLORS;
+  const categoryClass = categoryForOrb(props.orb);
 
   const cls = [
-    "marble",
-    orbColorClass(props.orb),
-    props.selected ? "marble-selected" : "",
-    props.disabled ? "marble-disabled" : "",
-    props.actionable ? "marble-actionable" : "",
+    "orb",
+    `orb--${categoryClass}`,
+    props.selected ? "orb--selected" : "",
+    props.disabled ? "orb--disabled" : "",
+    props.actionable ? "orb--actionable" : "",
   ]
     .filter(Boolean)
     .join(" ");
+
+  const style: React.CSSProperties & Record<string, string | number> = {
+    width: d,
+    height: d,
+    padding: 0,
+    background: "transparent",
+    cursor: props.disabled ? "not-allowed" : props.onClick ? "pointer" : "default",
+    "--orb-base": colors.base,
+    "--orb-hi": colors.hi,
+    "--orb-lo": colors.lo,
+    "--orb-etch": colors.etch,
+  };
 
   const isButton = Boolean(props.onClick);
   const Component = (isButton ? "button" : "div") as "button" | "div";
 
   const sharedProps = {
     className: cls,
-    style: {
-      width: d,
-      height: d,
-      padding: 0,
-      background: "transparent",
-      cursor: props.disabled ? "not-allowed" : props.onClick ? "pointer" : "default",
-    } as React.CSSProperties,
+    style,
     title: props.title ?? props.disabledReason,
   };
 
@@ -98,14 +82,24 @@ export function OrbToken(props: {
         disabled={isDisabled && !props.disabledReason}
         aria-disabled={isDisabled || undefined}
       >
-        <canvas ref={canvasRef} className="orb-canvas" width={numericSize} height={numericSize} aria-hidden="true" />
+        <div className="orb__shell" aria-hidden="true" />
+        <div className="orb__spec" aria-hidden="true" />
+        <div className={`orb__ring orb__ring--${categoryClass}`} aria-hidden="true" />
+        <div className="orb__etch" aria-hidden="true">
+          {getOrbSymbol(props.orb)}
+        </div>
       </button>
     );
   }
 
   return (
     <div {...sharedProps} aria-disabled={props.disabled || undefined}>
-      <canvas ref={canvasRef} className="orb-canvas" width={numericSize} height={numericSize} aria-hidden="true" />
+      <div className="orb__shell" aria-hidden="true" />
+      <div className="orb__spec" aria-hidden="true" />
+      <div className={`orb__ring orb__ring--${categoryClass}`} aria-hidden="true" />
+      <div className="orb__etch" aria-hidden="true">
+        {getOrbSymbol(props.orb)}
+      </div>
     </div>
   );
 }
