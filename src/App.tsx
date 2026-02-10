@@ -462,17 +462,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isDev) return;
-    const root = window as Window & {
-      __po_validate?: (intent: ActionIntent) => ReturnType<typeof validateIntent>;
-    };
-    root.__po_validate = (intent: ActionIntent) => validateIntent(state, intent, validationCtx);
-    return () => {
-      delete root.__po_validate;
-    };
-  }, [isDev, state, validationCtx]);
-
-  useEffect(() => {
     if (!flashState) return;
     const ms = Math.max(0, flashState.until - Date.now());
     const timer = window.setTimeout(() => setFlashState(null), ms);
