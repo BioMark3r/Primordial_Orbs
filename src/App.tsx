@@ -2322,6 +2322,7 @@ export default function App() {
             )}
           </div>
         </div>
+      </div>
 
         {logOpen && (
           <div className="log-drawer" role="region" aria-label="Action log">
