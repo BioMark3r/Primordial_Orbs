@@ -81,6 +81,23 @@ import {
   normalizeSetupConfig,
   type SetupConfig,
 } from "./ui/utils/shareLink";
+import { SplashLoginScreen } from "./ui/screens/SplashLoginScreen";
+import { RegisterProfileModal } from "./ui/components/RegisterProfileModal";
+import { PinPromptModal } from "./ui/components/PinPromptModal";
+import { ProfilePicker } from "./ui/components/ProfilePicker";
+import { StatsModal } from "./ui/components/StatsModal";
+import { appendMatchResult } from "./profile/matchHistory";
+import {
+  loadMatches,
+  loadProfiles,
+  loadSession,
+  lockSession,
+  logout,
+  registerProfile,
+  verifyProfilePin,
+} from "./profile/store";
+import type { MatchResult, ProfileId } from "./profile/types";
+import packageJson from "../package.json";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -319,6 +336,16 @@ export default function App() {
   const [p0Core, setP0Core] = useState<Core>("LAND");
   const [p1Core, setP1Core] = useState<Core>("ICE");
   const [playVsComputer, setPlayVsComputer] = useState(false);
+  const [profiles, setProfiles] = useState(() => loadProfiles());
+  const [selectedLoginProfileId, setSelectedLoginProfileId] = useState<ProfileId | null>(null);
+  const [activeProfileId, setActiveProfileId] = useState<ProfileId | null>(() => loadSession().activeProfileId);
+  const [p0ProfileId, setP0ProfileId] = useState<ProfileId | null>(() => localStorage.getItem("po_last_p0_profile_v1"));
+  const [p1ProfileId, setP1ProfileId] = useState<ProfileId | null>(() => localStorage.getItem("po_last_p1_profile_v1"));
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [matches, setMatches] = useState<MatchResult[]>(() => loadMatches());
   const [aiDifficulty, setAiDifficulty] = useState<AiConfig["difficulty"]>("EASY");
   const [aiSpeed, setAiSpeed] = useState<AiConfig["speed"]>("NORMAL");
   const [aiPersonality, setAiPersonality] = useState<AiPersonality>("BALANCED");
@@ -334,6 +361,7 @@ export default function App() {
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
   const [lastSetupConfig, setLastSetupConfig] = useState<SetupConfig | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -407,6 +435,37 @@ export default function App() {
     // This avoids browsers restoring an in-progress screen from a cached session state.
     setScreen("SPLASH");
   }, [demoState]);
+
+  useEffect(() => {
+    if (profiles.length === 0) {
+      setSelectedLoginProfileId(null);
+      return;
+    }
+    setSelectedLoginProfileId((prev) => {
+      if (prev && profiles.some((profile) => profile.id === prev)) return prev;
+      const sessionProfileId = loadSession().activeProfileId;
+      if (sessionProfileId && profiles.some((profile) => profile.id === sessionProfileId)) return sessionProfileId;
+      return profiles[0]?.id ?? null;
+    });
+  }, [profiles]);
+
+  useEffect(() => {
+    if (authBypassMode) {
+      setScreen(demoState ? "GAME" : "SETUP");
+      return;
+    }
+    const session = loadSession();
+    if (session.activeProfileId) {
+      setActiveProfileId(session.activeProfileId);
+      setScreen("SETUP");
+    }
+  }, [authBypassMode, demoState]);
+
+  useEffect(() => {
+    if (!p0ProfileId && activeProfileId) {
+      setP0ProfileId(activeProfileId);
+    }
+  }, [activeProfileId, p0ProfileId]);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
   const stateRef = useRef(state);
@@ -473,6 +532,7 @@ export default function App() {
   const p1LifeMax = 4;
   const shotsMode =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("shots") === "1";
+  const authBypassMode = demoRequested || shotsMode;
 
   const criticalPlayer: 0 | 1 | null = useMemo(() => {
     const p0Critical = p0LifeCurrent <= 1;
@@ -813,6 +873,47 @@ export default function App() {
     return Number.isFinite(parsed) ? parsed : Date.now();
   }
 
+  const activeProfile = useMemo(
+    () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
+    [activeProfileId, profiles],
+  );
+
+  const selectedLoginProfile = useMemo(
+    () => profiles.find((profile) => profile.id === selectedLoginProfileId) ?? null,
+    [profiles, selectedLoginProfileId],
+  );
+
+  async function handlePinSubmit(pin: string) {
+    if (!selectedLoginProfileId) {
+      setAuthError("Select a profile first.");
+      return;
+    }
+    const ok = await verifyProfilePin(selectedLoginProfileId, pin);
+    if (!ok) {
+      setAuthError("Invalid PIN.");
+      return;
+    }
+    setAuthError(null);
+    setActiveProfileId(selectedLoginProfileId);
+    setPinModalOpen(false);
+    setScreen("SETUP");
+  }
+
+  async function handleRegisterSubmit(name: string, pin: string) {
+    try {
+      const profile = await registerProfile(name, pin);
+      const nextProfiles = loadProfiles();
+      setProfiles(nextProfiles);
+      setSelectedLoginProfileId(profile.id);
+      setActiveProfileId(profile.id);
+      setAuthError(null);
+      setRegisterModalOpen(false);
+      setScreen("SETUP");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Unable to register profile.");
+    }
+  }
+
   function dispatchWithLog(action: Action): boolean {
     const before = state;
     const intent = toActionIntent(action);
@@ -884,6 +985,17 @@ export default function App() {
 
   function startGame(options?: { vsComputer?: boolean; setupConfig?: SetupConfig }) {
     const setupConfig = options?.setupConfig;
+    if (!canStartConfigured) {
+      pushToast({
+        id: `profiles-required-${Date.now()}`,
+        tone: "warn",
+        title: "Select player profiles first.",
+        at: Date.now(),
+      });
+      return;
+    }
+    if (p0ProfileId) localStorage.setItem("po_last_p0_profile_v1", p0ProfileId);
+    if (p1ProfileId) localStorage.setItem("po_last_p1_profile_v1", p1ProfileId);
     const resolved = setupConfig
       ? normalizeSetupConfig(setupConfig)
       : normalizeSetupConfig({
@@ -1075,7 +1187,7 @@ export default function App() {
     });
   }
 
-  const menuOpen = gameMenuOpen || viewMenuOpen || helpMenuOpen;
+  const menuOpen = gameMenuOpen || viewMenuOpen || helpMenuOpen || profileMenuOpen;
   const uiOverlayOpen =
     menuOpen ||
     exportOpen ||
@@ -1263,12 +1375,14 @@ export default function App() {
     setGameMenuOpen(false);
     setViewMenuOpen(false);
     setHelpMenuOpen(false);
+    setProfileMenuOpen(false);
   }, []);
 
-  const toggleMenu = useCallback((menu: "game" | "view" | "help") => {
+  const toggleMenu = useCallback((menu: "game" | "view" | "help" | "profile") => {
     setGameMenuOpen((prev) => (menu === "game" ? !prev : false));
     setViewMenuOpen((prev) => (menu === "view" ? !prev : false));
     setHelpMenuOpen((prev) => (menu === "help" ? !prev : false));
+    setProfileMenuOpen((prev) => (menu === "profile" ? !prev : false));
   }, []);
 
   const menuAction = useCallback(
@@ -1399,34 +1513,82 @@ export default function App() {
     }
   }, [state.phase]);
 
+  const canStartConfigured = playVsComputer ? Boolean(p0ProfileId) : Boolean(p0ProfileId && p1ProfileId);
+
+  const recordedMatchRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (screen !== "GAME" || state.phase !== "GAME_OVER" || state.winner === undefined) return;
+    const id = `${state.seed}-${state.turn}-${state.winner}`;
+    if (recordedMatchRef.current === id) return;
+    recordedMatchRef.current = id;
+    const result: MatchResult = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      ts: Date.now(),
+      version: packageJson.version,
+      mode: playVsComputer ? "CPU" : "HOTSEAT",
+      p0ProfileId: p0ProfileId ?? null,
+      p1ProfileId: playVsComputer ? null : (p1ProfileId ?? null),
+      ...(playVsComputer ? { cpuPersonality: aiPersonality } : {}),
+      winnerPlayer: state.winner,
+      turns: state.turn,
+      setup: {
+        p0Core,
+        p1Core,
+        p0Size: "MEDIUM",
+        p1Size: "MEDIUM",
+        setupStyle: compactMode ? "compact" : "cozy",
+      },
+    };
+    setMatches(appendMatchResult(result));
+  }, [aiPersonality, compactMode, p0Core, p0ProfileId, p1Core, p1ProfileId, playVsComputer, screen, state.phase, state.seed, state.turn, state.winner]);
+
 
   if (screen === "SPLASH") {
     return (
-      <div data-testid="screen-splash" style={{ ...containerStyle, display: "grid", placeItems: "center", minHeight: "100vh" }}>
-        <div style={{ width: "100%", maxWidth: 720, textAlign: "center" }}>
-          <img
-            src={logoUrl}
-            alt="Primordial Orbs"
-            style={{ width: "min(520px, 90vw)", height: "auto", borderRadius: 18, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
-          />
-          <div style={{ marginTop: 16, fontWeight: 800, letterSpacing: 2 }}>PRIMORDIAL ORBS</div>
-          <div style={{ marginTop: 6, color: "#666" }}>Terraform • Evolve • Destabilize</div>
-
-          <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={() => setScreen("SETUP")}
-              style={{ padding: "10px 14px", borderRadius: 10 }}
-              title="Proceed to setup"
-            >
-              Enter the Cataclysm Arena
-            </button>
-          </div>
-
-          <div style={{ marginTop: 14, fontSize: 12, color: "#777" }}>
-            Click to enter the Cataclysm Arena
-          </div>
-        </div>
-      </div>
+      <>
+        <SplashLoginScreen
+          logoUrl={logoUrl}
+          profiles={profiles}
+          selectedProfileId={selectedLoginProfileId}
+          loginDisabled={!selectedLoginProfileId}
+          onProfileChange={(profileId) => {
+            setSelectedLoginProfileId(profileId);
+            setAuthError(null);
+          }}
+          onLogin={() => {
+            setAuthError(null);
+            setPinModalOpen(true);
+          }}
+          onRegister={() => {
+            setAuthError(null);
+            setRegisterModalOpen(true);
+          }}
+          onContinue={() => {
+            logout();
+            setActiveProfileId(null);
+            setScreen("SETUP");
+          }}
+        />
+        <PinPromptModal
+          open={pinModalOpen}
+          profileName={selectedLoginProfile?.name ?? "Selected Profile"}
+          error={authError}
+          onClose={() => {
+            setPinModalOpen(false);
+            setAuthError(null);
+          }}
+          onSubmit={handlePinSubmit}
+        />
+        <RegisterProfileModal
+          open={registerModalOpen}
+          error={authError}
+          onClose={() => {
+            setRegisterModalOpen(false);
+            setAuthError(null);
+          }}
+          onSubmit={handleRegisterSubmit}
+        />
+      </>
     );
   }
 
@@ -1510,6 +1672,35 @@ export default function App() {
             </div>
 
             <div style={{ marginTop: 14, padding: 10, border: "1px solid #cfd8ea", borderRadius: 10 }}>
+              <div style={{ display: "grid", gap: 10, marginBottom: 10 }}>
+                <ProfilePicker
+                  label="Player 1 Profile"
+                  profiles={profiles}
+                  value={p0ProfileId}
+                  allowNone
+                  onChange={(profileId) => {
+                    setP0ProfileId(profileId);
+                    if (profileId) localStorage.setItem("po_last_p0_profile_v1", profileId);
+                  }}
+                />
+                {!playVsComputer && (
+                  <ProfilePicker
+                    label="Player 2 Profile"
+                    profiles={profiles}
+                    value={p1ProfileId}
+                    allowNone
+                    onChange={(profileId) => {
+                      setP1ProfileId(profileId);
+                      if (profileId) localStorage.setItem("po_last_p1_profile_v1", profileId);
+                    }}
+                  />
+                )}
+                {!playVsComputer && p0ProfileId && p1ProfileId && p0ProfileId === p1ProfileId && (
+                  <div style={{ fontSize: 12, color: "#92400e" }}>
+                    Warning: both players are using the same profile.
+                  </div>
+                )}
+              </div>
               <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <input
                   type="checkbox"
@@ -1564,7 +1755,7 @@ export default function App() {
               <button type="button" onClick={handleQuickMatchVsCpu} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Quick Match vs CPU
               </button>
-              <button data-testid="start-game" onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
+              <button data-testid="start-game" disabled={!canStartConfigured} onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Start Game
               </button>
               <button type="button" onClick={() => { void handleCopySetupLink(); }} style={{ padding: "10px 14px", borderRadius: 10 }}>
@@ -1589,6 +1780,11 @@ export default function App() {
                 How to Play
               </button>
             </div>
+            {!canStartConfigured && (
+              <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>
+                Select required player profiles before starting.
+              </div>
+            )}
             <div style={{ marginTop: 10, fontSize: 12 }}>
               <button
                 type="button"
@@ -2161,6 +2357,11 @@ export default function App() {
             <div className="game-topbar-chipRow">
               <span className="game-status-pill ui-chip">Active: Player {active + 1}</span>
               {gameOverLabel && <span className="game-status-pill ui-chip">{gameOverLabel}</span>}
+              {state.phase === "GAME_OVER" && (
+                <button type="button" onClick={() => setStatsOpen(true)} style={{ padding: "4px 8px", borderRadius: 8 }}>
+                  View Stats
+                </button>
+              )}
               {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
                 <span className="game-status-pill ui-chip" title="Solar Flare">Abilities Disabled</span>
               )}
@@ -2286,6 +2487,34 @@ export default function App() {
                 <MenuItem onSelect={menuAction(() => setShowHowTo(true))}>How to Play</MenuItem>
                 <MenuItem onSelect={menuAction(() => setShortcutsOpen(true))}>Keyboard Shortcuts</MenuItem>
                 <MenuItem onSelect={menuAction(openRulebook)}>Rulebook</MenuItem>
+              </MenuButton>
+              <MenuButton
+                label={activeProfile ? `Profile: ${activeProfile.name}` : "Profile"}
+                testId="menu-profile"
+                open={profileMenuOpen}
+                onToggle={() => toggleMenu("profile")}
+                onClose={closeMenus}
+              >
+                <MenuItem onSelect={menuAction(() => setStatsOpen(true))}>Stats</MenuItem>
+                <MenuItem
+                  onSelect={menuAction(() => {
+                    lockSession();
+                    setScreen("SPLASH");
+                    setPinModalOpen(false);
+                  })}
+                >
+                  Lock
+                </MenuItem>
+                <MenuItem
+                  tone="danger"
+                  onSelect={menuAction(() => {
+                    logout();
+                    setActiveProfileId(null);
+                    setScreen("SPLASH");
+                  })}
+                >
+                  Logout
+                </MenuItem>
               </MenuButton>
             </div>
           </div>
@@ -2554,6 +2783,14 @@ export default function App() {
             </div>
           </div>
         )}
+
+        <StatsModal
+          open={statsOpen}
+          profile={activeProfile}
+          matches={matches}
+          onClose={() => setStatsOpen(false)}
+          onReset={() => setMatches(loadMatches())}
+        />
 
         {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
         <TutorialOverlay
