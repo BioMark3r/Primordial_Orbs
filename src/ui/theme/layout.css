@@ -362,6 +362,17 @@
   gap: var(--s2);
 }
 
+.player-panel__active-indicator {
+  margin-top: 8px;
+  font-size: var(--fs-1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(237, 239, 246, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .player-panel__slot-btn {
   padding: 6px;
   border-radius: var(--radius-sm);

@@ -2325,7 +2325,7 @@ export default function App() {
 
           <div className="game-arena-row">
             <PlayerPanel
-              title={`Player 1${active === 0 ? " (Active)" : ""}`}
+              title="Player 1"
               player={0}
               panelTestId="player-panel-0"
               headerTestId="player-header-0"
@@ -2387,7 +2387,7 @@ export default function App() {
                 />
               </div>
             <PlayerPanel
-              title={`Player 2${playVsComputer ? " (CPU)" : ""}${active === 1 ? " (Active)" : ""}`}
+              title={`Player 2${playVsComputer ? " (CPU)" : ""}`}
               player={1}
               panelTestId="player-panel-1"
               headerTestId="player-header-1"
@@ -2949,6 +2949,12 @@ function PlayerPanel(props: {
           );
         })}
       </div>
+
+      {props.isActive && (
+        <div className="player-panel__active-indicator" data-testid="active-indicator">
+          ACTIVE PLAYER
+        </div>
+      )}
     </div>
   );
 }
