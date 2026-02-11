@@ -74,6 +74,13 @@ import {
 } from "./ui/utils/reportBundle";
 import { PlaytestFeedbackModal } from "./ui/components/PlaytestFeedbackModal";
 import { digestState } from "./ui/utils/stateDigest";
+import {
+  buildShareUrl,
+  decodeSetupConfig,
+  DEFAULT_SETUP_CONFIG,
+  normalizeSetupConfig,
+  type SetupConfig,
+} from "./ui/utils/shareLink";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -328,6 +335,7 @@ export default function App() {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
+  const [lastSetupConfig, setLastSetupConfig] = useState<SetupConfig | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<UserSettings>(() => loadSettings());
@@ -391,6 +399,7 @@ export default function App() {
   const replayEntryCounterRef = useRef(0);
   const drawRef = useRef<HTMLButtonElement | null>(null);
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
+  const shareCfgAppliedRef = useRef(false);
 
   useEffect(() => {
     if (demoState) return;
@@ -873,16 +882,157 @@ export default function App() {
     return true;
   }
 
-  function startGame(options?: { vsComputer?: boolean }) {
+  function startGame(options?: { vsComputer?: boolean; setupConfig?: SetupConfig }) {
+    const setupConfig = options?.setupConfig;
+    const resolved = setupConfig
+      ? normalizeSetupConfig(setupConfig)
+      : normalizeSetupConfig({
+          mode: playVsComputer ? "CPU" : "HOTSEAT",
+          coreP0: p0Core,
+          coreP1: p1Core,
+          seed: resolveSeed(),
+          aiPersonality,
+          aiSpeed,
+          density: compactMode ? "compact" : "cozy",
+        });
     resetTransientUi();
-    const seed = resolveSeed();
-    const vsComputer = options?.vsComputer ?? playVsComputer;
+    const seed = resolved.seed;
+    const vsComputer = options?.vsComputer ?? resolved.mode === "CPU";
+    setP0Core(resolved.coreP0);
+    setP1Core(resolved.coreP1);
+    setAiPersonality(resolved.aiPersonality);
+    setAiSpeed(resolved.aiSpeed);
+    setCompactMode(resolved.density === "compact");
     setSeedInput(String(seed));
     setIsDemoActive(false);
     setPlayVsComputer(vsComputer);
+    setLastSetupConfig(resolved);
     setFeedbackPromptShown(false);
-    dispatchWithLog({ type: "NEW_GAME", mode: vsComputer ? "VS_AI" : mode, coreP0: p0Core, coreP1: p1Core, seed });
+    dispatchWithLog({
+      type: "NEW_GAME",
+      mode: vsComputer ? "VS_AI" : mode,
+      coreP0: resolved.coreP0,
+      coreP1: resolved.coreP1,
+      seed,
+    });
     setScreen("GAME");
+  }
+
+  useEffect(() => {
+    if (shareCfgAppliedRef.current || demoState) return;
+    shareCfgAppliedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const encodedCfg = params.get("cfg");
+    if (!encodedCfg) return;
+    const decodedCfg = decodeSetupConfig(encodedCfg);
+    if (!decodedCfg) return;
+
+    setP0Core(decodedCfg.coreP0);
+    setP1Core(decodedCfg.coreP1);
+    setAiPersonality(decodedCfg.aiPersonality);
+    setAiSpeed(decodedCfg.aiSpeed);
+    setSeedInput(String(decodedCfg.seed));
+    setPlayVsComputer(decodedCfg.mode === "CPU");
+    setCompactMode(decodedCfg.density === "compact");
+    setLastSetupConfig(decodedCfg);
+
+    if (params.get("autostart") === "1") {
+      startGame({ vsComputer: decodedCfg.mode === "CPU", setupConfig: decodedCfg });
+      return;
+    }
+    setScreen("SETUP");
+  }, [demoState]);
+
+  async function copyTextToClipboard(text: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      textArea.style.pointerEvents = "none";
+      document.body.appendChild(textArea);
+      textArea.select();
+      let copied = false;
+      try {
+        copied = document.execCommand("copy");
+      } catch {
+        copied = false;
+      } finally {
+        document.body.removeChild(textArea);
+      }
+      return copied;
+    }
+  }
+
+  function getCurrentSetupConfig(): SetupConfig {
+    const parsedSeed = Number(seedInput);
+    return normalizeSetupConfig({
+      mode: playVsComputer ? "CPU" : "HOTSEAT",
+      coreP0: p0Core,
+      coreP1: p1Core,
+      seed: Number.isFinite(parsedSeed) ? Math.trunc(parsedSeed) : DEFAULT_SETUP_CONFIG.seed,
+      aiPersonality,
+      aiSpeed,
+      density: compactMode ? "compact" : "cozy",
+    });
+  }
+
+  async function handleCopySetupLink(options?: { autostart?: boolean }) {
+    const cfg = getCurrentSetupConfig();
+    const shareUrl = buildShareUrl(cfg, options);
+    const copied = await copyTextToClipboard(shareUrl);
+    if (copied) {
+      pushToast({
+        id: `copy-setup-link-${Date.now()}`,
+        tone: "good",
+        title: "Setup link copied.",
+        at: Date.now(),
+      });
+      return;
+    }
+    pushToast({
+      id: `copy-setup-link-failed-${Date.now()}`,
+      tone: "warn",
+      title: "Copy failed.",
+      detail: "Clipboard unavailable.",
+      at: Date.now(),
+    });
+  }
+
+  async function handleCopyLastSetupLink(options?: { autostart?: boolean }) {
+    const cfg = lastSetupConfig;
+    if (!cfg) {
+      pushToast({
+        id: `copy-last-setup-link-missing-${Date.now()}`,
+        tone: "warn",
+        title: "Setup link unavailable.",
+        detail: "No setup config is available for this match.",
+        at: Date.now(),
+      });
+      return;
+    }
+    const shareUrl = buildShareUrl(cfg, options);
+    const copied = await copyTextToClipboard(shareUrl);
+    if (copied) {
+      pushToast({
+        id: `copy-last-setup-link-${Date.now()}`,
+        tone: "good",
+        title: "Setup link copied.",
+        at: Date.now(),
+      });
+      return;
+    }
+    pushToast({
+      id: `copy-last-setup-link-failed-${Date.now()}`,
+      tone: "warn",
+      title: "Copy failed.",
+      detail: "Clipboard unavailable.",
+      at: Date.now(),
+    });
   }
 
   function handleQuickMatchHotseat() {
@@ -1416,6 +1566,18 @@ export default function App() {
               </button>
               <button data-testid="start-game" onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Start Game
+              </button>
+              <button type="button" onClick={() => { void handleCopySetupLink(); }} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Copy Setup Link
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleCopySetupLink({ autostart: true });
+                }}
+                style={{ padding: "10px 14px", borderRadius: 10 }}
+              >
+                Copy Auto-Start Link
               </button>
               <button
                 onClick={() => { setP0Core(p1Core); setP1Core(p0Core); }}
@@ -2055,6 +2217,9 @@ export default function App() {
                 <MenuItem onSelect={menuAction(handleSaveNow)}>Save</MenuItem>
                 <MenuItem onSelect={menuAction(handleLoadNow)}>Load</MenuItem>
                 {isDev && <MenuItem onSelect={menuAction(handleLoadDemoState)}>Load Demo State</MenuItem>}
+                {lastSetupConfig && (
+                  <MenuItem onSelect={menuAction(() => { void handleCopyLastSetupLink(); })}>Copy Setup Link</MenuItem>
+                )}
                 <MenuItem onSelect={menuAction(handleExportOpen)}>Export Match Code</MenuItem>
                 <MenuItem
                   onSelect={menuAction(() => {
