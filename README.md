@@ -68,6 +68,11 @@ http://localhost:5173/?demo=1
 Optional flags:
 - `&shots=1` – disables animations/transitions for stable screenshots
 
+Share setup links:
+- `?cfg=...` pre-fills setup values (cores, mode, AI options, seed, density)
+- `&autostart=1` starts immediately with that setup
+- Share links only include setup config (no match history, hand/deck, or private state)
+
 ---
 
 ## 🧠 Controls
