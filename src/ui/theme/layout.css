@@ -442,7 +442,7 @@
 }
 
 .progress-track {
-  --progress-size: 30px;
+  --progress-size: 20px;
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
@@ -450,7 +450,7 @@
 }
 
 .progress-track--sm {
-  --progress-size: 26px;
+  --progress-size: 20px;
   font-size: 11px;
 }
 
@@ -465,12 +465,14 @@
   display: inline-flex;
   gap: var(--s2);
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .progress-icon {
   position: relative;
-  width: var(--progress-size);
-  height: var(--progress-size);
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
   border-radius: 999px;
   display: grid;
   place-items: center;
