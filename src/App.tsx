@@ -65,6 +65,15 @@ import { DEMO_ARENA_EVENT_V1, DEMO_FLASH_STATE_V1, DEMO_REPLAY_LOG_V1, DEMO_STAT
 import { isDemoModeRequested, loadDemoStateIfRequested } from "./demo/loadDemoState";
 import { initAudioUnlock, playSfx } from "./ui/utils/sfx";
 import { loadSettings, saveSettings, type UserSettings } from "./ui/utils/settings";
+import {
+  buildReportBundle,
+  copyReportBundleToClipboard,
+  downloadTextFile,
+  reportBundleToText,
+  type FeedbackAnswers,
+} from "./ui/utils/reportBundle";
+import { PlaytestFeedbackModal } from "./ui/components/PlaytestFeedbackModal";
+import { digestState } from "./ui/utils/stateDigest";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
@@ -335,6 +344,15 @@ export default function App() {
   const [replayImportError, setReplayImportError] = useState<string | null>(null);
   const [replayImportBundle, setReplayImportBundle] = useState<ReplayBundleV1 | null>(null);
   const [actionLog, setActionLog] = useState<ReplayEntryV1[]>([]);
+  const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
+  const [feedbackPromptShown, setFeedbackPromptShown] = useState(false);
+  const [feedbackAnswers, setFeedbackAnswers] = useState<FeedbackAnswers>({
+    fun: "unsure",
+    clarity: "mixed",
+    difficulty: "ok",
+    comments: "",
+    selected: [],
+  });
   const [uiEvents, setUiEvents] = useState<UIEvent[]>([]);
   const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
   const [flashState, setFlashState] = useState<{
@@ -855,13 +873,26 @@ export default function App() {
     return true;
   }
 
-  function startGame() {
+  function startGame(options?: { vsComputer?: boolean }) {
     resetTransientUi();
     const seed = resolveSeed();
+    const vsComputer = options?.vsComputer ?? playVsComputer;
     setSeedInput(String(seed));
     setIsDemoActive(false);
-    dispatchWithLog({ type: "NEW_GAME", mode: playVsComputer ? "VS_AI" : mode, coreP0: p0Core, coreP1: p1Core, seed });
+    setPlayVsComputer(vsComputer);
+    setFeedbackPromptShown(false);
+    dispatchWithLog({ type: "NEW_GAME", mode: vsComputer ? "VS_AI" : mode, coreP0: p0Core, coreP1: p1Core, seed });
     setScreen("GAME");
+  }
+
+  function handleQuickMatchHotseat() {
+    startGame({ vsComputer: false });
+  }
+
+  function handleQuickMatchVsCpu() {
+    setAiPersonality("BALANCED");
+    setAiSpeed("NORMAL");
+    startGame({ vsComputer: true });
   }
 
   function handleLoadDemoState() {
@@ -924,6 +955,69 @@ export default function App() {
     speed: aiSpeed,
     personality: aiPersonality,
   };
+
+
+  const playtestMode = useMemo(() => new URLSearchParams(window.location.search).get("playtest") === "1", []);
+
+  function getReplayDigestHash(): string | undefined {
+    try {
+      const bundle = replayImportBundle ?? buildReplayBundle();
+      if (!bundle) return undefined;
+      const replayed = replayFromStart(bundle, reducer);
+      return digestState(replayed).hash;
+    } catch {
+      return undefined;
+    }
+  }
+
+  function createReportText(feedback?: FeedbackAnswers): string {
+    const bundle = buildReportBundle({
+      state,
+      settings,
+      feedback,
+      matchCode: exportMatchCode(state),
+      replayBundle: buildReplayBundle(),
+      buildTime: typeof import.meta.env.VITE_BUILD_TIME === "string" ? import.meta.env.VITE_BUILD_TIME : undefined,
+    });
+    const replayedDigest = getReplayDigestHash();
+    if (replayedDigest) {
+      bundle.digests = { ...bundle.digests, replayed: replayedDigest };
+    }
+    return reportBundleToText(bundle);
+  }
+
+  async function handleCopyReportBundle(feedback?: FeedbackAnswers) {
+    const text = createReportText(feedback);
+    const copied = await copyReportBundleToClipboard(text);
+    if (copied) {
+      pushToast({
+        id: `report-copy-${Date.now()}`,
+        tone: "good",
+        title: "Copied.",
+        detail: feedback ? "Paste it into Discord/email." : "Report bundle copied.",
+        at: Date.now(),
+      });
+      return;
+    }
+    pushToast({
+      id: `report-copy-failed-${Date.now()}`,
+      tone: "warn",
+      title: "Copy failed.",
+      detail: "Clipboard unavailable.",
+      at: Date.now(),
+    });
+  }
+
+  function handleDownloadReportBundle() {
+    const text = createReportText();
+    downloadTextFile(`primordial-orbs-report-${Date.now()}.txt`, text);
+    pushToast({
+      id: `report-download-${Date.now()}`,
+      tone: "good",
+      title: "Report bundle downloaded.",
+      at: Date.now(),
+    });
+  }
 
   useEffect(() => {
     stateRef.current = state;
@@ -1141,6 +1235,21 @@ export default function App() {
   }, [handoffBlocked, lastAction, screen, state.active]);
 
 
+  useEffect(() => {
+    if (screen !== "GAME") return;
+    if (state.phase !== "GAME_OVER") return;
+    if (feedbackPromptShown) return;
+    setPlaytestFeedbackOpen(true);
+    setFeedbackPromptShown(true);
+  }, [feedbackPromptShown, screen, state.phase]);
+
+  useEffect(() => {
+    if (state.phase !== "GAME_OVER") {
+      setPlaytestFeedbackOpen(false);
+    }
+  }, [state.phase]);
+
+
   if (screen === "SPLASH") {
     return (
       <div data-testid="screen-splash" style={{ ...containerStyle, display: "grid", placeItems: "center", minHeight: "100vh" }}>
@@ -1299,7 +1408,13 @@ export default function App() {
             </div>
 
             <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button data-testid="start-game" onClick={startGame} style={{ padding: "10px 14px", borderRadius: 10 }}>
+              <button type="button" onClick={handleQuickMatchHotseat} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Quick Match (Hotseat)
+              </button>
+              <button type="button" onClick={handleQuickMatchVsCpu} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Quick Match vs CPU
+              </button>
+              <button data-testid="start-game" onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Start Game
               </button>
               <button
@@ -1961,6 +2076,8 @@ export default function App() {
                   Import Replay
                 </MenuItem>
                 <MenuItem onSelect={menuAction(handleReplayFromStart)}>Replay From Start</MenuItem>
+                <MenuItem onSelect={menuAction(() => { void handleCopyReportBundle(); })}>Copy Report Bundle</MenuItem>
+                <MenuItem onSelect={menuAction(handleDownloadReportBundle)}>Download Report Bundle (.txt)</MenuItem>
               </MenuButton>
               <MenuButton
                 label="View"
@@ -2009,7 +2126,33 @@ export default function App() {
           </div>
         </div>
 
+        {playtestMode && (
+          <div
+            style={{
+              position: "fixed",
+              top: 64,
+              right: 12,
+              zIndex: 40,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              maxWidth: "min(92vw, 360px)",
+              padding: "8px 10px",
+              borderRadius: 10,
+              border: "1px solid #cbd5e1",
+              background: "rgba(255,255,255,0.95)",
+              boxShadow: "0 4px 18px rgba(15,23,42,0.14)",
+            }}
+          >
+            <span style={{ fontWeight: 700, fontSize: 12 }}>Playtest Build</span>
+            <button type="button" onClick={() => { void handleCopyReportBundle(); }} style={{ padding: "6px 10px", borderRadius: 8 }}>
+              Copy Report
+            </button>
+          </div>
+        )}
+
         {exportOpen && (
+
           <div className="overlay-backdrop" role="dialog" aria-modal="true">
             <div className="overlay-panel" style={{ width: "min(720px, 95vw)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
@@ -2582,6 +2725,15 @@ export default function App() {
             </div>
           </div>
         )}
+        <PlaytestFeedbackModal
+          open={playtestFeedbackOpen && state.phase === "GAME_OVER"}
+          value={feedbackAnswers}
+          onChange={setFeedbackAnswers}
+          onClose={() => setPlaytestFeedbackOpen(false)}
+          onCopy={() => {
+            void handleCopyReportBundle(feedbackAnswers);
+          }}
+        />
       </div>
     </GameErrorBoundary>
   );
