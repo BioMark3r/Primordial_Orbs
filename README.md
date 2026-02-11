@@ -36,6 +36,8 @@ This repository contains the **local hotseat + solo-play MVP**, built as a one-s
 
 No backend, no database, no canvas.
 
+Local profiles and match stats are stored on this device (localStorage only).
+
 ---
 
 ## 🚀 Getting Started
