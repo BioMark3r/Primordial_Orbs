@@ -6,12 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "coverage": "vitest run --coverage",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test": "vitest run --config vite.config.ts",
+    "test:watch": "vitest --config vite.config.ts",
+    "coverage": "vitest run --coverage --config vite.config.ts",
+    "test:e2e": "playwright test"
     "shots:rulebook": "playwright test tests/rulebook.screenshots.spec.ts",
     "test:ui": "playwright test tests/ui.layout.spec.ts",
     "test:ui:update": "playwright test tests/ui.layout.spec.ts --update-snapshots"
