@@ -1,12 +1,15 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches: [ main ]
-  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  test:
+  test-build:
     runs-on: ubuntu-latest
 
     strategy:
@@ -22,9 +25,34 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Optional extra speedup: cache Vite artifacts (helps on repeat runs)
+      - name: Cache Vite
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/.vite
+            .vite
+          key: ${{ runner.os }}-vite-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vite-
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests
         run: npm test -- --runInBand
+
+      - name: Run coverage
+        run: npm run coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: warn
+
+      - name: Build (production)
+        run: npm run build
