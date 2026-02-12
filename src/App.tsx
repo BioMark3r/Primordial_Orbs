@@ -467,7 +467,7 @@ export default function App() {
     if (session.activeProfileId === GUEST_ID) {
       setActiveProfileId(GUEST_ID);
       setP0ProfileId((prev) => prev || GUEST_ID);
-      setScreen("SETUP");
+      setScreen("SPLASH");
       return;
     }
 
@@ -475,7 +475,10 @@ export default function App() {
       setActiveProfileId(session.activeProfileId);
       setP0ProfileId((prev) => prev || session.activeProfileId);
       setScreen("SETUP");
+      return;
     }
+
+    setScreen("SPLASH");
   }, [demoBypassSplash, demoState]);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
