@@ -3,11 +3,13 @@ import { useState } from "react";
 type RegisterProfileModalProps = {
   open: boolean;
   error?: string | null;
+  rememberMe: boolean;
+  onRememberMeChange: (remember: boolean) => void;
   onClose: () => void;
   onSubmit: (name: string, pin: string) => Promise<void>;
 };
 
-export function RegisterProfileModal({ open, error, onClose, onSubmit }: RegisterProfileModalProps) {
+export function RegisterProfileModal({ open, error, rememberMe, onRememberMeChange, onClose, onSubmit }: RegisterProfileModalProps) {
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -44,6 +46,10 @@ export function RegisterProfileModal({ open, error, onClose, onSubmit }: Registe
             style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
           />
         </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+          <input type="checkbox" checked={rememberMe} onChange={(event) => onRememberMeChange(event.target.checked)} />
+          <span>Remember me on this device</span>
+        </label>
         {(localError || error) && (
           <div style={{ marginTop: 8, color: "#b91c1c", fontSize: 13 }}>{localError ?? error}</div>
         )}

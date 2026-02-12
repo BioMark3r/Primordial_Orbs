@@ -1,5 +1,6 @@
 import { loadMatches, saveMatches, touchProfile } from "./store";
 import type { MatchResult, ProfileId } from "./types";
+import { CPU_ID } from "./types";
 
 const MAX_MATCH_HISTORY = 300;
 
@@ -7,8 +8,8 @@ export function appendMatchResult(result: MatchResult): MatchResult[] {
   const current = loadMatches();
   const next = [...current, result].slice(-MAX_MATCH_HISTORY);
   saveMatches(next);
-  if (result.p0ProfileId) touchProfile(result.p0ProfileId);
-  if (result.p1ProfileId) touchProfile(result.p1ProfileId);
+  touchProfile(result.p0ProfileId);
+  if (result.p1ProfileId !== CPU_ID) touchProfile(result.p1ProfileId);
   return next;
 }
 
@@ -47,7 +48,7 @@ export function computeProfileStats(profileId: ProfileId, matches: MatchResult[]
     }
     if (Math.abs(currentStreak) > bestStreak) bestStreak = Math.abs(currentStreak);
 
-    if (match.mode === "CPU") {
+    if (match.p1ProfileId === CPU_ID) {
       if (won) byMode.cpu.wins += 1;
       else byMode.cpu.losses += 1;
       const key = match.cpuPersonality ?? "BALANCED";

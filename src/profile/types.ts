@@ -1,5 +1,8 @@
 export type ProfileId = string;
 
+export const GUEST_ID = "guest";
+export const CPU_ID = "cpu";
+
 export type Profile = {
   id: ProfileId;
   name: string;
@@ -9,7 +12,7 @@ export type Profile = {
 };
 
 export type Session = {
-  activeProfileId: ProfileId | null;
+  activeProfileId: ProfileId;
   unlockedUntil?: number;
 };
 
@@ -20,8 +23,8 @@ export type MatchResult = {
   ts: number;
   version?: string;
   mode: MatchMode;
-  p0ProfileId: ProfileId | null;
-  p1ProfileId: ProfileId | null;
+  p0ProfileId: ProfileId;
+  p1ProfileId: ProfileId | typeof CPU_ID;
   cpuPersonality?: "BALANCED" | "BUILDER" | "AGGRESSIVE";
   winnerPlayer: 0 | 1;
   turns?: number;
