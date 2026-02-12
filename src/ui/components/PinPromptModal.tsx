@@ -4,11 +4,13 @@ type PinPromptModalProps = {
   open: boolean;
   profileName: string;
   error?: string | null;
+  rememberMe: boolean;
+  onRememberMeChange: (remember: boolean) => void;
   onClose: () => void;
   onSubmit: (pin: string) => Promise<void>;
 };
 
-export function PinPromptModal({ open, profileName, error, onClose, onSubmit }: PinPromptModalProps) {
+export function PinPromptModal({ open, profileName, error, rememberMe, onRememberMeChange, onClose, onSubmit }: PinPromptModalProps) {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -27,6 +29,10 @@ export function PinPromptModal({ open, profileName, error, onClose, onSubmit }: 
           placeholder="4-8 digits"
           style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
         />
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+          <input type="checkbox" checked={rememberMe} onChange={(event) => onRememberMeChange(event.target.checked)} />
+          <span>Remember me on this device</span>
+        </label>
         {error && <div style={{ marginTop: 8, color: "#b91c1c", fontSize: 13 }}>{error}</div>}
         <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button type="button" onClick={onClose}>Cancel</button>

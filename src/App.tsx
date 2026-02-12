@@ -62,7 +62,7 @@ import { CriticalVignette } from "./ui/components/CriticalVignette";
 import { createAiRunner } from "./ai/aiRunner";
 import type { AiConfig, AiPersonality } from "./ai/aiTypes";
 import { DEMO_ARENA_EVENT_V1, DEMO_FLASH_STATE_V1, DEMO_REPLAY_LOG_V1, DEMO_STATE_V1 } from "./demo/demoState";
-import { isDemoModeRequested, loadDemoStateIfRequested } from "./demo/loadDemoState";
+import { isDemoModeRequested, isScreenshotModeRequested, loadDemoStateIfRequested } from "./demo/loadDemoState";
 import { initAudioUnlock, playSfx } from "./ui/utils/sfx";
 import { loadSettings, saveSettings, type UserSettings } from "./ui/utils/settings";
 import {
@@ -94,9 +94,11 @@ import {
   lockSession,
   logout,
   registerProfile,
+  setGuestSession,
   verifyProfilePin,
 } from "./profile/store";
 import type { MatchResult, ProfileId } from "./profile/types";
+import { CPU_ID, GUEST_ID } from "./profile/types";
 import packageJson from "../package.json";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
@@ -330,7 +332,8 @@ export default function App() {
   const state = history.present;
   const [lastAction, setLastAction] = useState<Action | null>(null);
 
-  const [screen, setScreen] = useState<Screen>(demoState ? "GAME" : "SPLASH");
+  const demoBypassSplash = useMemo(() => demoRequested || isScreenshotModeRequested(), [demoRequested]);
+  const [screen, setScreen] = useState<Screen>(demoState ? "GAME" : (demoBypassSplash ? "SETUP" : "SPLASH"));
   const [mode] = useState<Mode>("LOCAL_2P"); // Local 2P wired
   const [isDemoActive, setIsDemoActive] = useState(Boolean(demoState));
   const [p0Core, setP0Core] = useState<Core>("LAND");
@@ -338,9 +341,10 @@ export default function App() {
   const [playVsComputer, setPlayVsComputer] = useState(false);
   const [profiles, setProfiles] = useState(() => loadProfiles());
   const [selectedLoginProfileId, setSelectedLoginProfileId] = useState<ProfileId | null>(null);
-  const [activeProfileId, setActiveProfileId] = useState<ProfileId | null>(() => loadSession().activeProfileId);
-  const [p0ProfileId, setP0ProfileId] = useState<ProfileId | null>(() => localStorage.getItem("po_last_p0_profile_v1"));
-  const [p1ProfileId, setP1ProfileId] = useState<ProfileId | null>(() => localStorage.getItem("po_last_p1_profile_v1"));
+  const [rememberMe, setRememberMe] = useState(true);
+  const [activeProfileId, setActiveProfileId] = useState<ProfileId>(() => (demoBypassSplash ? GUEST_ID : loadSession().activeProfileId));
+  const [p0ProfileId, setP0ProfileId] = useState<ProfileId>(() => localStorage.getItem("po_last_p0_profile_v1") ?? GUEST_ID);
+  const [p1ProfileId, setP1ProfileId] = useState<ProfileId>(() => localStorage.getItem("po_last_p1_profile_v1") ?? GUEST_ID);
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -430,11 +434,11 @@ export default function App() {
   const shareCfgAppliedRef = useRef(false);
 
   useEffect(() => {
-    if (demoState) return;
+    if (demoState || demoBypassSplash) return;
     // Ensure every fresh mount starts on the splash screen.
     // This avoids browsers restoring an in-progress screen from a cached session state.
     setScreen("SPLASH");
-  }, [demoState]);
+  }, [demoBypassSplash, demoState]);
 
   useEffect(() => {
     if (profiles.length === 0) {
@@ -444,32 +448,34 @@ export default function App() {
     setSelectedLoginProfileId((prev) => {
       if (prev && profiles.some((profile) => profile.id === prev)) return prev;
       const sessionProfileId = loadSession().activeProfileId;
-      if (sessionProfileId && profiles.some((profile) => profile.id === sessionProfileId)) return sessionProfileId;
+      if (sessionProfileId !== GUEST_ID && profiles.some((profile) => profile.id === sessionProfileId)) return sessionProfileId;
       return profiles[0]?.id ?? null;
     });
   }, [profiles]);
 
-  const shotsMode =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("shots") === "1";
-  const authBypassMode = demoRequested || shotsMode;
-
   useEffect(() => {
-    if (authBypassMode) {
+    if (demoBypassSplash) {
+      setActiveProfileId(GUEST_ID);
+      setP0ProfileId(GUEST_ID);
+      setP1ProfileId(GUEST_ID);
       setScreen(demoState ? "GAME" : "SETUP");
       return;
     }
+
     const session = loadSession();
-    if (session.activeProfileId) {
+    if (session.activeProfileId === GUEST_ID) {
+      setActiveProfileId(GUEST_ID);
+      setP0ProfileId((prev) => prev || GUEST_ID);
+      setScreen("SETUP");
+      return;
+    }
+
+    if (session.unlockedUntil && session.unlockedUntil > Date.now()) {
       setActiveProfileId(session.activeProfileId);
+      setP0ProfileId((prev) => prev || session.activeProfileId);
       setScreen("SETUP");
     }
-  }, [authBypassMode, demoState]);
-
-  useEffect(() => {
-    if (!p0ProfileId && activeProfileId) {
-      setP0ProfileId(activeProfileId);
-    }
-  }, [activeProfileId, p0ProfileId]);
+  }, [demoBypassSplash, demoState]);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
   const undoRef = useRef<HTMLButtonElement | null>(null);
   const stateRef = useRef(state);
@@ -873,6 +879,12 @@ export default function App() {
     return Number.isFinite(parsed) ? parsed : Date.now();
   }
 
+
+  useEffect(() => {
+    if (activeProfileId !== GUEST_ID && p0ProfileId === GUEST_ID) {
+      setP0ProfileId(activeProfileId);
+    }
+  }, [activeProfileId, p0ProfileId]);
   const activeProfile = useMemo(
     () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
     [activeProfileId, profiles],
@@ -888,24 +900,26 @@ export default function App() {
       setAuthError("Select a profile first.");
       return;
     }
-    const ok = await verifyProfilePin(selectedLoginProfileId, pin);
+    const ok = await verifyProfilePin(selectedLoginProfileId, pin, rememberMe);
     if (!ok) {
       setAuthError("Invalid PIN.");
       return;
     }
     setAuthError(null);
     setActiveProfileId(selectedLoginProfileId);
+    setP0ProfileId(selectedLoginProfileId);
     setPinModalOpen(false);
     setScreen("SETUP");
   }
 
   async function handleRegisterSubmit(name: string, pin: string) {
     try {
-      const profile = await registerProfile(name, pin);
+      const profile = await registerProfile(name, pin, rememberMe);
       const nextProfiles = loadProfiles();
       setProfiles(nextProfiles);
       setSelectedLoginProfileId(profile.id);
       setActiveProfileId(profile.id);
+      setP0ProfileId(profile.id);
       setAuthError(null);
       setRegisterModalOpen(false);
       setScreen("SETUP");
@@ -994,8 +1008,8 @@ export default function App() {
       });
       return;
     }
-    if (p0ProfileId) localStorage.setItem("po_last_p0_profile_v1", p0ProfileId);
-    if (p1ProfileId) localStorage.setItem("po_last_p1_profile_v1", p1ProfileId);
+    localStorage.setItem("po_last_p0_profile_v1", p0ProfileId);
+    localStorage.setItem("po_last_p1_profile_v1", p1ProfileId);
     const resolved = setupConfig
       ? normalizeSetupConfig(setupConfig)
       : normalizeSetupConfig({
@@ -1526,8 +1540,8 @@ export default function App() {
       ts: Date.now(),
       version: packageJson.version,
       mode: playVsComputer ? "CPU" : "HOTSEAT",
-      p0ProfileId: p0ProfileId ?? null,
-      p1ProfileId: playVsComputer ? null : (p1ProfileId ?? null),
+      p0ProfileId,
+      p1ProfileId: playVsComputer ? CPU_ID : p1ProfileId,
       ...(playVsComputer ? { cpuPersonality: aiPersonality } : {}),
       winnerPlayer: state.winner,
       turns: state.turn,
@@ -1563,9 +1577,12 @@ export default function App() {
             setAuthError(null);
             setRegisterModalOpen(true);
           }}
+          rememberMe={rememberMe}
+          onRememberMeChange={setRememberMe}
           onContinue={() => {
-            logout();
-            setActiveProfileId(null);
+            setGuestSession();
+            setActiveProfileId(GUEST_ID);
+            setP0ProfileId(GUEST_ID);
             setScreen("SETUP");
           }}
         />
@@ -1573,6 +1590,8 @@ export default function App() {
           open={pinModalOpen}
           profileName={selectedLoginProfile?.name ?? "Selected Profile"}
           error={authError}
+          rememberMe={rememberMe}
+          onRememberMeChange={setRememberMe}
           onClose={() => {
             setPinModalOpen(false);
             setAuthError(null);
@@ -1582,6 +1601,8 @@ export default function App() {
         <RegisterProfileModal
           open={registerModalOpen}
           error={authError}
+          rememberMe={rememberMe}
+          onRememberMeChange={setRememberMe}
           onClose={() => {
             setRegisterModalOpen(false);
             setAuthError(null);
@@ -1677,10 +1698,9 @@ export default function App() {
                   label="Player 1 Profile"
                   profiles={profiles}
                   value={p0ProfileId}
-                  allowNone
                   onChange={(profileId) => {
                     setP0ProfileId(profileId);
-                    if (profileId) localStorage.setItem("po_last_p0_profile_v1", profileId);
+                    localStorage.setItem("po_last_p0_profile_v1", profileId);
                   }}
                 />
                 {!playVsComputer && (
@@ -1688,16 +1708,15 @@ export default function App() {
                     label="Player 2 Profile"
                     profiles={profiles}
                     value={p1ProfileId}
-                    allowNone
                     onChange={(profileId) => {
                       setP1ProfileId(profileId);
-                      if (profileId) localStorage.setItem("po_last_p1_profile_v1", profileId);
+                      localStorage.setItem("po_last_p1_profile_v1", profileId);
                     }}
                   />
                 )}
-                {!playVsComputer && p0ProfileId && p1ProfileId && p0ProfileId === p1ProfileId && (
+                {!playVsComputer && p0ProfileId === p1ProfileId && p0ProfileId !== GUEST_ID && (
                   <div style={{ fontSize: 12, color: "#92400e" }}>
-                    Warning: both players are using the same profile.
+                    Both players are using the same profile—stats will mix.
                   </div>
                 )}
               </div>
@@ -2489,32 +2508,39 @@ export default function App() {
                 <MenuItem onSelect={menuAction(openRulebook)}>Rulebook</MenuItem>
               </MenuButton>
               <MenuButton
-                label={activeProfile ? `Profile: ${activeProfile.name}` : "Profile"}
+                label={activeProfile ? `Profile: ${activeProfile.name}` : "Profile: Guest"}
                 testId="menu-profile"
                 open={profileMenuOpen}
                 onToggle={() => toggleMenu("profile")}
                 onClose={closeMenus}
               >
                 <MenuItem onSelect={menuAction(() => setStatsOpen(true))}>Stats</MenuItem>
-                <MenuItem
-                  onSelect={menuAction(() => {
-                    lockSession();
-                    setScreen("SPLASH");
-                    setPinModalOpen(false);
-                  })}
-                >
-                  Lock
-                </MenuItem>
-                <MenuItem
-                  tone="danger"
-                  onSelect={menuAction(() => {
-                    logout();
-                    setActiveProfileId(null);
-                    setScreen("SPLASH");
-                  })}
-                >
-                  Logout
-                </MenuItem>
+                {activeProfile ? (
+                  <>
+                    <MenuItem onSelect={menuAction(() => setScreen("SPLASH"))}>Switch Profile</MenuItem>
+                    <MenuItem
+                      onSelect={menuAction(() => {
+                        lockSession();
+                        setScreen("SPLASH");
+                        setPinModalOpen(false);
+                      })}
+                    >
+                      Lock
+                    </MenuItem>
+                    <MenuItem
+                      tone="danger"
+                      onSelect={menuAction(() => {
+                        logout();
+                        setActiveProfileId(GUEST_ID);
+                        setScreen("SPLASH");
+                      })}
+                    >
+                      Logout
+                    </MenuItem>
+                  </>
+                ) : (
+                  <MenuItem onSelect={menuAction(() => setScreen("SPLASH"))}>Sign in / Create Profile</MenuItem>
+                )}
               </MenuButton>
             </div>
           </div>
@@ -2786,10 +2812,16 @@ export default function App() {
 
         <StatsModal
           open={statsOpen}
-          profile={activeProfile}
+          activeProfileId={activeProfileId}
+          profiles={profiles}
           matches={matches}
           onClose={() => setStatsOpen(false)}
           onReset={() => setMatches(loadMatches())}
+          onCreateProfile={() => {
+            setStatsOpen(false);
+            setRegisterModalOpen(true);
+            setScreen("SPLASH");
+          }}
         />
 
         {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
