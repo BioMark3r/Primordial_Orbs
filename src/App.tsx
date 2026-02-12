@@ -318,6 +318,7 @@ function getFirstTurnHint(core: Core) {
 
 export default function App() {
   const demoRequested = useMemo(() => isDemoModeRequested(), []);
+  const shotsMode = useMemo(() => isScreenshotModeRequested(), []);
   const demoState = useMemo(() => loadDemoStateIfRequested(), [demoRequested]);
   const initialSeed = useMemo(() => (demoState ? demoState.seed : Date.now()), [demoState]);
   const initial = useMemo(
@@ -332,7 +333,7 @@ export default function App() {
   const state = history.present;
   const [lastAction, setLastAction] = useState<Action | null>(null);
 
-  const demoBypassSplash = useMemo(() => demoRequested || isScreenshotModeRequested(), [demoRequested]);
+  const demoBypassSplash = useMemo(() => demoRequested || shotsMode, [demoRequested, shotsMode]);
   const [screen, setScreen] = useState<Screen>(demoState ? "GAME" : (demoBypassSplash ? "SETUP" : "SPLASH"));
   const [mode] = useState<Mode>("LOCAL_2P"); // Local 2P wired
   const [isDemoActive, setIsDemoActive] = useState(Boolean(demoState));
