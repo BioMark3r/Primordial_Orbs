@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     globals: true,                // enables describe/it/expect globally
     environment: "jsdom",         // for React Testing Library
+    setupFiles: ["src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     exclude: [
       "tests/**",                 // <-- exclude Playwright folder
