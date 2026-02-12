@@ -449,6 +449,10 @@ export default function App() {
     });
   }, [profiles]);
 
+  const shotsMode =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("shots") === "1";
+  const authBypassMode = demoRequested || shotsMode;
+
   useEffect(() => {
     if (authBypassMode) {
       setScreen(demoState ? "GAME" : "SETUP");
@@ -530,10 +534,6 @@ export default function App() {
   const p1LifeCurrent = p1Progress.unlockedCount;
   const p0LifeMax = 4;
   const p1LifeMax = 4;
-  const shotsMode =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("shots") === "1";
-  const authBypassMode = demoRequested || shotsMode;
-
   const criticalPlayer: 0 | 1 | null = useMemo(() => {
     const p0Critical = p0LifeCurrent <= 1;
     const p1Critical = p1LifeCurrent <= 1;
