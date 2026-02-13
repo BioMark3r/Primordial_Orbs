@@ -1,0 +1,64 @@
+diff --git a/README.md b/README.md
+index 796ef5b..d11faa6 100644
+--- a/README.md
++++ b/README.md
+@@ -202,3 +202,47 @@ Hooks exist, assets not yet included.
+ ## 📜 License
+ 
+ TBD
++
++---
++
++## ✅ Verify Local Setup
++
++Use this quick checklist after setup to confirm your local environment is healthy.
++
++### 1️⃣ Docker is running
++
++```bash
++docker ps
++```
++
++You should see Docker respond without daemon/permission errors.
++
++### 2️⃣ Supabase local stack is running
++
++```bash
++npm run dev:db
++```
++
++Then verify status:
++
++```bash
++cd server && npx supabase status
++```
++
++### 3️⃣ Frontend is running
++
++```bash
++npm run dev
++```
++
++Open `http://localhost:5173` (or `http://localhost:5173/?demo=1` for deterministic demo mode).
++
++### 4️⃣ Env variables are configured
++
++```bash
++cd server && npx supabase status -o env
++```
++
++Copy `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` into your local `.env.local` (see `server/.env.example`).
++
++For full backend setup/details, see [`server/README.md`](server/README.md).
+diff --git a/server/README.md b/server/README.md
+index a528f74..a357544 100644
+--- a/server/README.md
++++ b/server/README.md
+@@ -95,3 +95,7 @@ Use `.env.example` as a safe template, and never commit `.env.local`.
+ 
+ - Supabase runs via Docker containers started by Supabase CLI.
+ - If `docker ps` works, `supabase start` should work.
++
++## ✅ Verify Local Setup Checklist
++
++For a quick health check of Docker, Supabase, frontend, and local env vars, use the root checklist: [README.md → Verify Local Setup](../README.md#-verify-local-setup).

@@ -95,3 +95,7 @@ Use `.env.example` as a safe template, and never commit `.env.local`.
 
 - Supabase runs via Docker containers started by Supabase CLI.
 - If `docker ps` works, `supabase start` should work.
+
+## ✅ Verify Local Setup Checklist
+
+For a quick health check of Docker, Supabase, frontend, and local env vars, use the root checklist: [README.md → Verify Local Setup](../README.md#-verify-local-setup).
