@@ -40,12 +40,12 @@ Local profiles and match stats are stored on this device (localStorage only).
 
 ### Backend (optional)
 
-This repo now includes a lightweight `/server` scaffold to keep a clear boundary between app and backend concerns.
+Local Supabase is optional for now; it is scaffolded for future auth, stats, and network play work.
 
 - Frontend app code lives in `src/`
 - Backend infra/docs live in `server/`
 
-For local backend experimentation, Supabase can be run via CLI + Docker. See `server/README.md` for setup notes and where to find the local API URL, anon key, and service role key.
+Use `npm run dev:all` to start local Supabase + frontend together, or `npm run dev:db` to start only Supabase. See `server/README.md` for full setup and key retrieval steps.
 
 ---
 
