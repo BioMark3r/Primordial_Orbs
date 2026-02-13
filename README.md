@@ -38,14 +38,47 @@ No backend, no database, no canvas.
 
 Local profiles and match stats are stored on this device (localStorage only).
 
-### Backend (optional)
+## Backend (Optional – Supabase Local)
 
-Local Supabase is optional for now; it is scaffolded for future auth, stats, and network play work.
+Local Supabase is optional today; it is used for future Google Auth, cloud stats, and networking foundation work.
 
-- Frontend app code lives in `src/`
-- Backend infra/docs live in `server/`
+```bash
+npm run dev:all
+npm run dev:db
+npm run dev:db:stop
+```
 
-Use `npm run dev:all` to start local Supabase + frontend together, or `npm run dev:db` to start only Supabase. See `server/README.md` for full setup and key retrieval steps.
+See `/server/README.md` for full setup.
+
+## Common Errors
+
+### 1) Docker socket permission denied
+
+If you see an error like `permission denied while trying to connect to the Docker daemon socket...`, run:
+
+```bash
+sudo groupadd docker 2>/dev/null || true
+sudo usermod -aG docker $USER
+newgrp docker
+docker ps
+```
+
+### 2) Docker daemon not running
+
+```bash
+docker ps
+sudo systemctl start docker
+```
+
+On WSL, ensure Docker Desktop integration is enabled if you use Docker Desktop.
+
+### 3) Missing npm scripts (`dev:db` not found)
+
+```bash
+npm run
+```
+
+Confirm script names in the root `package.json` (`dev:db`, `dev:db:stop`, `dev:all`).
 
 ---
 
