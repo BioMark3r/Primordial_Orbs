@@ -1,0 +1,2 @@
+-- Seed data for local Supabase development.
+-- Keep empty until backend entities are introduced.

@@ -7,37 +7,29 @@ The game currently runs as a frontend-only app, but this directory marks the fut
 - `src/` → app/client code
 - `server/` → backend infrastructure and services
 
-## Run Supabase locally
+## Supabase local dev
 
-Use the Supabase CLI (which uses Docker under the hood) for local backend services.
+The Supabase project scaffold lives in [`/server/supabase`](./supabase).
 
-Typical workflow:
-
-```bash
-supabase start
-```
-
-This command boots the local Supabase stack in Docker.
-
-To stop it:
+Start the full local Supabase stack (Docker required):
 
 ```bash
-supabase stop
+npx supabase start
 ```
 
-## Local API URL and keys
+Get local API URL and keys in env format:
 
-After `supabase start`, local connection details are shown in CLI output and can also be read from your local Supabase config/status output.
+```bash
+npx supabase status -o env
+```
 
-You will generally use:
+Typical frontend variables you should copy into `.env`:
 
-- **API URL** (local Supabase endpoint)
-- **anon key** (public client key)
-- **service_role key** (server-only secret key)
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
-Important:
+Stop the local stack when done:
 
-- Use the **anon key** in frontend/client contexts.
-- Use the **service_role key** only in trusted server environments (never ship it to the browser).
-
-When backend work begins, these values should be loaded via environment variables and documented here with exact project-specific commands.
+```bash
+npx supabase stop
+```
