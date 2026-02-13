@@ -38,6 +38,15 @@ No backend, no database, no canvas.
 
 Local profiles and match stats are stored on this device (localStorage only).
 
+### Backend (optional)
+
+This repo now includes a lightweight `/server` scaffold to keep a clear boundary between app and backend concerns.
+
+- Frontend app code lives in `src/`
+- Backend infra/docs live in `server/`
+
+For local backend experimentation, Supabase can be run via CLI + Docker. See `server/README.md` for setup notes and where to find the local API URL, anon key, and service role key.
+
 ---
 
 ## 🚀 Getting Started
