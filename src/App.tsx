@@ -471,13 +471,8 @@ export default function App() {
       return;
     }
 
-    if (session.unlockedUntil && session.unlockedUntil > Date.now()) {
-      setActiveProfileId(session.activeProfileId);
-      setP0ProfileId((prev) => prev || session.activeProfileId);
-      setScreen("SETUP");
-      return;
-    }
-
+    setActiveProfileId(session.activeProfileId);
+    setP0ProfileId((prev) => prev || session.activeProfileId);
     setScreen("SPLASH");
   }, [demoBypassSplash, demoState]);
   const advanceRef = useRef<HTMLButtonElement | null>(null);
