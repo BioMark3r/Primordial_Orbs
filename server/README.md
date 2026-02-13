@@ -1,62 +1,97 @@
-# Server (Local Supabase Scaffold)
+# Primordial Orbs – Supabase Local Backend (CLI Only)
 
-This directory contains local backend scaffolding for future auth, stats, and network play work.
+This project can run fully local using Supabase CLI + Docker.
 
-## Prerequisites
+## Quick Start (Full Stack)
 
-- Node.js installed
-- Docker Desktop (or equivalent Docker runtime) installed and running
-
-## Supabase project scaffold
-
-The Supabase project files live in `server/supabase/`.
-
-If you need to regenerate/update the scaffold with the official CLI flow:
-
-```bash
-cd server
-npx supabase init
-```
-
-## Start local Supabase only
-
-From the repository root:
-
-```bash
-npm run dev:db
-```
-
-Stop it:
-
-```bash
-npm run dev:db:stop
-```
-
-## Start DB + frontend with one command
-
-From the repository root:
+From the repo root:
 
 ```bash
 npm run dev:all
 ```
 
-This starts Supabase first, waits until the local REST endpoint is reachable, then starts the frontend dev server.
+## Manual Startup (Two-Terminal)
 
-## Get local URL + keys
-
-After Supabase is running:
+From the repo root:
 
 ```bash
-cd server && npx supabase status
+npm run dev:db
 ```
 
-or for environment-style output:
+In a second terminal:
 
 ```bash
-cd server && npx supabase status -o env
+npm run dev
 ```
 
-Copy values into `.env.local` (do not commit):
+When done:
+
+```bash
+npm run dev:db:stop
+```
+
+## Prerequisites
+
+- Node.js
+- Docker installed and running
+- Supabase CLI (used via `npx`)
+
+Quick checks:
+
+```bash
+docker --version
+docker ps
+npx supabase --version
+```
+
+## Docker Permission Fix (WSL/Ubuntu)
+
+If you see an error like:
+
+`permission denied while trying to connect to the Docker daemon socket...`
+
+Run:
+
+```bash
+sudo groupadd docker 2>/dev/null || true
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Then verify:
+
+```bash
+docker ps
+```
+
+If needed:
+
+```bash
+sudo systemctl restart docker
+```
+
+> In WSL you may need to close and reopen your terminal.
+
+## Getting Supabase Keys
+
+```bash
+cd server
+npx supabase status -o env
+```
+
+Copy these into `.env.local`:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+
+Use `.env.example` as a safe template, and never commit `.env.local`.
+
+## Demo Mode / Shots Mode (auth bypass)
+
+- `http://localhost:5173/?demo=1`
+- `http://localhost:5173/?shots=1`
+
+## Notes
+
+- Supabase runs via Docker containers started by Supabase CLI.
+- If `docker ps` works, `supabase start` should work.
