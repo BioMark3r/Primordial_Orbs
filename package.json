@@ -14,19 +14,25 @@
     "test:e2e": "playwright test",
     "shots:rulebook": "playwright test tests/rulebook.screenshots.spec.ts",
     "test:ui": "playwright test tests/ui.layout.spec.ts",
-    "test:ui:update": "playwright test tests/ui.layout.spec.ts --update-snapshots"
+    "test:ui:update": "playwright test tests/ui.layout.spec.ts --update-snapshots",
+    "backend:start": "cd server && npx supabase start",
+    "backend:status": "cd server && npx supabase status -o env"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.51.1",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^5.1.4",
+    "@vitest/coverage-v8": "1.6.1",
+    "@vitest/ui": "1.6.1",
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -35,9 +41,6 @@
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.0.0",
     "vite": "^5.2.0",
-    "vitest": "1.6.1",
-    "@vitest/ui": "1.6.1",
-    "@vitest/coverage-v8": "1.6.1",
-    "@playwright/test": "^1.51.1"
+    "vitest": "1.6.1"
   }
 }

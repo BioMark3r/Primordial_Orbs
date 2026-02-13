@@ -99,6 +99,7 @@ import {
 } from "./profile/store";
 import type { MatchResult, ProfileId } from "./profile/types";
 import { CPU_ID, GUEST_ID } from "./profile/types";
+import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
 import packageJson from "../package.json";
 
 type Screen = "SPLASH" | "SETUP" | "GAME";
@@ -359,6 +360,9 @@ export default function App() {
   const [hoveredImpactIndex, setHoveredImpactIndex] = useState<number | null>(null);
   const [seedInput, setSeedInput] = useState<string>(() => String(initial.seed));
   const [showInspector, setShowInspector] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<"idle" | "configured" | "connected" | "unreachable">(
+    isSupabaseConfigured ? "configured" : "idle"
+  );
   const [showDeterminismTools, setShowDeterminismTools] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
   const [showHowTo, setShowHowTo] = useState(false);
@@ -433,6 +437,25 @@ export default function App() {
   const drawRef = useRef<HTMLButtonElement | null>(null);
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
   const shareCfgAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    let cancelled = false;
+    void supabase.auth.getSession()
+      .then(({ error }) => {
+        if (cancelled) return;
+        setBackendStatus(error ? "unreachable" : "connected");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setBackendStatus("unreachable");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (demoState || demoBypassSplash) return;
@@ -2337,6 +2360,9 @@ export default function App() {
   const otherFlashFx = flashState?.target === other ? flashState.fxImpact ?? null : null;
 
   const logLines = state.log.slice(0, 120);
+  const backendStatusLabel = !isSupabaseConfigured
+    ? "Backend: Supabase env missing"
+    : (backendStatus === "connected" ? "Backend: Supabase online" : `Backend: ${backendStatus}`);
 
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
@@ -2383,6 +2409,7 @@ export default function App() {
               {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
                 <span className="game-status-pill ui-chip" title="Solar Flare">Abilities Disabled</span>
               )}
+              <span className="game-status-pill ui-chip">{backendStatusLabel}</span>
             </div>
           </div>
 
@@ -2865,6 +2892,12 @@ export default function App() {
                 <div><b>Active:</b> Player {state.active + 1}</div>
                 <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
                 <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
+                <div>
+                  <b>Backend:</b>{" "}
+                  {isSupabaseConfigured
+                    ? (backendStatus === "connected" ? "Supabase reachable" : backendStatus)
+                    : "Supabase env vars missing"}
+                </div>
               </div>
               <div className="game-inspector__section">
                 <div className="game-inspector__sectionTitle">Last Action</div>

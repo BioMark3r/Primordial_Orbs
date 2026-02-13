@@ -1,8 +1,17 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@supabase/supabase-js": path.resolve(rootDir, "src/lib/supabaseShim.ts"),
+    },
+  },
   test: {
     globals: true,                // enables describe/it/expect globally
     environment: "jsdom",         // for React Testing Library
@@ -27,4 +36,3 @@ export default defineConfig({
     }
   }
 });
-
