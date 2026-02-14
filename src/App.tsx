@@ -2492,7 +2492,7 @@ export default function App() {
                     {aiPaused ? "Resume AI" : "Pause AI"}
                   </MenuItem>
                 )}
-                {isDev && (
+                  {isDev && (
                   <>
                     <MenuItem onSelect={menuAction(() => setShowInspector((prev) => !prev))}>
                       {showInspector ? "Hide Inspector" : "Show Inspector"}
@@ -2899,25 +2899,25 @@ export default function App() {
             </div>
           )}
 
-          <div data-testid="core-status">
-            <CoreStatusStrip
-            state={state}
-            active={active}
-            canWaterSwap={canWaterSwap}
-            canGasRedraw={canGasRedraw}
-            waterSwapPick={waterSwapPick}
-            pulsePlayer={corePulse?.player}
-            pulseKey={corePulse?.key}
-            usedKeys={usedKeys}
-          />
-          </div>
-          <CoachStrip
-            hints={coachHints}
-            onAction={onCoachAction}
-            isActionDisabled={(hint) => hint.actionLabel === "Draw" && !canDraw}
-          />
+              <div data-testid="core-status">
+                <CoreStatusStrip
+                state={state}
+                active={active}
+                canWaterSwap={canWaterSwap}
+                canGasRedraw={canGasRedraw}
+                waterSwapPick={waterSwapPick}
+                pulsePlayer={corePulse?.player}
+                pulseKey={corePulse?.key}
+                usedKeys={usedKeys}
+              />
+              </div>
+              <CoachStrip
+                hints={coachHints}
+                onAction={onCoachAction}
+                isActionDisabled={(hint) => hint.actionLabel === "Draw" && !canDraw}
+              />
 
-          <div className="game-arena-row">
+              <div className="game-arena-row">
             <PlayerPanel
               title="Player 1"
               player={0}
@@ -3154,6 +3154,8 @@ export default function App() {
                 <ImpactPreviewPanel preview={impactPreview} />
               </div>
             )}
+              </div>
+            </div>
           </div>
           </div>
           {isHistoryOpen && (
