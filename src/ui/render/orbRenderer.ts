@@ -2,6 +2,7 @@ import type { Orb } from "../../engine/types";
 import { ORB_COLORS, type OrbColorKey } from "../theme/orbColors";
 
 export type OrbElement = "lava" | "ice" | "nature" | "void";
+export type OrbVisualState = "idle" | "hover" | "selected";
 
 type OrbPalette = {
   glow: string;
@@ -13,6 +14,21 @@ type OrbPalette = {
 };
 
 const TAU = Math.PI * 2;
+
+const ORB_SPRITE_PATHS: Record<OrbElement, string> = {
+  lava: "/assets/orbs/orb_lava.webp",
+  ice: "/assets/orbs/orb_ice.webp",
+  nature: "/assets/orbs/orb_nature.webp",
+  void: "/assets/orbs/orb_void.webp",
+};
+
+const orbImages: Partial<Record<OrbElement, HTMLImageElement>> = {};
+const orbLoadState: Partial<Record<OrbElement, "unloaded" | "loading" | "loaded" | "failed">> = {
+  lava: "unloaded",
+  ice: "unloaded",
+  nature: "unloaded",
+  void: "unloaded",
+};
 
 type OrbRenderStyle = {
   element: OrbElement;
@@ -175,12 +191,103 @@ function drawElementDetails(ctx: CanvasRenderingContext2D, r: number, element: O
   }
 }
 
-export function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, style: OrbRenderStyle, t: number) {
-  const palette = paletteFromColors(style.colors);
-  const gradients = getGradientSet(ctx, r, style.element, style.colors);
+function loadImageWithFallback(primary: string, fallback?: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      if (!fallback) {
+        reject(new Error(`Failed to load image: ${primary}`));
+        return;
+      }
+
+      const fallbackImg = new Image();
+      fallbackImg.onload = () => resolve(fallbackImg);
+      fallbackImg.onerror = () => reject(new Error(`Failed to load image and fallback: ${primary}, ${fallback}`));
+      fallbackImg.src = fallback;
+    };
+    img.src = primary;
+  });
+}
+
+export function initOrbSpriteAssets(): Promise<void> {
+  const elements: OrbElement[] = ["lava", "ice", "nature", "void"];
+  const loadTasks = elements.map(async (element) => {
+    if (orbLoadState[element] === "loaded" || orbLoadState[element] === "loading") return;
+    orbLoadState[element] = "loading";
+
+    const primary = ORB_SPRITE_PATHS[element];
+    const fallback = primary.replace(/\.webp$/i, ".png");
+    try {
+      const image = await loadImageWithFallback(primary, fallback);
+      orbImages[element] = image;
+      orbLoadState[element] = "loaded";
+    } catch {
+      orbLoadState[element] = "failed";
+    }
+  });
+
+  return Promise.all(loadTasks).then(() => undefined);
+}
+
+function getElementGlow(element: OrbElement): string {
+  switch (element) {
+    case "lava":
+      return "rgba(255,120,40,0.8)";
+    case "ice":
+      return "rgba(80,200,255,0.8)";
+    case "nature":
+      return "rgba(80,255,140,0.8)";
+    case "void":
+      return "rgba(180,100,255,0.8)";
+    default:
+      return "rgba(255,255,255,0.5)";
+  }
+}
+
+function drawAura(ctx: CanvasRenderingContext2D, r: number, element: OrbElement, t: number) {
+  const pulse = 1 + Math.sin(t * 2) * 0.05;
+  const gradient = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, r * 1.5);
+  gradient.addColorStop(0, getElementGlow(element));
+  gradient.addColorStop(1, "rgba(0,0,0,0)");
 
   ctx.save();
-  ctx.translate(x, y);
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.5 * pulse, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawOrbSprite(ctx: CanvasRenderingContext2D, r: number, element: OrbElement, state: OrbVisualState, t: number): boolean {
+  const img = orbImages[element];
+  if (!img || orbLoadState[element] !== "loaded") {
+    return false;
+  }
+
+  let scale = 1;
+  let shadowBlur = 0;
+  if (state === "hover") {
+    scale = 1.06;
+    shadowBlur = 15;
+  }
+  if (state === "selected") {
+    scale = 1.08 + Math.sin(t * 3) * 0.02;
+    shadowBlur = 25 + Math.sin(t * 4) * 5;
+  }
+
+  ctx.save();
+  ctx.shadowColor = getElementGlow(element);
+  ctx.shadowBlur = shadowBlur;
+  ctx.drawImage(img, -r * scale, -r * scale, 2 * r * scale, 2 * r * scale);
+  ctx.restore();
+  return true;
+}
+
+function drawProceduralOrb(ctx: CanvasRenderingContext2D, r: number, style: OrbRenderStyle, t: number) {
+  const palette = paletteFromColors(style.colors);
+  const gradients = getGradientSet(ctx, r, style.element, style.colors);
 
   ctx.globalCompositeOperation = "lighter";
   ctx.fillStyle = gradients.glow;
@@ -217,6 +324,33 @@ export function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: 
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.99, 0, TAU);
   ctx.stroke();
+}
+
+export function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, style: OrbRenderStyle, t: number) {
+  drawOrbWithState(ctx, x, y, r, style, t, "idle");
+}
+
+export function drawOrbWithState(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  style: OrbRenderStyle,
+  t: number,
+  state: OrbVisualState,
+) {
+  const shouldInitAssets = (Object.keys(orbLoadState) as OrbElement[]).some((element) => orbLoadState[element] === "unloaded");
+  if (shouldInitAssets) {
+    void initOrbSpriteAssets();
+  }
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  drawAura(ctx, r, style.element, t);
+  if (!drawOrbSprite(ctx, r, style.element, state, t)) {
+    drawProceduralOrb(ctx, r, style, t);
+  }
 
   ctx.restore();
 }
