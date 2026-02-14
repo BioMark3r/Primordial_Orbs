@@ -3164,7 +3164,6 @@ export default function App() {
             </div>
           )}
         </div>
-      </div>
 
         <PlaytestFeedbackModal
           open={playtestFeedbackOpen && state.phase === "GAME_OVER"}
@@ -3175,6 +3174,7 @@ export default function App() {
             void handleCopyReportBundle(feedbackAnswers);
           }}
         />
+      </div>
       </div>
     </GameErrorBoundary>
   );
