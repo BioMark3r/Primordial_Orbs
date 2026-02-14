@@ -186,7 +186,6 @@
 
 .historyPanel {
   width: clamp(280px, 24vw, 300px);
-  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel-2);
@@ -197,8 +196,8 @@
 
 .historyHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: var(--s2);
   padding: var(--s2) var(--s3);
   border-bottom: 1px solid var(--border);
@@ -211,9 +210,9 @@
 
 .historyBody {
   overflow-y: auto;
+  min-height: 0;
   padding: var(--s2);
   font-size: var(--fs-1);
-  min-height: 0;
 }
 
 .historyEntry {
@@ -231,28 +230,24 @@
 
 .historyEntry__head {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--s2);
-  align-items: baseline;
 }
 
-.historyEntry__index {
+.historyEntry__index,
+.historyEntry__payload,
+.historyEmpty {
   color: var(--muted);
 }
 
 .historyEntry__meta {
   font-weight: 700;
-  letter-spacing: 0.2px;
 }
 
 .historyEntry__payload {
   margin-top: 4px;
-  color: var(--muted);
   word-break: break-word;
-}
-
-.historyEmpty {
-  color: var(--muted);
 }
 
 .game-arena-row {
@@ -355,7 +350,7 @@
   color: rgba(237, 239, 246, 0.7);
 }
 
-.progress-track {
+.player-header__mid .progress-track {
   --progress-size: 18px;
   display: inline-flex;
   align-items: center;
@@ -723,6 +718,167 @@
     opacity: 0;
     transform: translateX(-50%) translateY(-6px);
   }
+}
+
+.toast--good {
+  border-color: rgba(71, 191, 130, 0.4);
+  box-shadow: 0 14px 30px rgba(71, 191, 130, 0.2);
+}
+
+.toast--warn {
+  border-color: rgba(255, 158, 102, 0.5);
+  box-shadow: 0 14px 30px rgba(255, 158, 102, 0.2);
+}
+
+.toast__title {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.toast__detail {
+  font-size: var(--fs-1);
+  color: rgba(231, 234, 255, 0.75);
+  margin-top: 2px;
+}
+
+.toast__close {
+  border: none;
+  background: transparent;
+  color: rgba(241, 244, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.core-status__value {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.core-status__value--used {
+  opacity: 0.55;
+}
+
+.core-status__value--used .core-status__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(71, 191, 130, 0.2);
+  color: #7dffb0;
+  font-size: 11px;
+}
+
+.core-status__value--pulse {
+  animation: corePulse 0.9s ease-out;
+}
+
+@keyframes corePulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(91, 152, 255, 0);
+  }
+  40% {
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(91, 152, 255, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(91, 152, 255, 0);
+  }
+}
+
+.coach-strip {
+  padding: var(--s2) var(--s3);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(10, 14, 24, 0.5);
+  font-size: var(--fs-1);
+}
+
+.coach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s2);
+}
+
+.coach-card {
+  display: grid;
+  gap: 4px;
+}
+
+.coach-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--s2);
+}
+
+@media (max-width: 980px) {
+  .game-layout {
+    flex-direction: column;
+  }
+
+  .historyPanel {
+    width: 100%;
+    max-height: 220px;
+  }
+
+  .game-topbar {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .game-topbar-center {
+    justify-content: flex-start;
+  }
+
+  .game-topbar-right {
+    justify-content: flex-start;
+    grid-column: auto;
+    justify-self: stretch;
+  }
+
+  .game-bottom-row {
+    flex-direction: column;
+  }
+
+  .impact-panel {
+    flex-basis: auto;
+  }
+
+}
+
+
+.player-panel__slot-content {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.player-panel__slot-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.hand-empty {
+  color: var(--muted);
+}
+
+.hand-impact-hint {
+  font-size: 10px;
+  color: rgba(207, 213, 255, 0.95);
+}
+
+.hand-selection-note {
+  margin-top: var(--s2);
+  color: var(--text);
+  font-size: var(--fs-1);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
 }
 
 .impact-target-box {

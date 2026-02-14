@@ -1847,7 +1847,6 @@ export default function App() {
     setHoveredImpactIndex(null);
     setArenaEvent(null);
     setFlashState(null);
-    
     setTurnHandoff(null);
     pendingDiffRef.current = null;
   }
@@ -1867,7 +1866,6 @@ export default function App() {
     setProgressPulse({ 0: null, 1: null });
     setLastAction(null);
     setLastActionEvent(null);
-    
     setGameMenuOpen(false);
     setViewMenuOpen(false);
     setHelpMenuOpen(false);
@@ -2344,7 +2342,7 @@ export default function App() {
   const activeFlashFx = flashState?.target === active ? flashState.fxImpact ?? null : null;
   const otherFlashFx = flashState?.target === other ? flashState.fxImpact ?? null : null;
 
-    const backendStatusLabel = !isSupabaseConfigured
+  const backendStatusLabel = !isSupabaseConfigured
     ? "Backend: Supabase env missing"
     : (backendStatus === "connected" ? "Backend: Supabase online" : `Backend: ${backendStatus}`);
 
@@ -2857,7 +2855,7 @@ export default function App() {
         <div className="game-layout">
           <div className="game-main">
             <div className="game-content">
-              {isDev && showDeterminismTools && (
+          {isDev && showDeterminismTools && (
             <DeterminismPanel
               bundle={replayImportBundle ?? buildReplayBundle()}
               presentState={state}
@@ -3159,7 +3157,7 @@ export default function App() {
               </div>
             </div>
           </div>
-
+          </div>
           {isHistoryOpen && (
             <div id="turn-history-panel">
               <TurnHistoryPanel entries={actionLog} onClose={() => setIsHistoryOpen(false)} />
@@ -3167,6 +3165,7 @@ export default function App() {
           )}
         </div>
       </div>
+
         <PlaytestFeedbackModal
           open={playtestFeedbackOpen && state.phase === "GAME_OVER"}
           value={feedbackAnswers}
