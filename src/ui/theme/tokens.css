@@ -17,6 +17,10 @@
   --good: rgba(120, 220, 170, 0.9);
   --good-soft: rgba(120, 220, 170, 0.18);
 
+  --life-green: #22c55e;
+  --life-red: #ef4444;
+  --life-empty: #2a2a2a;
+
   /* Geometry */
   --radius: 14px;
   --radius-sm: 10px;
