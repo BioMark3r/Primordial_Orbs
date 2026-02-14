@@ -58,6 +58,7 @@ export function ArenaView({
   const impactLabel = useMemo(() => getImpactLabel(lastEvent, lastImpactName), [lastEvent, lastImpactName]);
   const impactTarget = useMemo(() => getImpactTarget(lastEvent), [lastEvent]);
   const impactEvent = lastEvent?.kind === "IMPACT_CAST" || lastEvent?.kind === "IMPACT_RESOLVED" ? lastEvent : null;
+  const arenaStatusLabel = impactEvent ? `Resolving: ${impactLabel}` : "Arena";
 
   useEffect(() => {
     if (lastEvent?.kind !== "IMPACT_CAST") return;
@@ -103,7 +104,7 @@ export function ArenaView({
   }, [impactEvent]);
 
   return (
-    <div className="arena-view">
+    <div className={`arena-view${impactEvent ? " arena-view--active" : ""}`}>
       <div className="arena-view__header">
         <div className={`arena-view__planet arena-view__planet--left${targetPulse === 0 ? " arena-view__planet--target-pulse" : ""}`}>
           <PlanetIcon viz={p0Viz} size={34} label="Player 1 planet" pulse={targetPulse === 0} />
@@ -111,6 +112,7 @@ export function ArenaView({
         <div className="arena-view__title-wrap">
           <div className="arena-view__title">Cataclysm Arena</div>
           <div className="arena-view__subtitle">Active: Player {activePlayer + 1}</div>
+          <div className="arena-view__status">{arenaStatusLabel}</div>
         </div>
         <div className={`arena-view__planet arena-view__planet--right${targetPulse === 1 ? " arena-view__planet--target-pulse" : ""}`}>
           <PlanetIcon viz={p1Viz} size={34} label="Player 2 planet" pulse={targetPulse === 1} />

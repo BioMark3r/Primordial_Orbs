@@ -52,6 +52,7 @@ import {
 } from "./ui/utils/actionLog";
 import type { ReplayBundleV1, ReplayEntryV1 } from "./ui/utils/actionLog";
 import { replayFromStart, validateReplayMatchesCurrent } from "./ui/utils/replay";
+import { buildReplayState } from "./ui/utils/replayPreview";
 import { DeterminismPanel } from "./ui/components/DeterminismPanel";
 import { TurnHandoffOverlay } from "./ui/components/TurnHandoffOverlay";
 import { PlayerHeader } from "./ui/components/PlayerHeader";
@@ -331,6 +332,7 @@ export default function App() {
   });
   const state = history.present;
   const [lastAction, setLastAction] = useState<Action | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const demoBypassSplash = useMemo(() => demoRequested || shotsMode, [demoRequested, shotsMode]);
   const [screen, setScreen] = useState<Screen>(demoState ? "GAME" : (demoBypassSplash ? "SETUP" : "SPLASH"));
@@ -429,6 +431,14 @@ export default function App() {
   const autosaveStateRef = useRef<GameState | null>(null);
   const initialStateRef = useRef<GameState | null>(null);
   const replayEntryCounterRef = useRef(0);
+  const isPreviewMode = previewIndex !== null;
+  const previewState = useMemo(() => {
+    if (previewIndex === null) return null;
+    const initialReplayState = initialStateRef.current ?? state;
+    return buildReplayState(initialReplayState, actionLog, previewIndex, reducer);
+  }, [actionLog, previewIndex, state]);
+  const displayedState = previewState ?? state;
+
   const drawRef = useRef<HTMLButtonElement | null>(null);
   const endPlayRef = useRef<HTMLButtonElement | null>(null);
   const shareCfgAppliedRef = useRef(false);
@@ -520,7 +530,7 @@ export default function App() {
       fxImpact: DEMO_FLASH_STATE_V1.fxImpact,
       until: Date.now() + 60_000,
     });
-    setIsHistoryOpen(true);
+    setIsHistoryOpen(false);
     setTutorialOpen(false);
     setTutorialIndex(0);
     setTutorialMode("GUIDED");
@@ -542,6 +552,20 @@ export default function App() {
   const other: 0 | 1 = active === 0 ? 1 : 0;
 
   const activeHand = state.players[active].hand;
+  const displayActive = displayedState.active;
+  const displayHand = displayedState.players[displayActive].hand;
+
+  const displayedP0Progress = useMemo(
+    () => computeProgressFromPlanet(displayedState.players[0].planet.slots),
+    [displayedState.players[0].planet.slots]
+  );
+  const displayedP1Progress = useMemo(
+    () => computeProgressFromPlanet(displayedState.players[1].planet.slots),
+    [displayedState.players[1].planet.slots]
+  );
+  const displayedP0Viz = useMemo(() => computePlanetViz(displayedState.players[0].planet.slots), [displayedState.players[0].planet.slots]);
+  const displayedP1Viz = useMemo(() => computePlanetViz(displayedState.players[1].planet.slots), [displayedState.players[1].planet.slots]);
+
 
   const p0Progress = useMemo(
     () => computeProgressFromPlanet(state.players[0].planet.slots),
@@ -945,6 +969,16 @@ export default function App() {
   }
 
   function dispatchWithLog(action: Action): boolean {
+    if (isPreviewMode) {
+      pushToast({
+        id: `preview-blocked-${Date.now()}`,
+        tone: "warn",
+        title: "Preview mode active",
+        detail: "Resume live play before taking actions.",
+        at: Date.now(),
+      });
+      return false;
+    }
     const before = state;
     const intent = toActionIntent(action);
     if (intent) {
@@ -1187,6 +1221,27 @@ export default function App() {
     startGame({ vsComputer: true });
   }
 
+  function handleJumpToHistoryIndex(index: number) {
+    if (index < 0 || index >= actionLog.length) return;
+    setPreviewIndex(index);
+  }
+
+  function handleJumpToHistoryStart() {
+    setPreviewIndex(-1);
+  }
+
+  function handleJumpToHistoryLatest() {
+    if (actionLog.length === 0) {
+      setPreviewIndex(null);
+      return;
+    }
+    setPreviewIndex(actionLog.length - 1);
+  }
+
+  function handleExitPreviewMode() {
+    setPreviewIndex(null);
+  }
+
   function handleLoadDemoState() {
     const snapshot = structuredClone(DEMO_STATE_V1);
     resetTransientUi();
@@ -1200,7 +1255,7 @@ export default function App() {
       fxImpact: DEMO_FLASH_STATE_V1.fxImpact,
       until: Date.now() + 60_000,
     });
-    setIsHistoryOpen(true);
+    setIsHistoryOpen(false);
     setTutorialOpen(false);
     setTutorialIndex(0);
     setTutorialMode("GUIDED");
@@ -1227,7 +1282,8 @@ export default function App() {
     tutorialOpen ||
     showHowTo ||
     shortcutsOpen ||
-    settingsOpen;
+    settingsOpen ||
+    isPreviewMode;
   const handoffBlocked =
     menuOpen ||
     exportOpen ||
@@ -1848,6 +1904,7 @@ export default function App() {
     setArenaEvent(null);
     setFlashState(null);
     setTurnHandoff(null);
+    setPreviewIndex(null);
     pendingDiffRef.current = null;
   }
 
@@ -2901,8 +2958,8 @@ export default function App() {
 
               <div data-testid="core-status">
                 <CoreStatusStrip
-                state={state}
-                active={active}
+                state={displayedState}
+                active={displayActive}
                 canWaterSwap={canWaterSwap}
                 canGasRedraw={canGasRedraw}
                 waterSwapPick={waterSwapPick}
@@ -2926,32 +2983,32 @@ export default function App() {
               actionsRowTestId="actions-row-0"
               undoButtonTestId="btn-undo"
               statsRightTestId="panel-stats-right-0"
-              core={state.players[0].planet.core}
-              planetSlots={state.players[0].planet.slots}
-              planetViz={p0Viz}
-              locked={state.players[0].planet.locked}
+              core={displayedState.players[0].planet.core}
+              planetSlots={displayedState.players[0].planet.slots}
+              planetViz={displayedP0Viz}
+              locked={displayedState.players[0].planet.locked}
               terraformMin={3}
-              progress={p0Progress}
+              progress={displayedP0Progress}
               pulseTypes={progressPulse[0]?.types}
-              onClickSlot={active === 0 ? onClickSlot : undefined}
-              selected={active === 0 ? selected : { kind: "NONE" }}
-              waterSwapPick={active === 0 ? waterSwapPick : null}
-              waterSwapMode={active === 0 && canWaterSwap && selected.kind === "NONE"}
+              onClickSlot={!isPreviewMode && active === 0 ? onClickSlot : undefined}
+              selected={!isPreviewMode && active === 0 ? selected : { kind: "NONE" }}
+              waterSwapPick={!isPreviewMode && active === 0 ? waterSwapPick : null}
+              waterSwapMode={!isPreviewMode && active === 0 && canWaterSwap && selected.kind === "NONE"}
               flashSlots={active === 0 ? activeFlashSlots : otherFlashSlots}
               flashFx={active === 0 ? activeFlashFx : otherFlashFx}
-              isActive={active === 0}
+              isActive={displayActive === 0}
               isCpu={playVsComputer && 0 === aiConfig.player}
               cpuPersonality={playVsComputer && 0 === aiConfig.player ? aiConfig.personality : undefined}
               fracture={fracturePlayer === 0}
               reduceMotion={settings.reduceMotion}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
-                canDraw: canDraw && active === 0,
-                canEndPlay: canEndPlay && active === 0,
-                canAdvance: canAdvance && active === 0,
-                canUndo: canUndo && active === 0,
-                emphasizeEndPlay: endPlayReady && active === 0,
-                emphasizeAdvance: advanceReady && active === 0,
+                canDraw: !isPreviewMode && canDraw && active === 0,
+                canEndPlay: !isPreviewMode && canEndPlay && active === 0,
+                canAdvance: !isPreviewMode && canAdvance && active === 0,
+                canUndo: !isPreviewMode && canUndo && active === 0,
+                emphasizeEndPlay: !isPreviewMode && endPlayReady && active === 0,
+                emphasizeAdvance: !isPreviewMode && advanceReady && active === 0,
                 drawDisabledReason,
                 endPlayDisabledReason,
                 advanceDisabledReason,
@@ -2960,24 +3017,24 @@ export default function App() {
                 onAdvance: handleAdvance,
                 onUndo: handleUndo,
               }}
-              controlsId={active === 0 ? "ui-player-controls" : undefined}
-              drawId={active === 0 ? "ui-btn-draw" : undefined}
-              endPlayId={active === 0 ? "ui-btn-endplay" : undefined}
-              advanceId={active === 0 ? "ui-btn-advance" : undefined}
-              drawRef={active === 0 ? drawRef : undefined}
-              endPlayRef={active === 0 ? endPlayRef : undefined}
-              advanceRef={active === 0 ? advanceRef : undefined}
-              undoRef={active === 0 ? undoRef : undefined}
+              controlsId={!isPreviewMode && active === 0 ? "ui-player-controls" : undefined}
+              drawId={!isPreviewMode && active === 0 ? "ui-btn-draw" : undefined}
+              endPlayId={!isPreviewMode && active === 0 ? "ui-btn-endplay" : undefined}
+              advanceId={!isPreviewMode && active === 0 ? "ui-btn-advance" : undefined}
+              drawRef={!isPreviewMode && active === 0 ? drawRef : undefined}
+              endPlayRef={!isPreviewMode && active === 0 ? endPlayRef : undefined}
+              advanceRef={!isPreviewMode && active === 0 ? advanceRef : undefined}
+              undoRef={!isPreviewMode && active === 0 ? undoRef : undefined}
             />
             <div id="ui-arena" style={{ display: "contents" }}>
               <div data-testid="arena">
                 <ArenaView
                   lastEvent={arenaEvent}
-                  bagCount={state.bag.length}
-                  discardCount={state.discard.length}
-                  activePlayer={active}
-                  p0Viz={p0Viz}
-                  p1Viz={p1Viz}
+                  bagCount={displayedState.bag.length}
+                  discardCount={displayedState.discard.length}
+                  activePlayer={displayActive}
+                  p0Viz={displayedP0Viz}
+                  p1Viz={displayedP1Viz}
                 />
               </div>
             <PlayerPanel
@@ -2988,32 +3045,32 @@ export default function App() {
               actionsRowTestId="actions-row-1"
               undoButtonTestId="btn-undo-1"
               statsRightTestId="panel-stats-right-1"
-              core={state.players[1].planet.core}
-              planetSlots={state.players[1].planet.slots}
-              planetViz={p1Viz}
-              locked={state.players[1].planet.locked}
+              core={displayedState.players[1].planet.core}
+              planetSlots={displayedState.players[1].planet.slots}
+              planetViz={displayedP1Viz}
+              locked={displayedState.players[1].planet.locked}
               terraformMin={3}
-              progress={p1Progress}
+              progress={displayedP1Progress}
               pulseTypes={progressPulse[1]?.types}
-              onClickSlot={active === 1 ? onClickSlot : undefined}
-              selected={active === 1 ? selected : { kind: "NONE" }}
-              waterSwapPick={active === 1 ? waterSwapPick : null}
-              waterSwapMode={active === 1 && canWaterSwap && selected.kind === "NONE"}
+              onClickSlot={!isPreviewMode && active === 1 ? onClickSlot : undefined}
+              selected={!isPreviewMode && active === 1 ? selected : { kind: "NONE" }}
+              waterSwapPick={!isPreviewMode && active === 1 ? waterSwapPick : null}
+              waterSwapMode={!isPreviewMode && active === 1 && canWaterSwap && selected.kind === "NONE"}
               flashSlots={active === 1 ? activeFlashSlots : otherFlashSlots}
               flashFx={active === 1 ? activeFlashFx : otherFlashFx}
-              isActive={active === 1}
+              isActive={displayActive === 1}
               isCpu={playVsComputer && 1 === aiConfig.player}
               cpuPersonality={playVsComputer && 1 === aiConfig.player ? aiConfig.personality : undefined}
               fracture={fracturePlayer === 1}
               reduceMotion={settings.reduceMotion}
               showTurnControls={mode === "LOCAL_2P"}
               turnControls={{
-                canDraw: canDraw && active === 1,
-                canEndPlay: canEndPlay && active === 1,
-                canAdvance: canAdvance && active === 1,
-                canUndo: canUndo && active === 1,
-                emphasizeEndPlay: endPlayReady && active === 1,
-                emphasizeAdvance: advanceReady && active === 1,
+                canDraw: !isPreviewMode && canDraw && active === 1,
+                canEndPlay: !isPreviewMode && canEndPlay && active === 1,
+                canAdvance: !isPreviewMode && canAdvance && active === 1,
+                canUndo: !isPreviewMode && canUndo && active === 1,
+                emphasizeEndPlay: !isPreviewMode && endPlayReady && active === 1,
+                emphasizeAdvance: !isPreviewMode && advanceReady && active === 1,
                 drawDisabledReason,
                 endPlayDisabledReason,
                 advanceDisabledReason,
@@ -3022,14 +3079,14 @@ export default function App() {
                 onAdvance: handleAdvance,
                 onUndo: handleUndo,
               }}
-              controlsId={active === 1 ? "ui-player-controls" : undefined}
-              drawId={active === 1 ? "ui-btn-draw" : undefined}
-              endPlayId={active === 1 ? "ui-btn-endplay" : undefined}
-              advanceId={active === 1 ? "ui-btn-advance" : undefined}
-              drawRef={active === 1 ? drawRef : undefined}
-              endPlayRef={active === 1 ? endPlayRef : undefined}
-              advanceRef={active === 1 ? advanceRef : undefined}
-              undoRef={active === 1 ? undoRef : undefined}
+              controlsId={!isPreviewMode && active === 1 ? "ui-player-controls" : undefined}
+              drawId={!isPreviewMode && active === 1 ? "ui-btn-draw" : undefined}
+              endPlayId={!isPreviewMode && active === 1 ? "ui-btn-endplay" : undefined}
+              advanceId={!isPreviewMode && active === 1 ? "ui-btn-advance" : undefined}
+              drawRef={!isPreviewMode && active === 1 ? drawRef : undefined}
+              endPlayRef={!isPreviewMode && active === 1 ? endPlayRef : undefined}
+              advanceRef={!isPreviewMode && active === 1 ? advanceRef : undefined}
+              undoRef={!isPreviewMode && active === 1 ? undoRef : undefined}
             />
           </div>
 
@@ -3058,8 +3115,8 @@ export default function App() {
               )}
 
               <div className="hand-scroll">
-                {activeHand.length === 0 && <div className="hand-empty">No orbs in hand.</div>}
-                {activeHand.map((o, i) => {
+                {displayHand.length === 0 && <div className="hand-empty">No orbs in hand.</div>}
+                {displayHand.map((o, i) => {
                   const isSel = selected.kind === "HAND" && selected.handIndex === i;
                   const isImpact = o.kind === "IMPACT";
                   const disabledReason = getOrbDisabledReason(
@@ -3071,7 +3128,7 @@ export default function App() {
                     impactsRemaining,
                     (p: 0 | 1) => abilitiesEnabled(state, p),
                   );
-                  const isDisabled = disabledReason !== null;
+                  const isDisabled = isPreviewMode || disabledReason !== null;
                   const handTokenClass = `hand-token${isDisabled ? " orb-disabled" : ""}`;
 
                   const orbToken = (
@@ -3140,7 +3197,7 @@ export default function App() {
                       />
                       Self
                     </label>
-                    <button className="ui-btn ui-btn--primary" onClick={onPlaySelectedImpact} disabled={!canPlayImpact}>
+                    <button className="ui-btn ui-btn--primary" onClick={onPlaySelectedImpact} disabled={isPreviewMode || !canPlayImpact}>
                       Fire Impact
                     </button>
                     <button className="ui-btn ui-btn--ghost" onClick={clearSelection}>Clear</button>
@@ -3160,7 +3217,16 @@ export default function App() {
           </div>
           {isHistoryOpen && (
             <div id="turn-history-panel">
-              <TurnHistoryPanel entries={actionLog} onClose={() => setIsHistoryOpen(false)} />
+              <TurnHistoryPanel
+                entries={actionLog}
+                onClose={() => setIsHistoryOpen(false)}
+                onJumpToIndex={handleJumpToHistoryIndex}
+                onJumpToStart={handleJumpToHistoryStart}
+                onJumpToLatest={handleJumpToHistoryLatest}
+                previewIndex={previewIndex}
+                isPreviewMode={isPreviewMode}
+                onExitPreview={handleExitPreviewMode}
+              />
             </div>
           )}
         </div>
@@ -3238,13 +3304,46 @@ function CoreStatusStrip({
   );
 }
 
+function getCoreSpecialDescription(state: GameState, p: 0 | 1): { text: string; key?: string; used?: boolean } {
+  const ps = state.players[p];
+  switch (ps.planet.core) {
+    case "LAND":
+      return {
+        text: "Free Terraform when opening a turn",
+        key: "LAND_FREE_TERRAFORM_USED",
+        used: Boolean(ps.abilities.land_free_terraform_used_turn),
+      };
+    case "WATER":
+      return {
+        text: "Swap a Terraform orb",
+        key: "WATER_SWAP_USED",
+        used: Boolean(ps.abilities.water_swap_used_turn),
+      };
+    case "ICE":
+      return {
+        text: "Shield one slot from impact",
+        key: "ICE_SHIELD_USED",
+        used: Boolean(ps.abilities.ice_shield_used_turn),
+      };
+    case "GAS":
+      return {
+        text: "Redraw once per turn",
+        key: "GAS_REDRAW_USED",
+        used: Boolean(ps.abilities.gas_redraw_used_turn),
+      };
+    case "LAVA":
+      return { text: "Adds +1 severity to your impacts" };
+    default:
+      return { text: "Core passive effect active" };
+  }
+}
+
 function CoreStatusCard({
   who,
   state,
   p,
   pulseKey,
   pulsePlayer,
-  usedKeys,
 }: {
   who: string;
   state: GameState;
@@ -3255,71 +3354,34 @@ function CoreStatusCard({
 }) {
   const ps = state.players[p];
   const enabled = abilitiesEnabled(state, p);
-  const used = new Set(usedKeys[p]);
-
-  const items: Array<{ label: string; value: string; tooltip?: string; key?: string; used?: boolean }> = [
-    { label: "Core", value: ps.planet.core, tooltip: corePassiveTooltip(ps.planet.core) },
-    { label: "Abilities", value: enabled ? "Enabled" : `Disabled (until turn ${ps.abilities.disabled_until_turn})` },
-    {
-      label: "Land free Terraform",
-      value: ps.planet.core === "LAND" ? (ps.abilities.land_free_terraform_used_turn ? "Used" : "Ready") : "—",
-      tooltip: getCoreInfo("LAND").passive,
-      key: "LAND_FREE_TERRAFORM_USED",
-      used: used.has("LAND_FREE_TERRAFORM_USED"),
-    },
-    {
-      label: "Water Swap",
-      value: ps.planet.core === "WATER" ? (ps.abilities.water_swap_used_turn ? "Used" : "Ready") : "—",
-      tooltip: getCoreInfo("WATER").passive,
-      key: "WATER_SWAP_USED",
-      used: used.has("WATER_SWAP_USED"),
-    },
-    {
-      label: "Ice Shield",
-      value: ps.planet.core === "ICE" ? (ps.abilities.ice_shield_used_turn ? "Used" : "Ready") : "—",
-      tooltip: getCoreInfo("ICE").passive,
-      key: "ICE_SHIELD_USED",
-      used: used.has("ICE_SHIELD_USED"),
-    },
-    {
-      label: "Gas Redraw",
-      value: ps.planet.core === "GAS" ? (ps.abilities.gas_redraw_used_turn ? "Used" : "Ready") : "—",
-      tooltip: getCoreInfo("GAS").passive,
-      key: "GAS_REDRAW_USED",
-      used: used.has("GAS_REDRAW_USED"),
-    },
-    {
-      label: "Plant Mitigation",
-      value: ps.abilities.plant_block_used_round ? "Used" : "Ready (if you have Plant)",
-      tooltip: getColonizeInfoText("PLANT"),
-      key: "PLANT_MITIGATION_USED",
-      used: used.has("PLANT_MITIGATION_USED"),
-    },
-    {
-      label: "High-Tech Redirect",
-      value: ps.abilities.hightech_redirect_used ? "Used" : "Ready (if you have High-Tech)",
-      tooltip: getColonizeInfoText("HIGH_TECH"),
-      key: "HIGHTECH_REDIRECT_USED",
-      used: used.has("HIGHTECH_REDIRECT_USED"),
-    },
-  ];
+  const special = getCoreSpecialDescription(state, p);
+  const statusSuffix = special.used ? "(Used)" : "(Available)";
 
   return (
     <div className="coach-card">
       <div style={{ fontWeight: 800 }}>{who}</div>
-      {items.map((it) => (
-        <div className="coach-row" key={it.label}>
-          <div style={{ color: "rgba(237,239,246,0.7)" }}>{it.label}</div>
-          <div
-            className={`core-status__value${it.used ? " core-status__value--used" : ""}${pulsePlayer === p && it.key === pulseKey ? " core-status__value--pulse" : ""}`}
-            style={{ fontWeight: 700 }}
-            title={it.tooltip}
-          >
-            {it.value}
-            {it.used && <span className="core-status__check" aria-hidden>✓</span>}
-          </div>
+      <div className="coach-row">
+        <div style={{ color: "rgba(237,239,246,0.7)" }}>Core</div>
+        <div className="core-status__value" style={{ fontWeight: 700 }} title={corePassiveTooltip(ps.planet.core)}>
+          {ps.planet.core}
         </div>
-      ))}
+      </div>
+      <div className="coach-row">
+        <div style={{ color: "rgba(237,239,246,0.7)" }}>Abilities</div>
+        <div className="core-status__value" style={{ fontWeight: 700 }}>
+          {enabled ? "Enabled" : `Disabled (until turn ${ps.abilities.disabled_until_turn})`}
+        </div>
+      </div>
+      <div className="coach-row">
+        <div style={{ color: "rgba(237,239,246,0.7)" }}>Core Special</div>
+        <div
+          className={`core-status__value core-status__special${special.used ? " core-status__value--used" : ""}${pulsePlayer === p && special.key === pulseKey ? " core-status__value--pulse" : ""}`}
+          style={{ fontWeight: 700 }}
+          title={getCoreInfo(ps.planet.core).passive}
+        >
+          {special.text} {statusSuffix}
+        </div>
+      </div>
     </div>
   );
 }
