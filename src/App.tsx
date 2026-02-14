@@ -5,7 +5,6 @@ import { reducer } from "./engine/reducer";
 import { newGame } from "./engine/setup";
 import { OrbToken } from "./ui/components/OrbToken";
 import { ArenaView } from "./ui/components/ArenaView";
-import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
 import { ToastStack } from "./ui/components/ToastStack";
 import { WinCelebration } from "./ui/components/WinCelebration";
 import { CoachStrip } from "./ui/components/CoachStrip";
@@ -881,13 +880,8 @@ export default function App() {
     }
   }, [lastActionEvent, state.active, tutorialIndex, tutorialMode, tutorialOpen]);
 
-  const impactPreview: ImpactPreview | null = useMemo(() => {
+  const hoveredImpactPreview: ImpactPreview | null = useMemo(() => {
     if (screen !== "GAME") return null;
-
-    if (selected.kind === "HAND" && selected.orb.kind === "IMPACT") {
-      const target = impactTarget === "SELF" ? active : other;
-      return computeImpactPreview(state, selected.orb.i, active, target);
-    }
 
     if (hoveredImpactIndex !== null) {
       const orb = activeHand[hoveredImpactIndex];
@@ -897,7 +891,7 @@ export default function App() {
     }
 
     return null;
-  }, [active, activeHand, hoveredImpactIndex, impactTarget, other, screen, selected, state]);
+  }, [active, activeHand, hoveredImpactIndex, other, screen, state]);
 
   const coachHints = useMemo(() => {
     if (screen !== "GAME") return [];
@@ -3206,11 +3200,6 @@ export default function App() {
               )}
             </div>
 
-            {impactPreview && (
-              <div className="impact-panel" data-testid="impact-preview">
-                <ImpactPreviewPanel preview={impactPreview} />
-              </div>
-            )}
               </div>
             </div>
           </div>
@@ -3226,6 +3215,7 @@ export default function App() {
                 previewIndex={previewIndex}
                 isPreviewMode={isPreviewMode}
                 onExitPreview={handleExitPreviewMode}
+                orbDetailsPreview={hoveredImpactPreview}
               />
             </div>
           )}
