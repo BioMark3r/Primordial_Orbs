@@ -10,7 +10,6 @@ import { ToastStack } from "./ui/components/ToastStack";
 import { WinCelebration } from "./ui/components/WinCelebration";
 import { CoachStrip } from "./ui/components/CoachStrip";
 import { TutorialOverlay } from "./ui/components/TutorialOverlay";
-import { TurnRecapToast } from "./ui/components/TurnRecapToast";
 import { Tooltip } from "./ui/components/Tooltip";
 import { MenuButton } from "./ui/components/MenuButton";
 import { MenuItem } from "./ui/components/MenuItem";
@@ -36,8 +35,6 @@ import type { ActionEvent, GuideMode } from "./ui/utils/tutorialGuide";
 import { nextIndexOnEvent } from "./ui/utils/tutorialGuide";
 import { TUTORIAL_STEPS } from "./ui/utils/tutorialSteps";
 import { hasSeenTutorial, markSeenTutorial } from "./ui/utils/tutorialStorage";
-import { buildTurnRecap } from "./ui/utils/turnRecap";
-import type { TurnRecap } from "./ui/utils/turnRecap";
 import { getButtonDisabledReason, getOrbDisabledReason } from "./ui/utils/disabledReasons";
 import { DEFAULT_HAND_SIZE_LIMIT, validateIntent, type ActionIntent } from "./ui/utils/actionValidation";
 import {
@@ -86,6 +83,7 @@ import { RegisterProfileModal } from "./ui/components/RegisterProfileModal";
 import { PinPromptModal } from "./ui/components/PinPromptModal";
 import { ProfilePicker } from "./ui/components/ProfilePicker";
 import { StatsModal } from "./ui/components/StatsModal";
+import { TurnHistoryPanel } from "./ui/components/TurnHistoryPanel";
 import { appendMatchResult } from "./profile/matchHistory";
 import {
   loadMatches,
@@ -366,7 +364,7 @@ export default function App() {
   const [showDeterminismTools, setShowDeterminismTools] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
   const [showHowTo, setShowHowTo] = useState(false);
-  const [logOpen, setLogOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
@@ -411,9 +409,6 @@ export default function App() {
   const [tutorialMode, setTutorialMode] = useState<GuideMode>("GUIDED");
   const [tutorialIndex, setTutorialIndex] = useState(0);
   const [lastActionEvent, setLastActionEvent] = useState<ActionEvent | null>(null);
-  const [turnEvents, setTurnEvents] = useState<ActionEvent[]>([]);
-  const [turnRecap, setTurnRecap] = useState<TurnRecap | null>(null);
-  const [turnRecapOpen, setTurnRecapOpen] = useState(false);
   const [corePulse, setCorePulse] = useState<{ player: 0 | 1; key: string; until: number } | null>(null);
   const [progressPulse, setProgressPulse] = useState<{
     0: { types: ColonizeType[]; until: number } | null;
@@ -525,7 +520,7 @@ export default function App() {
       fxImpact: DEMO_FLASH_STATE_V1.fxImpact,
       until: Date.now() + 60_000,
     });
-    setLogOpen(true);
+    setIsHistoryOpen(true);
     setTutorialOpen(false);
     setTutorialIndex(0);
     setTutorialMode("GUIDED");
@@ -710,7 +705,6 @@ export default function App() {
 
   function emitActionEvent(event: ActionEvent) {
     setLastActionEvent(event);
-    setTurnEvents((prev) => [...prev.slice(-40), event]);
   }
 
   useEffect(() => {
@@ -1206,7 +1200,7 @@ export default function App() {
       fxImpact: DEMO_FLASH_STATE_V1.fxImpact,
       until: Date.now() + 60_000,
     });
-    setLogOpen(true);
+    setIsHistoryOpen(true);
     setTutorialOpen(false);
     setTutorialIndex(0);
     setTutorialMode("GUIDED");
@@ -1244,7 +1238,7 @@ export default function App() {
     showHowTo ||
     shortcutsOpen ||
     settingsOpen ||
-    logOpen;
+    isHistoryOpen;
 
   const aiConfig: AiConfig = {
     enabled: playVsComputer && !aiPaused && !isDemoActive,
@@ -1439,7 +1433,7 @@ export default function App() {
       uiOverlayOpen,
       menuOpen,
       closeMenus,
-      toggleLog: () => setLogOpen((prev) => !prev),
+      toggleLog: () => setIsHistoryOpen((prev) => !prev),
       openTutorial: handleOpenTutorial,
       clearSelection: clearSelectionAndOverlays,
       onDraw: handleDraw2,
@@ -1853,9 +1847,6 @@ export default function App() {
     setHoveredImpactIndex(null);
     setArenaEvent(null);
     setFlashState(null);
-    setTurnEvents([]);
-    setTurnRecap(null);
-    setTurnRecapOpen(false);
     setTurnHandoff(null);
     pendingDiffRef.current = null;
   }
@@ -1866,7 +1857,7 @@ export default function App() {
     setTutorialOpen(false);
     setTutorialIndex(0);
     setTutorialMode("GUIDED");
-    setLogOpen(false);
+    setIsHistoryOpen(false);
     setUiEvents([]);
     setArenaEvent(null);
     setFlashState(null);
@@ -1875,7 +1866,6 @@ export default function App() {
     setProgressPulse({ 0: null, 1: null });
     setLastAction(null);
     setLastActionEvent(null);
-    setTurnEvents([]);
     setGameMenuOpen(false);
     setViewMenuOpen(false);
     setHelpMenuOpen(false);
@@ -2288,14 +2278,9 @@ export default function App() {
 
   function handleAdvance() {
     clearSelection();
-    const recapPlayer = active;
-    const recap = buildTurnRecap(turnEvents, recapPlayer);
-    setTurnRecap(recap);
-    setTurnRecapOpen(true);
     const dispatched = dispatchWithLog({ type: "ADVANCE" });
     if (!dispatched) return;
     emitActionEvent({ type: "ADVANCE", at: Date.now(), player: active });
-    setTurnEvents([]);
   }
 
   function handleUndo() {
@@ -2331,9 +2316,7 @@ export default function App() {
     clearSelection();
     setShowHowTo(false);
     setTutorialOpen(false);
-    setTurnRecapOpen(false);
-    setTurnRecap(null);
-    setLogOpen(false);
+    setIsHistoryOpen(false);
     setShortcutsOpen(false);
     setSettingsOpen(false);
   }
@@ -2359,7 +2342,6 @@ export default function App() {
   const activeFlashFx = flashState?.target === active ? flashState.fxImpact ?? null : null;
   const otherFlashFx = flashState?.target === other ? flashState.fxImpact ?? null : null;
 
-  const logLines = state.log.slice(0, 120);
   const backendStatusLabel = !isSupabaseConfigured
     ? "Backend: Supabase env missing"
     : (backendStatus === "connected" ? "Backend: Supabase online" : `Backend: ${backendStatus}`);
@@ -2379,14 +2361,6 @@ export default function App() {
         />
         <ToastStack />
         {winCelebration && <WinCelebration player={winCelebration.player} />}
-        <TurnRecapToast
-          recap={turnRecap}
-          open={turnRecapOpen}
-          onDone={() => {
-            setTurnRecapOpen(false);
-            setTurnRecap(null);
-          }}
-        />
         {turnHandoff && (
           <TurnHandoffOverlay
             open={turnHandoff.open}
@@ -2441,6 +2415,15 @@ export default function App() {
               </>
             )}
             <div className="game-topbar-menus">
+              <button
+                type="button"
+                className={`ui-btn ${isHistoryOpen ? "ui-btn--primary" : "ui-btn--ghost"}`}
+                aria-expanded={isHistoryOpen}
+                aria-controls="turn-history-panel"
+                onClick={() => setIsHistoryOpen((prev) => !prev)}
+              >
+                History
+              </button>
               <MenuButton
                 label="Game"
                 testId="menu-game"
@@ -2497,8 +2480,8 @@ export default function App() {
                 onToggle={() => toggleMenu("view")}
                 onClose={closeMenus}
               >
-                <MenuItem onSelect={menuAction(() => setLogOpen((prev) => !prev))}>
-                  {logOpen ? "Hide Log" : "Show Log"}
+                <MenuItem onSelect={menuAction(() => setIsHistoryOpen((prev) => !prev))}>
+                  {isHistoryOpen ? "Hide Turn History" : "Show Turn History"}
                 </MenuItem>
                 <MenuItem onSelect={menuAction(() => setCompactMode((prev) => !prev))}>
                   {compactMode ? "Comfortable Density" : "Compact Density"}
@@ -2869,7 +2852,9 @@ export default function App() {
           }}
         />
 
-        <div className="game-content">
+        <div className="game-layout">
+          <div className="game-main">
+            <div className="game-content">
           {isDev && showDeterminismTools && (
             <DeterminismPanel
               bundle={replayImportBundle ?? buildReplayBundle()}
@@ -3170,27 +3155,15 @@ export default function App() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-        {logOpen && (
-          <div className="log-drawer" role="region" aria-label="Action log">
-            <div className="log-drawer__header">
-              <span>Action Log</span>
-              <button onClick={() => setLogOpen(false)}>
-                Collapse
-              </button>
-            </div>
-            <div className="log-drawer__body">
-              {logLines.length === 0 && <div className="log-drawer__line">No log entries yet.</div>}
-              {logLines.map((line, idx) => (
-                <div key={idx} className="log-drawer__line">
-                  {line}
-                </div>
-              ))}
-            </div>
           </div>
-        )}
+          </div>
+          {isHistoryOpen && (
+            <div id="turn-history-panel">
+              <TurnHistoryPanel entries={actionLog} onClose={() => setIsHistoryOpen(false)} />
+            </div>
+          )}
+        </div>
+
         <PlaytestFeedbackModal
           open={playtestFeedbackOpen && state.phase === "GAME_OVER"}
           value={feedbackAnswers}
@@ -3200,6 +3173,7 @@ export default function App() {
             void handleCopyReportBundle(feedbackAnswers);
           }}
         />
+      </div>
       </div>
     </GameErrorBoundary>
   );
