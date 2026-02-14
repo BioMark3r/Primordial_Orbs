@@ -2,7 +2,15 @@ import React from "react";
 import type { ImpactPreview } from "../utils/impactPreview";
 import { impactIcon } from "../theme/assets";
 
-export function ImpactPreviewPanel({ preview, onClose }: { preview: ImpactPreview; onClose?: () => void }) {
+export function ImpactPreviewPanel({
+  preview,
+  onClose,
+  compact = false,
+}: {
+  preview: ImpactPreview;
+  onClose?: () => void;
+  compact?: boolean;
+}) {
   const iconSrc = impactIcon[preview.impact];
   const impactName = formatImpactName(preview.impact);
   const modsDelta = preview.severityAfterMods - preview.baseSeverity;
@@ -64,14 +72,7 @@ export function ImpactPreviewPanel({ preview, onClose }: { preview: ImpactPrevie
 
   return (
     <div
-      style={{
-        border: "1px solid #bbb",
-        borderRadius: 12,
-        padding: 12,
-        background: "#fdfbf7",
-        minWidth: 260,
-        maxWidth: 360,
-      }}
+      className={`impactPreviewCard${compact ? " impactPreviewCard--compact" : ""}`}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontWeight: 800, fontSize: 16 }}>Impact Preview</div>

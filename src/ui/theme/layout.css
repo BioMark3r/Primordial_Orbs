@@ -18,8 +18,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  min-height: 100vh;
-  overflow: auto;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   padding: var(--s2);
 }
 
@@ -184,14 +185,24 @@
   display: flex;
 }
 
+#turn-history-panel {
+  flex: 0 0 clamp(280px, 24vw, 320px);
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+
 .historyPanel {
-  width: clamp(280px, 24vw, 300px);
+  width: 100%;
+  height: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel-2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .historyHeader {
@@ -229,6 +240,7 @@
 .historyBody {
   overflow-y: auto;
   min-height: 0;
+  flex: 1 1 auto;
   padding: var(--s2);
   font-size: var(--fs-1);
 }
@@ -688,15 +700,38 @@
   min-height: 0;
 }
 
-.impact-panel {
-  flex: 0 1 300px;
+.historyOrbDetails {
+  border-top: 1px solid var(--border);
+  padding: var(--s2);
+  background: rgba(10, 14, 24, 0.65);
 }
 
-.impact-panel > * {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
+.historyOrbDetails__title {
+  margin: 0 0 var(--s1);
+  font-size: var(--fs-1);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.historyOrbDetails__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-1);
+}
+
+.impactPreviewCard {
+  border: 1px solid #bbb;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fdfbf7;
+  min-width: 260px;
+  max-width: 360px;
+}
+
+.impactPreviewCard--compact {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .toast-stack {
@@ -880,9 +915,13 @@
     flex-direction: column;
   }
 
+  #turn-history-panel {
+    flex: 1 1 auto;
+  }
+
   .historyPanel {
     width: 100%;
-    max-height: 220px;
+    max-height: min(55vh, 420px);
   }
 
   .game-topbar {
@@ -904,9 +943,6 @@
     flex-direction: column;
   }
 
-  .impact-panel {
-    flex-basis: auto;
-  }
 
 }
 
@@ -1162,9 +1198,13 @@
     flex-direction: column;
   }
 
+  #turn-history-panel {
+    flex: 1 1 auto;
+  }
+
   .historyPanel {
     width: 100%;
-    max-height: 220px;
+    max-height: min(55vh, 420px);
   }
 
   .game-topbar {

@@ -1,5 +1,7 @@
 import React from "react";
 import type { ReplayEntryV1 } from "../utils/actionLog";
+import type { ImpactPreview } from "../utils/impactPreview";
+import { ImpactPreviewPanel } from "./ImpactPreviewPanel";
 import { HistoryTypeIcon, historyTypeTone } from "../icons/history/historyIcons";
 
 function formatPayload(payload: ReplayEntryV1["payload"]): string | null {
@@ -24,6 +26,7 @@ export function TurnHistoryPanel(props: {
   previewIndex: number | null;
   isPreviewMode: boolean;
   onExitPreview: () => void;
+  orbDetailsPreview: ImpactPreview | null;
 }) {
   return (
     <aside className="historyPanel" role="complementary" aria-label="Turn History">
@@ -73,6 +76,14 @@ export function TurnHistoryPanel(props: {
             </article>
           );
         })}
+      </div>
+      <div className="historyOrbDetails" data-testid="orb-details-panel">
+        <h4 className="historyOrbDetails__title">Orb Details</h4>
+        {props.orbDetailsPreview ? (
+          <ImpactPreviewPanel preview={props.orbDetailsPreview} compact />
+        ) : (
+          <p className="historyOrbDetails__empty">Hover an orb to preview details.</p>
+        )}
       </div>
     </aside>
   );
