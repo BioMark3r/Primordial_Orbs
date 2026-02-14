@@ -14,6 +14,7 @@ type OrbPalette = {
 };
 
 const TAU = Math.PI * 2;
+const ORB_SPRITE_CROP_FACTOR = 0.82;
 
 const base = import.meta.env.BASE_URL;
 
@@ -294,7 +295,12 @@ function drawOrbSprite(ctx: CanvasRenderingContext2D, r: number, element: OrbEle
   ctx.save();
   ctx.shadowColor = getElementGlow(element);
   ctx.shadowBlur = shadowBlur;
-  ctx.drawImage(img, -r * scale, -r * scale, 2 * r * scale, 2 * r * scale);
+  // Crop removes padding in generated orb sprites.
+  const cropWidth = img.naturalWidth * ORB_SPRITE_CROP_FACTOR;
+  const cropHeight = img.naturalHeight * ORB_SPRITE_CROP_FACTOR;
+  const cropX = (img.naturalWidth - cropWidth) / 2;
+  const cropY = (img.naturalHeight - cropHeight) / 2;
+  ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, -r * scale, -r * scale, 2 * r * scale, 2 * r * scale);
   ctx.restore();
   return true;
 }
