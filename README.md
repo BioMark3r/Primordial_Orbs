@@ -167,6 +167,7 @@ npm run test:ui:update
 - Theme tokens: `src/ui/theme/tokens.css`
 - Components: `components.css`
 - Orbs: `orbs.css`
+- Vite orb sprites: place ornate orb assets in `/public/assets/orbs` and reference at runtime as `/assets/orbs/...`
 
 ---
 
