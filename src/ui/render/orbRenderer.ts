@@ -15,14 +15,24 @@ type OrbPalette = {
 
 const TAU = Math.PI * 2;
 
+const base = import.meta.env.BASE_URL;
+
 const ORB_SPRITE_PATHS: Record<OrbElement, string> = {
-  lava: "/assets/orbs/orb_lava.webp",
-  ice: "/assets/orbs/orb_ice.webp",
-  nature: "/assets/orbs/orb_nature.webp",
-  void: "/assets/orbs/orb_void.webp",
+  lava: `${base}assets/orbs/orb_lava.webp`,
+  ice: `${base}assets/orbs/orb_ice.webp`,
+  nature: `${base}assets/orbs/orb_nature.webp`,
+  void: `${base}assets/orbs/orb_void.webp`,
+};
+
+const ORB_SPRITE_FALLBACK_PATHS: Record<OrbElement, string> = {
+  lava: `${base}assets/orbs/orb_lava.png`,
+  ice: `${base}assets/orbs/orb_ice.png`,
+  nature: `${base}assets/orbs/orb_nature.png`,
+  void: `${base}assets/orbs/orb_void.png`,
 };
 
 const orbImages: Partial<Record<OrbElement, HTMLImageElement>> = {};
+const orbLoadWarnedElements = new Set<OrbElement>();
 const orbLoadState: Partial<Record<OrbElement, "unloaded" | "loading" | "loaded" | "failed">> = {
   lava: "unloaded",
   ice: "unloaded",
@@ -217,13 +227,17 @@ export function initOrbSpriteAssets(): Promise<void> {
     orbLoadState[element] = "loading";
 
     const primary = ORB_SPRITE_PATHS[element];
-    const fallback = primary.replace(/\.webp$/i, ".png");
+    const fallback = ORB_SPRITE_FALLBACK_PATHS[element];
     try {
       const image = await loadImageWithFallback(primary, fallback);
       orbImages[element] = image;
       orbLoadState[element] = "loaded";
     } catch {
       orbLoadState[element] = "failed";
+      if (import.meta.env.DEV && !orbLoadWarnedElements.has(element)) {
+        console.warn(`[orbRenderer] Failed to load sprite for ${element}. Tried: ${primary}, fallback: ${fallback}`);
+        orbLoadWarnedElements.add(element);
+      }
     }
   });
 
@@ -262,7 +276,7 @@ function drawAura(ctx: CanvasRenderingContext2D, r: number, element: OrbElement,
 
 function drawOrbSprite(ctx: CanvasRenderingContext2D, r: number, element: OrbElement, state: OrbVisualState, t: number): boolean {
   const img = orbImages[element];
-  if (!img || orbLoadState[element] !== "loaded") {
+  if (!img || orbLoadState[element] !== "loaded" || !img.complete || img.naturalWidth <= 0) {
     return false;
   }
 
@@ -286,6 +300,7 @@ function drawOrbSprite(ctx: CanvasRenderingContext2D, r: number, element: OrbEle
 }
 
 function drawProceduralOrb(ctx: CanvasRenderingContext2D, r: number, style: OrbRenderStyle, t: number) {
+  ctx.save();
   const palette = paletteFromColors(style.colors);
   const gradients = getGradientSet(ctx, r, style.element, style.colors);
 
@@ -324,6 +339,7 @@ function drawProceduralOrb(ctx: CanvasRenderingContext2D, r: number, style: OrbR
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.99, 0, TAU);
   ctx.stroke();
+  ctx.restore();
 }
 
 export function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, style: OrbRenderStyle, t: number) {
@@ -347,8 +363,15 @@ export function drawOrbWithState(
   ctx.save();
   ctx.translate(x, y);
 
+  ctx.save();
   drawAura(ctx, r, style.element, t);
-  if (!drawOrbSprite(ctx, r, style.element, state, t)) {
+  ctx.restore();
+
+  ctx.save();
+  const drewSprite = drawOrbSprite(ctx, r, style.element, state, t);
+  ctx.restore();
+
+  if (!drewSprite) {
     drawProceduralOrb(ctx, r, style, t);
   }
 
