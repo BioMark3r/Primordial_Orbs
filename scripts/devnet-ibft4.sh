@@ -46,7 +46,6 @@ normalize_and_filter_forks() {
           "istanbul",
           "london",
           "eip150",
-          "eip155",
           "eip158",
           "quorumCalcAlignment",
           "txHashWithType"
