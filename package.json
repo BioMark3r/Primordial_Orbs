@@ -38,7 +38,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "globals": "^15.0.0",
+    "globals": "^17.3.0",
     "jsdom": "^28.0.0",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.0.0",
