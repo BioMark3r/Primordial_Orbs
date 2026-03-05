@@ -958,6 +958,20 @@
   color: var(--muted);
 }
 
+.valid-slot {
+  border: 2px solid rgba(120, 255, 200, 0.7) !important;
+  background: radial-gradient(circle, rgba(60, 120, 120, 0.15), transparent) !important;
+}
+
+.invalid-slot {
+  opacity: 0.4 !important;
+}
+
+.hover-slot:hover {
+  transform: scale(1.05);
+}
+
+
 .hand-empty {
   color: var(--muted);
 }

@@ -3109,7 +3109,7 @@ export default function App() {
               )}
 
               <div className="hand-scroll">
-                {displayHand.length === 0 && <div className="hand-empty">No orbs in hand.</div>}
+                {displayHand.length === 0 && <div className="hand-empty">No orbs in hand. Press DRAW to pull from the Temporal Anomaly.</div>}
                 {displayHand.map((o, i) => {
                   const isSel = selected.kind === "HAND" && selected.handIndex === i;
                   const isImpact = o.kind === "IMPACT";
@@ -3542,7 +3542,19 @@ function PlayerPanel(props: {
           const flashSlot = props.flashSlots.includes(i);
           const fxStyle = flashSlot && props.flashFx ? fxForImpact(props.flashFx) : null;
           const slotFxClass = fxStyle ? fxStyle.slotClass : "fx-slot-generic";
-          const slotClass = `${flashSlot ? "slot-flash " : ""}player-panel__slot-btn`;
+          const isEmpty = !s;
+          const canPlaceInSlot = showHint && isEmpty && !locked;
+          const canWaterSwapSlot = props.waterSwapMode && s?.kind === "TERRAFORM" && !locked;
+          const isValidSlot = clickable && (canPlaceInSlot || canWaterSwapSlot);
+          const isInvalidSlot = clickable && !isValidSlot;
+          const slotClass = [
+            flashSlot ? "slot-flash" : "",
+            "player-panel__slot-btn",
+            isValidSlot ? "valid-slot hover-slot" : "",
+            isInvalidSlot ? "invalid-slot" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
 
           return (
             <button
