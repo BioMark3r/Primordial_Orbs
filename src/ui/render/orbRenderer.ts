@@ -16,20 +16,18 @@ type OrbPalette = {
 const TAU = Math.PI * 2;
 const ORB_SPRITE_CROP_FACTOR = 0.82;
 
-const base = import.meta.env.BASE_URL;
-
 const ORB_SPRITE_PATHS: Record<OrbElement, string> = {
-  lava: `${base}assets/orbs/orb_lava.webp`,
-  ice: `${base}assets/orbs/orb_ice.webp`,
-  nature: `${base}assets/orbs/orb_nature.webp`,
-  void: `${base}assets/orbs/orb_void.webp`,
+  lava: new URL("../../../public/assets/orbs/orb_lava.webp", import.meta.url).href,
+  ice: new URL("../../../public/assets/orbs/orb_ice.webp", import.meta.url).href,
+  nature: new URL("../../../public/assets/orbs/orb_nature.webp", import.meta.url).href,
+  void: new URL("../../../public/assets/orbs/orb_void.webp", import.meta.url).href,
 };
 
 const ORB_SPRITE_FALLBACK_PATHS: Record<OrbElement, string> = {
-  lava: `${base}assets/orbs/orb_lava.png`,
-  ice: `${base}assets/orbs/orb_ice.png`,
-  nature: `${base}assets/orbs/orb_nature.png`,
-  void: `${base}assets/orbs/orb_void.png`,
+  lava: new URL("../../../public/assets/orbs/orb_lava.png", import.meta.url).href,
+  ice: new URL("../../../public/assets/orbs/orb_ice.png", import.meta.url).href,
+  nature: new URL("../../../public/assets/orbs/orb_nature.png", import.meta.url).href,
+  void: new URL("../../../public/assets/orbs/orb_void.png", import.meta.url).href,
 };
 
 const orbImages: Partial<Record<OrbElement, HTMLImageElement>> = {};

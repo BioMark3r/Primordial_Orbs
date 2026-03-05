@@ -104,7 +104,7 @@ export function ArenaView({
   }, [impactEvent]);
 
   return (
-    <div className={`arena-view${impactEvent ? " arena-view--active" : ""}`}>
+    <div className={`arena-view${impactEvent ? " arena-view--active" : ""}${bowlPulse ? " arena-impact" : ""}`}>
       <div className="arena-view__header">
         <div className={`arena-view__planet arena-view__planet--left${targetPulse === 0 ? " arena-view__planet--target-pulse" : ""}`}>
           <PlanetIcon viz={p0Viz} size={34} label="Player 1 planet" pulse={targetPulse === 0} />
