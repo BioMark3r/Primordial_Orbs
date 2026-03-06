@@ -3160,7 +3160,7 @@ export default function App() {
               )}
 
               <div className="hand-scroll">
-                {displayHand.length === 0 && <div className="hand-empty">No orbs in hand.</div>}
+                {displayHand.length === 0 && <div className="hand-empty">No orbs in hand. Press DRAW to pull from the Temporal Anomaly.</div>}
                 {displayHand.map((o, i) => {
                   const isSel = selected.kind === "HAND" && selected.handIndex === i;
                   const isImpact = o.kind === "IMPACT";

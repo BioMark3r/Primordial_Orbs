@@ -415,3 +415,14 @@
     display: none;
   }
 }
+
+
+.arena-impact .arena-view__bowl-wrap {
+  animation: arenaPulse 420ms ease-out 1;
+}
+
+@keyframes arenaPulse {
+  0% { transform: scale(0.98); opacity: 0.8; }
+  50% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
