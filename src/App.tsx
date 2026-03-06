@@ -60,7 +60,18 @@ import { createAiRunner } from "./ai/aiRunner";
 import type { AiConfig, AiPersonality } from "./ai/aiTypes";
 import { DEMO_ARENA_EVENT_V1, DEMO_FLASH_STATE_V1, DEMO_REPLAY_LOG_V1, DEMO_STATE_V1 } from "./demo/demoState";
 import { isDemoModeRequested, isScreenshotModeRequested, loadDemoStateIfRequested } from "./demo/loadDemoState";
-import { initAudioUnlock, playSfx } from "./ui/utils/sfx";
+import {
+  getAudioUnlocked,
+  initAudio,
+  playSfx,
+  setAmbientEnabled,
+  setAmbientVolume,
+  setMasterMuted,
+  setSfxEnabled,
+  setSfxVolume,
+  unlockAudio,
+} from "./audio/audioManager";
+import { createRateLimiter } from "./audio/hoverLimiter";
 import { loadSettings, saveSettings, type UserSettings } from "./ui/utils/settings";
 import {
   buildReportBundle,
@@ -376,6 +387,7 @@ export default function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<UserSettings>(() => loadSettings());
+  const [audioHint, setAudioHint] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportCode, setExportCode] = useState("");
@@ -408,6 +420,8 @@ export default function App() {
     fxImpact?: Impact;
   } | null>(null);
   const pendingDiffRef = useRef<PendingDiff>(null);
+  const hoverSfxLimiterRef = useRef(createRateLimiter(200));
+  const prevGamePhaseForSfxRef = useRef(state.phase);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialMode, setTutorialMode] = useState<GuideMode>("GUIDED");
   const [tutorialIndex, setTutorialIndex] = useState(0);
@@ -807,9 +821,9 @@ export default function App() {
   useEffect(() => {
     if (arenaEvent?.kind === "IMPACT_RESOLVED") {
       lastImpactEventRef.current = arenaEvent;
-      playSfx("impact_land", settings, { volumeMul: 1.1 });
+      playSfx("hit", { volumeMul: 1.1 });
     }
-  }, [arenaEvent, settings]);
+  }, [arenaEvent]);
 
   useEffect(() => {
     if (!placeBurst) return;
@@ -846,6 +860,9 @@ export default function App() {
       let nextPulse: { player: 0 | 1; key: string } | null = null;
       events.forEach((event) => {
         if (event.kind === "TOAST") {
+          if (event.key === "ICE_SHIELD_USED" || event.key === "PLANT_MITIGATION_USED") {
+            playSfx("shield", { volumeMul: 0.8 });
+          }
           const toastId = `${event.key}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
           pushUniqueToast(
             `turn-${state.turn}-p${event.player}-${event.key}`,
@@ -888,7 +905,7 @@ export default function App() {
     ([0, 1] as const).forEach((player) => {
       const newlyUnlocked = diffProgress(prev[player], next[player]);
       if (newlyUnlocked.length > 0) {
-        playSfx("unlock", settings);
+        playSfx("combo");
         newlyUnlocked.forEach((type) => {
           pushToast({
             id: `unlock-${player}-${type}-${now}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1040,7 +1057,6 @@ export default function App() {
           detail: validation.reason,
           at: Date.now(),
         });
-        playSfx("error", settings, { volumeMul: 0.6 });
         return false;
       }
     }
@@ -1070,13 +1086,14 @@ export default function App() {
     switch (action.type) {
       case "PLAY_TERRAFORM":
       case "PLAY_COLONIZE":
-        playSfx("orb_place", settings);
+      case "PLAY_IMPACT":
+        playSfx("orb_play");
         break;
       case "END_PLAY":
-        playSfx("end_play", settings);
+        playSfx("turn_end");
         break;
       case "ADVANCE":
-        playSfx("advance", settings);
+        playSfx("turn_end", { volumeMul: 0.85 });
         break;
       default:
         break;
@@ -1431,7 +1448,22 @@ export default function App() {
   }, [settings.reduceMotion]);
 
   useEffect(() => {
-    const unlock = () => initAudioUnlock();
+    initAudio();
+  }, []);
+
+  useEffect(() => {
+    setMasterMuted(settings.masterMuted);
+    setSfxEnabled(settings.sfxEnabled);
+    setSfxVolume(settings.sfxVolume);
+    setAmbientVolume(settings.ambientVolume);
+    setAmbientEnabled(settings.ambientEnabled);
+  }, [settings.ambientEnabled, settings.ambientVolume, settings.masterMuted, settings.sfxEnabled, settings.sfxVolume]);
+
+  useEffect(() => {
+    const unlock = () => {
+      unlockAudio();
+      setAudioHint(null);
+    };
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
     return () => {
@@ -1522,11 +1554,11 @@ export default function App() {
 
   const menuAction = useCallback(
     (action: () => void) => () => {
-      playSfx("click", settings);
+      playSfx("orb_select", { volumeMul: 0.7 });
       action();
       closeMenus();
     },
-    [closeMenus, settings]
+    [closeMenus]
   );
 
   const shortcutContext = useMemo<ShortcutContext>(
@@ -1641,6 +1673,15 @@ export default function App() {
     setPlaytestFeedbackOpen(true);
     setFeedbackPromptShown(true);
   }, [feedbackPromptShown, screen, state.phase]);
+
+  useEffect(() => {
+    const prev = prevGamePhaseForSfxRef.current;
+    if (screen === "GAME" && prev !== "GAME_OVER" && state.phase === "GAME_OVER") {
+      if (state.winner === 0) playSfx("victory", { volumeMul: 0.9 });
+      if (state.winner === 1) playSfx("defeat", { volumeMul: 0.9 });
+    }
+    prevGamePhaseForSfxRef.current = state.phase;
+  }, [screen, state.phase, state.winner]);
 
   useEffect(() => {
     if (state.phase !== "GAME_OVER") {
@@ -2274,6 +2315,7 @@ export default function App() {
       setImpactTarget("OPPONENT");
     }
     setSelected({ kind: "HAND", handIndex: i, orb });
+    playSfx("orb_select", { volumeMul: 0.8 });
   }
 
   function onClickSlot(slotIndex: number) {
@@ -2344,7 +2386,6 @@ export default function App() {
     });
     const dispatched = dispatchWithLog({ type: "PLAY_IMPACT", handIndex: selected.handIndex, target });
     if (!dispatched) return;
-    playSfx("impact_cast", settings);
     emitActionEvent({ type: "PLAY_IMPACT", at: Date.now(), player: active, impact: selected.orb.i, target });
     clearSelection();
   }
@@ -2437,8 +2478,11 @@ export default function App() {
 
   function updateSettings(next: UserSettings) {
     const normalized: UserSettings = {
-      soundEnabled: next.soundEnabled,
-      volume: Math.min(1, Math.max(0, next.volume)),
+      masterMuted: Boolean(next.masterMuted),
+      sfxEnabled: Boolean(next.sfxEnabled),
+      sfxVolume: Math.min(1, Math.max(0, next.sfxVolume)),
+      ambientEnabled: Boolean(next.ambientEnabled),
+      ambientVolume: Math.min(1, Math.max(0, next.ambientVolume)),
       reduceMotion: next.reduceMotion,
     };
     setSettings(normalized);
@@ -2871,31 +2915,73 @@ export default function App() {
                 <button type="button" onClick={() => setSettingsOpen(false)}>Close</button>
               </div>
               <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 16 }}>Audio</h3>
                 <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                  <span>Sound</span>
+                  <span>Master Mute</span>
                   <input
                     type="checkbox"
-                    checked={settings.soundEnabled}
-                    onChange={(event) => updateSettings({ ...settings, soundEnabled: event.target.checked })}
+                    checked={settings.masterMuted}
+                    onChange={(event) => updateSettings({ ...settings, masterMuted: event.target.checked })}
+                  />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span>SFX Enabled</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.sfxEnabled}
+                    onChange={(event) => updateSettings({ ...settings, sfxEnabled: event.target.checked })}
                   />
                 </label>
                 <label style={{ display: "grid", gap: 6 }}>
-                  <span>Volume: {Math.round(settings.volume * 100)}%</span>
+                  <span>SFX Volume: {Math.round(settings.sfxVolume * 100)}%</span>
                   <input
                     type="range"
                     min={0}
                     max={100}
                     step={1}
-                    disabled={!settings.soundEnabled}
-                    value={Math.round(settings.volume * 100)}
-                    onChange={(event) =>
-                      updateSettings({
-                        ...settings,
-                        volume: Number(event.target.value) / 100,
-                      })
-                    }
+                    disabled={settings.masterMuted || !settings.sfxEnabled}
+                    value={Math.round(settings.sfxVolume * 100)}
+                    onChange={(event) => updateSettings({ ...settings, sfxVolume: Number(event.target.value) / 100 })}
                   />
                 </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!getAudioUnlocked()) {
+                      setAudioHint("Audio locked — click anywhere to enable sound.");
+                      return;
+                    }
+                    playSfx("orb_select", { volumeMul: 0.8 });
+                  }}
+                >
+                  Test Sound
+                </button>
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span>Ambient Enabled</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.ambientEnabled}
+                    onChange={(event) => {
+                      if (event.target.checked && !getAudioUnlocked()) {
+                        setAudioHint("Audio locked — click anywhere to enable sound.");
+                      }
+                      updateSettings({ ...settings, ambientEnabled: event.target.checked });
+                    }}
+                  />
+                </label>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span>Ambient Volume: {Math.round(settings.ambientVolume * 100)}%</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    disabled={settings.masterMuted || !settings.ambientEnabled}
+                    value={Math.round(settings.ambientVolume * 100)}
+                    onChange={(event) => updateSettings({ ...settings, ambientVolume: Number(event.target.value) / 100 })}
+                  />
+                </label>
+                {audioHint && <div style={{ fontSize: 12, color: "#c08f2a" }}>{audioHint}</div>}
                 <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                   <span>Reduce Motion</span>
                   <input
@@ -3212,7 +3298,10 @@ export default function App() {
                       key={i}
                       className={handTokenClass}
                       onMouseEnter={() => {
-                        if (isImpact && !isDisabled) setHoveredImpactIndex(i);
+                        if (!isDisabled) {
+                          if (isImpact) setHoveredImpactIndex(i);
+                          if (hoverSfxLimiterRef.current()) playSfx("ui_hover", { volumeMul: 0.35 });
+                        }
                       }}
                       onMouseLeave={() => {
                         if (isImpact && !isDisabled) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
