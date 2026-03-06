@@ -103,6 +103,7 @@ import packageJson from "../package.json";
 type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
 type ImpactTargetChoice = "OPPONENT" | "SELF";
+type PlaceBurst = { player: 0 | 1; slotIndex: number; at: number } | null;
 export type UIEvent =
   | { kind: "IMPACT_CAST"; at: number; impact: Impact; source: 0 | 1; target: 0 | 1 }
   | { kind: "IMPACT_RESOLVED"; at: number; impact: Impact; source: 0 | 1; target: 0 | 1; affectedSlots: number[] }
@@ -398,6 +399,7 @@ export default function App() {
     selected: [],
   });
   const [uiEvents, setUiEvents] = useState<UIEvent[]>([]);
+  const [placeBurst, setPlaceBurst] = useState<PlaceBurst>(null);
   const [arenaEvent, setArenaEvent] = useState<UIEvent | null>(null);
   const [flashState, setFlashState] = useState<{
     target: 0 | 1;
@@ -808,6 +810,14 @@ export default function App() {
       playSfx("impact_land", settings, { volumeMul: 1.1 });
     }
   }, [arenaEvent, settings]);
+
+  useEffect(() => {
+    if (!placeBurst) return;
+    const timer = window.setTimeout(() => {
+      setPlaceBurst((prev) => (prev?.at === placeBurst.at ? null : prev));
+    }, 520);
+    return () => window.clearTimeout(timer);
+  }, [placeBurst]);
 
   useEffect(() => {
     if (arenaEvent?.kind === "IMPACT_RESOLVED") {
@@ -1849,6 +1859,8 @@ export default function App() {
                       style={{ padding: 8, borderRadius: 8 }}
                     >
                       <option value="EASY">Easy</option>
+                      <option value="NORMAL">Normal</option>
+                      <option value="HARD">Hard</option>
                     </select>
                   </label>
                   <label style={{ display: "grid", gap: 6 }}>
@@ -2290,7 +2302,9 @@ export default function App() {
       const dispatched = dispatchWithLog({ type: "PLAY_TERRAFORM", handIndex, slotIndex });
       if (!dispatched) return;
       emitActionEvent({ type: "PLAY_TERRAFORM", at: Date.now(), player: active, terra: orb.t });
-      pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
+      const now = Date.now();
+      pushUiEvent({ kind: "PLACE", at: now, player: active, slotIndex });
+      setPlaceBurst({ player: active, slotIndex, at: now });
       clearSelection();
       return;
     }
@@ -2298,7 +2312,9 @@ export default function App() {
       const dispatched = dispatchWithLog({ type: "PLAY_COLONIZE", handIndex, slotIndex });
       if (!dispatched) return;
       emitActionEvent({ type: "PLAY_COLONIZE", at: Date.now(), player: active, colonize: orb.c });
-      pushUiEvent({ kind: "PLACE", at: Date.now(), player: active, slotIndex });
+      const now = Date.now();
+      pushUiEvent({ kind: "PLACE", at: now, player: active, slotIndex });
+      setPlaceBurst({ player: active, slotIndex, at: now });
       clearSelection();
       return;
     }
@@ -3039,6 +3055,7 @@ export default function App() {
               showSlotAffordances={showSlotAffordances && !isPreviewMode && active === 0}
               flashSlots={active === 0 ? activeFlashSlots : otherFlashSlots}
               flashFx={active === 0 ? activeFlashFx : otherFlashFx}
+              placeBurst={placeBurst && placeBurst.player === 0 ? placeBurst : null}
               isActive={displayActive === 0}
               isCpu={playVsComputer && 0 === aiConfig.player}
               cpuPersonality={playVsComputer && 0 === aiConfig.player ? aiConfig.personality : undefined}
@@ -3103,6 +3120,7 @@ export default function App() {
               showSlotAffordances={showSlotAffordances && !isPreviewMode && active === 1}
               flashSlots={active === 1 ? activeFlashSlots : otherFlashSlots}
               flashFx={active === 1 ? activeFlashFx : otherFlashFx}
+              placeBurst={placeBurst && placeBurst.player === 1 ? placeBurst : null}
               isActive={displayActive === 1}
               isCpu={playVsComputer && 1 === aiConfig.player}
               cpuPersonality={playVsComputer && 1 === aiConfig.player ? aiConfig.personality : undefined}
@@ -3452,6 +3470,7 @@ function PlayerPanel(props: {
   showSlotAffordances: boolean;
   flashSlots: number[];
   flashFx?: Impact | null;
+  placeBurst?: PlaceBurst;
   isActive?: boolean;
   showTurnControls?: boolean;
   turnControls?: {
@@ -3604,6 +3623,7 @@ function PlayerPanel(props: {
           ]
             .filter(Boolean)
             .join(" ");
+          const slotBurst = props.placeBurst?.slotIndex === i;
 
           return (
             <button
@@ -3638,7 +3658,7 @@ function PlayerPanel(props: {
               )}
               <div className="player-panel__slot-content">
                 {s ? (
-                  <OrbToken orb={s} size="slot" selected={waterPick} disabled={locked} title={orbTooltip(s)} />
+                  <OrbToken orb={s} size="slot" selected={waterPick} disabled={locked} title={orbTooltip(s)} burst={slotBurst} />
                 ) : (
                   <span className="slot-empty" />
                 )}

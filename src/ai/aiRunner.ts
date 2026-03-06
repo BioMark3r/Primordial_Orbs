@@ -1,4 +1,4 @@
-import { chooseNextIntentEasy } from "./basicAi";
+import { chooseNextIntentByDifficulty } from "./basicAi";
 import type { AiContext } from "./aiTypes";
 import type { ActionIntent } from "../ui/utils/actionValidation";
 
@@ -48,8 +48,12 @@ export function createAiRunner(ctx: AiContext) {
         break;
       }
 
-      let intent: ActionIntent | null =
-        ctx.ai.difficulty === "EASY" ? chooseNextIntentEasy(state, ctx.ai.player, ctx.ai.personality) : null;
+      let intent: ActionIntent | null = chooseNextIntentByDifficulty(
+        state,
+        ctx.ai.player,
+        ctx.ai.personality,
+        ctx.ai.difficulty,
+      );
 
       if (intent === null) {
         if (ctx.validateIntent(state, { type: "END_PLAY" }, {

@@ -1,5 +1,6 @@
 import type { Orb } from "../../engine/types";
 import { ORB_COLORS, type OrbColorKey } from "../theme/orbColors";
+import { assetUrl } from "../utils/assetUrl";
 
 export type OrbElement = "lava" | "ice" | "nature" | "void";
 export type OrbVisualState = "idle" | "hover" | "selected";
@@ -17,17 +18,17 @@ const TAU = Math.PI * 2;
 const ORB_SPRITE_CROP_FACTOR = 0.82;
 
 const ORB_SPRITE_PATHS: Record<OrbElement, string> = {
-  lava: new URL("../../../public/assets/orbs/orb_lava.webp", import.meta.url).href,
-  ice: new URL("../../../public/assets/orbs/orb_ice.webp", import.meta.url).href,
-  nature: new URL("../../../public/assets/orbs/orb_nature.webp", import.meta.url).href,
-  void: new URL("../../../public/assets/orbs/orb_void.webp", import.meta.url).href,
+  lava: assetUrl("assets/orbs/orb_lava.webp"),
+  ice: assetUrl("assets/orbs/orb_ice.webp"),
+  nature: assetUrl("assets/orbs/orb_nature.webp"),
+  void: assetUrl("assets/orbs/orb_void.webp"),
 };
 
 const ORB_SPRITE_FALLBACK_PATHS: Record<OrbElement, string> = {
-  lava: new URL("../../../public/assets/orbs/orb_lava.png", import.meta.url).href,
-  ice: new URL("../../../public/assets/orbs/orb_ice.png", import.meta.url).href,
-  nature: new URL("../../../public/assets/orbs/orb_nature.png", import.meta.url).href,
-  void: new URL("../../../public/assets/orbs/orb_void.png", import.meta.url).href,
+  lava: assetUrl("assets/orbs/orb_lava.png"),
+  ice: assetUrl("assets/orbs/orb_ice.png"),
+  nature: assetUrl("assets/orbs/orb_nature.png"),
+  void: assetUrl("assets/orbs/orb_void.png"),
 };
 
 const orbImages: Partial<Record<OrbElement, HTMLImageElement>> = {};
