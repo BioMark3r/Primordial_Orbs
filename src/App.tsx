@@ -678,6 +678,32 @@ export default function App() {
   const canGasRedraw =
     activeHand.length > 0 && validateIntent(state, { type: "GAS_REDRAW", handIndex: 0 }, validationCtx).ok;
 
+  const legalSlotsByPlayer = useMemo(() => {
+    const computeSlots = (player: 0 | 1) => {
+      const legal = new Set<number>();
+      if (selected.kind !== "HAND") return legal;
+      if (player !== active) return legal;
+      if (selected.orb.kind === "IMPACT") return legal;
+      for (let i = 0; i < 6; i += 1) {
+        const intent =
+          selected.orb.kind === "TERRAFORM"
+            ? { type: "PLAY_TERRAFORM" as const, handIndex: selected.handIndex, slotIndex: i }
+            : { type: "PLAY_COLONIZE" as const, handIndex: selected.handIndex, slotIndex: i };
+        if (validateIntent(state, intent, validationCtx).ok) {
+          legal.add(i);
+        }
+      }
+      return legal;
+    };
+
+    return {
+      0: computeSlots(0),
+      1: computeSlots(1),
+    } as const;
+  }, [active, selected, state, validationCtx]);
+
+  const showSlotAffordances = selected.kind === "HAND" && state.phase === "PLAY";
+
   const allowAutoFocus = useMemo(() => {
     if (typeof window === "undefined") return true;
     if (typeof window.matchMedia !== "function") return true;
