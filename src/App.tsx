@@ -2438,32 +2438,6 @@ export default function App() {
   const activeFlashFx = flashState?.target === active ? flashState.fxImpact ?? null : null;
   const otherFlashFx = flashState?.target === other ? flashState.fxImpact ?? null : null;
 
-  const legalSlotsByPlayer = useMemo(() => {
-    const computeSlots = (player: 0 | 1) => {
-      const legal = new Set<number>();
-      if (selected.kind !== "HAND") return legal;
-      if (player !== active) return legal;
-      if (selected.orb.kind === "IMPACT") return legal;
-      for (let i = 0; i < 6; i += 1) {
-        const intent =
-          selected.orb.kind === "TERRAFORM"
-            ? { type: "PLAY_TERRAFORM" as const, handIndex: selected.handIndex, slotIndex: i }
-            : { type: "PLAY_COLONIZE" as const, handIndex: selected.handIndex, slotIndex: i };
-        if (validateIntent(state, intent, validationCtx).ok) {
-          legal.add(i);
-        }
-      }
-      return legal;
-    };
-
-    return {
-      0: computeSlots(0),
-      1: computeSlots(1),
-    } as const;
-  }, [active, selected, state, validationCtx]);
-
-  const showSlotAffordances = selected.kind === "HAND" && state.phase === "PLAY";
-
   const backendStatusLabel = !isSupabaseConfigured
     ? "Backend: Supabase env missing"
     : (backendStatus === "connected" ? "Backend: Supabase online" : `Backend: ${backendStatus}`);
