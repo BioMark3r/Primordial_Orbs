@@ -65,5 +65,15 @@ for (const viewport of viewports) {
       await expect(page.getByTestId("player-panel-1")).toHaveScreenshot(`player-panel-1-${viewport.width}.png`);
       await expect(page.getByTestId("screen-game")).toHaveScreenshot(`screen-game-${viewport.width}.png`);
     });
+
+    test("renders element sprite assets (no generic orb sprite)", async ({ page }) => {
+      await gotoStableDemo(page);
+
+      const firstOrbSprite = page.locator('.orb__sprite').first();
+      await expect(firstOrbSprite).toBeVisible();
+      const src = await firstOrbSprite.getAttribute("src");
+      expect(src ?? "", `Unexpected orb sprite src: ${src}`).toMatch(/orb_(lava|ice|nature|void)\.(webp|png)/);
+      expect(src ?? "").not.toContain("generic");
+    });
   });
 }

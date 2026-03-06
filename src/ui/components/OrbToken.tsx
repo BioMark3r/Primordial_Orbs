@@ -2,6 +2,7 @@ import React from "react";
 import type { Orb } from "../../engine/types";
 import { getOrbSymbol } from "../icons/orbSymbols";
 import { ORB_COLORS, type OrbColor, type OrbColorKey } from "../theme/orbColors";
+import { assetUrl } from "../utils/assetUrl";
 
 type Size = "sm" | "md" | "lg" | "slot";
 
@@ -12,6 +13,16 @@ const FALLBACK_COLORS: OrbColor = {
   lo: "#111827",
   etch: "rgba(255,255,255,0.22)",
 };
+
+const ELEMENT_SPRITE_PATHS = {
+  lava: "assets/orbs/orb_lava.webp",
+  ice: "assets/orbs/orb_ice.webp",
+  nature: "assets/orbs/orb_nature.webp",
+  void: "assets/orbs/orb_void.webp",
+} as const;
+
+const SAFE_FALLBACK_SPRITE = assetUrl("assets/orbs/orb_nature.png");
+const warnedUnknownElements = new Set<string>();
 
 function colorKeyForOrb(orb: Orb): string {
   if (orb.kind === "TERRAFORM") return `TERRAFORM_${orb.t}`;
@@ -41,6 +52,17 @@ function elementForOrb(orb: Orb): "lava" | "ice" | "nature" | "void" {
   return "nature";
 }
 
+function spriteUrlForElement(element: string): string {
+  const spritePath = ELEMENT_SPRITE_PATHS[element as keyof typeof ELEMENT_SPRITE_PATHS];
+  if (spritePath) return assetUrl(spritePath);
+
+  if (import.meta.env.DEV && !warnedUnknownElements.has(element)) {
+    console.warn(`[OrbToken] Unknown orb element "${element}". Falling back to safe sprite.`);
+    warnedUnknownElements.add(element);
+  }
+  return SAFE_FALLBACK_SPRITE;
+}
+
 export function OrbToken(props: {
   orb: Orb;
   size?: Size;
@@ -48,6 +70,7 @@ export function OrbToken(props: {
   disabled?: boolean;
   disabledReason?: string;
   actionable?: boolean;
+  burst?: boolean;
   title?: string;
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
@@ -57,12 +80,14 @@ export function OrbToken(props: {
   const colors = ORB_COLORS[orbKey as OrbColorKey] ?? FALLBACK_COLORS;
   const categoryClass = categoryForOrb(props.orb);
   const elementClass = elementForOrb(props.orb);
+  const spriteUrl = spriteUrlForElement(elementClass);
 
   const cls = [
     "orb",
     "orb--shimmerable",
     `orb--${categoryClass}`,
     `orb--element-${elementClass}`,
+    props.burst ? "orb--burst" : "",
     props.selected ? "orb--selected" : "",
     props.disabled ? "orb--disabled" : "",
     props.actionable ? "orb--actionable" : "",
@@ -101,6 +126,7 @@ export function OrbToken(props: {
         disabled={isDisabled && !props.disabledReason}
         aria-disabled={isDisabled || undefined}
       >
+        <img src={spriteUrl} alt={`${elementClass} orb`} className="orb__sprite" loading="lazy" />
         <div className="orb__shell" aria-hidden="true" />
         <div className="orb__spec" aria-hidden="true" />
         <div className={`orb__ring orb__ring--${categoryClass}`} aria-hidden="true" />
@@ -113,6 +139,7 @@ export function OrbToken(props: {
 
   return (
     <div {...sharedProps} aria-disabled={props.disabled || undefined}>
+      <img src={spriteUrl} alt={`${elementClass} orb`} className="orb__sprite" loading="lazy" />
       <div className="orb__shell" aria-hidden="true" />
       <div className="orb__spec" aria-hidden="true" />
       <div className={`orb__ring orb__ring--${categoryClass}`} aria-hidden="true" />

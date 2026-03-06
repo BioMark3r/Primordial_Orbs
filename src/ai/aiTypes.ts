@@ -1,7 +1,7 @@
 import type { GameState } from "../engine/types";
 import { type ActionIntent, validateIntent } from "../ui/utils/actionValidation";
 
-export type AiDifficulty = "EASY";
+export type AiDifficulty = "EASY" | "NORMAL" | "HARD";
 
 export type AiPersonality = "BALANCED" | "BUILDER" | "AGGRESSIVE";
 
