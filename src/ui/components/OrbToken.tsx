@@ -25,15 +25,14 @@ function categoryForOrb(orb: Orb): "terraform" | "colonize" | "impact" {
   return "impact";
 }
 
-function elementClassForOrb(orb: Orb): "lava" | "ice" | "nature" | "void" {
+function elementForOrb(orb: Orb): "lava" | "ice" | "nature" | "void" {
   if (orb.kind === "TERRAFORM") {
     if (orb.t === "LAVA") return "lava";
     if (orb.t === "ICE") return "ice";
-    if (orb.t === "GAS") return "void";
     return "nature";
   }
   if (orb.kind === "COLONIZE") {
-    if (orb.c === "HIGH_TECH" || orb.c === "SENTIENT") return "void";
+    if (orb.c === "HIGH_TECH") return "void";
     return "nature";
   }
   if (orb.i === "BLACK_HOLE" || orb.i === "TEMPORAL_VORTEX") return "void";
@@ -57,13 +56,13 @@ export function OrbToken(props: {
   const orbKey = colorKeyForOrb(props.orb);
   const colors = ORB_COLORS[orbKey as OrbColorKey] ?? FALLBACK_COLORS;
   const categoryClass = categoryForOrb(props.orb);
-  const elementClass = elementClassForOrb(props.orb);
+  const elementClass = elementForOrb(props.orb);
 
   const cls = [
     "orb",
     "orb--shimmerable",
     `orb--${categoryClass}`,
-    `orb-${elementClass}`,
+    `orb--element-${elementClass}`,
     props.selected ? "orb--selected" : "",
     props.disabled ? "orb--disabled" : "",
     props.actionable ? "orb--actionable" : "",

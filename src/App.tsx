@@ -651,6 +651,25 @@ export default function App() {
       { type: "PLAY_IMPACT", handIndex: selected.handIndex, target: impactTarget === "SELF" ? active : other },
       validationCtx,
     ).ok;
+
+  const actionBannerText = useMemo(() => {
+    if (arenaEvent?.kind === "IMPACT_CAST" || arenaEvent?.kind === "IMPACT_RESOLVED") {
+      return "RESOLVING…";
+    }
+    if (state.phase === "DRAW") {
+      return "DRAW PHASE — Press Draw to pull from Temporal Anomaly";
+    }
+    if (selected.kind === "HAND" && selected.orb.kind === "IMPACT" && state.phase === "PLAY") {
+      return "TARGETING — Choose a target";
+    }
+    if (state.phase === "PLAY") {
+      return "PLAY PHASE — Select an orb, then choose a slot";
+    }
+    if (state.phase === "RESOLVE") {
+      return "RESOLVING…";
+    }
+    return "PLAY PHASE — Select an orb, then choose a slot";
+  }, [arenaEvent, selected, state.phase]);
   const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
   const canUndo = validationCtx.hasUndoHistory ?? false;
 
@@ -2393,6 +2412,32 @@ export default function App() {
   const activeFlashFx = flashState?.target === active ? flashState.fxImpact ?? null : null;
   const otherFlashFx = flashState?.target === other ? flashState.fxImpact ?? null : null;
 
+  const legalSlotsByPlayer = useMemo(() => {
+    const computeSlots = (player: 0 | 1) => {
+      const legal = new Set<number>();
+      if (selected.kind !== "HAND") return legal;
+      if (player !== active) return legal;
+      if (selected.orb.kind === "IMPACT") return legal;
+      for (let i = 0; i < 6; i += 1) {
+        const intent =
+          selected.orb.kind === "TERRAFORM"
+            ? { type: "PLAY_TERRAFORM" as const, handIndex: selected.handIndex, slotIndex: i }
+            : { type: "PLAY_COLONIZE" as const, handIndex: selected.handIndex, slotIndex: i };
+        if (validateIntent(state, intent, validationCtx).ok) {
+          legal.add(i);
+        }
+      }
+      return legal;
+    };
+
+    return {
+      0: computeSlots(0),
+      1: computeSlots(1),
+    } as const;
+  }, [active, selected, state, validationCtx]);
+
+  const showSlotAffordances = selected.kind === "HAND" && state.phase === "PLAY";
+
   const backendStatusLabel = !isSupabaseConfigured
     ? "Backend: Supabase env missing"
     : (backendStatus === "connected" ? "Backend: Supabase online" : `Backend: ${backendStatus}`);
@@ -2968,6 +3013,8 @@ export default function App() {
                 isActionDisabled={(hint) => hint.actionLabel === "Draw" && !canDraw}
               />
 
+              <div className="action-banner" role="status" aria-live="polite">{actionBannerText}</div>
+
               <div className="game-arena-row">
             <PlayerPanel
               title="Player 1"
@@ -2988,6 +3035,8 @@ export default function App() {
               selected={!isPreviewMode && active === 0 ? selected : { kind: "NONE" }}
               waterSwapPick={!isPreviewMode && active === 0 ? waterSwapPick : null}
               waterSwapMode={!isPreviewMode && active === 0 && canWaterSwap && selected.kind === "NONE"}
+              legalSlots={legalSlotsByPlayer[0]}
+              showSlotAffordances={showSlotAffordances && !isPreviewMode && active === 0}
               flashSlots={active === 0 ? activeFlashSlots : otherFlashSlots}
               flashFx={active === 0 ? activeFlashFx : otherFlashFx}
               isActive={displayActive === 0}
@@ -3050,6 +3099,8 @@ export default function App() {
               selected={!isPreviewMode && active === 1 ? selected : { kind: "NONE" }}
               waterSwapPick={!isPreviewMode && active === 1 ? waterSwapPick : null}
               waterSwapMode={!isPreviewMode && active === 1 && canWaterSwap && selected.kind === "NONE"}
+              legalSlots={legalSlotsByPlayer[1]}
+              showSlotAffordances={showSlotAffordances && !isPreviewMode && active === 1}
               flashSlots={active === 1 ? activeFlashSlots : otherFlashSlots}
               flashFx={active === 1 ? activeFlashFx : otherFlashFx}
               isActive={displayActive === 1}
@@ -3397,6 +3448,8 @@ function PlayerPanel(props: {
   selected: Selected;
   waterSwapMode: boolean;
   waterSwapPick: number | null;
+  legalSlots: Set<number>;
+  showSlotAffordances: boolean;
   flashSlots: number[];
   flashFx?: Impact | null;
   isActive?: boolean;
@@ -3542,16 +3595,12 @@ function PlayerPanel(props: {
           const flashSlot = props.flashSlots.includes(i);
           const fxStyle = flashSlot && props.flashFx ? fxForImpact(props.flashFx) : null;
           const slotFxClass = fxStyle ? fxStyle.slotClass : "fx-slot-generic";
-          const isEmpty = !s;
-          const canPlaceInSlot = showHint && isEmpty && !locked;
-          const canWaterSwapSlot = props.waterSwapMode && s?.kind === "TERRAFORM" && !locked;
-          const isValidSlot = clickable && (canPlaceInSlot || canWaterSwapSlot);
-          const isInvalidSlot = clickable && !isValidSlot;
+          const isLegalSlot = props.legalSlots.has(i);
+          const showLegality = props.showSlotAffordances && !locked;
           const slotClass = [
-            flashSlot ? "slot-flash" : "",
             "player-panel__slot-btn",
-            isValidSlot ? "valid-slot hover-slot" : "",
-            isInvalidSlot ? "invalid-slot" : "",
+            flashSlot ? "slot-flash" : "",
+            showLegality ? (isLegalSlot ? "player-panel__slot-btn--valid" : "player-panel__slot-btn--invalid") : "",
           ]
             .filter(Boolean)
             .join(" ");
@@ -3566,7 +3615,7 @@ function PlayerPanel(props: {
                 border: waterPick ? "2px solid rgba(140,170,255,0.6)" : "1px solid rgba(255,255,255,0.18)",
                 textAlign: "center",
                 cursor: clickable ? "pointer" : "default",
-                opacity: clickable ? 1 : 0.92,
+                opacity: clickable ? undefined : 0.92,
                 background: "rgba(10,14,24,0.5)",
                 color: "#EDEFF6",
               }}
