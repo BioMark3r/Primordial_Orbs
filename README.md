@@ -177,9 +177,24 @@ AI is simple and deterministic, designed for playtesting.
 
 ---
 
-## 🔊 Audio (Planned)
+## 🔊 Audio
 
-Hooks exist, assets not yet included.
+The app now includes a lightweight browser `Audio` manager with separate SFX and ambient controls. This PR intentionally does **not** commit any audio binaries.
+
+Drop files here when ready:
+
+- `public/audio/sfx/ui_hover.ogg`
+- `public/audio/sfx/orb_select.ogg`
+- `public/audio/sfx/orb_play.ogg`
+- `public/audio/sfx/hit.ogg`
+- `public/audio/sfx/shield.ogg`
+- `public/audio/sfx/combo.ogg`
+- `public/audio/sfx/turn_end.ogg`
+- `public/audio/sfx/victory.ogg`
+- `public/audio/sfx/defeat.ogg`
+- `public/audio/ambient/space_loop.ogg`
+
+If files are missing, the game logs a one-time warning and continues without crashing.
 
 ---
 
