@@ -541,6 +541,7 @@ export default function App() {
   const isMobileLayout = responsiveLayout.isMobile || (responsiveLayout.isTablet && responsiveLayout.isCoarsePointer);
   const isTabletLayout = responsiveLayout.isTablet && !isMobileLayout;
   const [mobileSecondarySection, setMobileSecondarySection] = useState<MobileSecondarySection>("players");
+  const [setupAdvancedOpen, setSetupAdvancedOpen] = useState(false);
 
   useEffect(() => {
     if (!demoState) return;
@@ -1789,18 +1790,19 @@ export default function App() {
   }
 
   if (screen === "SETUP") {
+    const isPhoneSetup = responsiveLayout.isMobile;
     return (
-      <div data-testid="screen-setup" style={containerStyle}>
+      <div data-testid="screen-setup" style={containerStyle} className="setup-screen">
         <div className="game-inspector__header">
           <h2 style={{ margin: 0 }}>Setup</h2>
           <button onClick={() => setScreen("SPLASH")}>Back</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 12 }}>
-          <div style={{ border: "1px solid #bbb", borderRadius: 14, padding: 14 }}>
+        <div className="setup-layout">
+          <div className="setup-card">
             <h3 style={{ marginTop: 0 }}>Choose Cores</h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="setup-cores-grid">
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Player 1 Core</div>
                 <select
@@ -1835,14 +1837,16 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ border: "1px solid #bbb", borderRadius: 14, padding: 14 }}>
+          <div className="setup-card">
             <h3 style={{ marginTop: 0 }}>Match Settings</h3>
-            <div style={{ marginTop: 6 }}>
-              <div><b>Mode:</b> Local Game</div>
-              <div style={{ marginTop: 6 }}><b>Planet Size:</b> Medium (fixed)</div>
-              <div style={{ marginTop: 6 }}><b>Win:</b> 4 Colonization types</div>
-              <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap 3 • Play 2 • Impact 1</div>
-            </div>
+            {!isPhoneSetup && (
+              <div className="setup-overview" style={{ marginTop: 6 }}>
+                <div><b>Mode:</b> Local Game</div>
+                <div style={{ marginTop: 6 }}><b>Planet Size:</b> Medium (fixed)</div>
+                <div style={{ marginTop: 6 }}><b>Win:</b> 4 Colonization types</div>
+                <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap 3 • Play 2 • Impact 1</div>
+              </div>
+            )}
 
             <div style={{ marginTop: 14 }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>Seed (for reproducible games)</div>
@@ -1867,7 +1871,7 @@ export default function App() {
               </div>
             </div>
 
-            <div style={{ marginTop: 14, padding: 10, border: "1px solid #cfd8ea", borderRadius: 10 }}>
+            <div className="setup-profile-box" style={{ marginTop: 14 }}>
               <div style={{ display: "grid", gap: 10, marginBottom: 10 }}>
                 <ProfilePicker
                   label="Player 1 Profile"
@@ -1904,7 +1908,7 @@ export default function App() {
                 <span style={{ fontWeight: 700 }}>Play vs Computer</span>
               </label>
               {playVsComputer && (
-                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div className="setup-ai-grid" style={{ marginTop: 10 }}>
                   <label style={{ display: "grid", gap: 6 }}>
                     <span style={{ fontWeight: 600 }}>Difficulty</span>
                     <select
@@ -1944,52 +1948,98 @@ export default function App() {
               )}
             </div>
 
-            <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {isPhoneSetup && (
+              <details className="setup-advanced" open={setupAdvancedOpen} onToggle={(e) => setSetupAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)}>
+                <summary>Advanced Options</summary>
+                <div className="setup-advanced__content">
+                  <div className="setup-overview">
+                    <div><b>Mode:</b> Local Game</div>
+                    <div style={{ marginTop: 6 }}><b>Planet Size:</b> Medium (fixed)</div>
+                    <div style={{ marginTop: 6 }}><b>Win:</b> 4 Colonization types</div>
+                    <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap 3 • Play 2 • Impact 1</div>
+                  </div>
+                  <div className="setup-secondary-actions">
+                    <button type="button" onClick={() => { void handleCopySetupLink(); }} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                      Copy Setup Link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleCopySetupLink({ autostart: true });
+                      }}
+                      style={{ padding: "10px 14px", borderRadius: 10 }}
+                    >
+                      Copy Auto-Start Link
+                    </button>
+                    <button
+                      onClick={() => { setP0Core(p1Core); setP1Core(p0Core); }}
+                      style={{ padding: "10px 14px", borderRadius: 10 }}
+                    >
+                      Swap Cores
+                    </button>
+                    <button onClick={() => setShowHowTo(true)} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                      How to Play
+                    </button>
+                    <button type="button" onClick={openRulebook} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                      Read the full rulebook
+                    </button>
+                  </div>
+                </div>
+              </details>
+            )}
+
+            <div className="setup-primary-actions" style={{ marginTop: 18 }}>
+              <button data-testid="start-game" disabled={!canStartConfigured} onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Start Game
+              </button>
               <button type="button" onClick={handleQuickMatchHotseat} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Quick Match (Hotseat)
               </button>
               <button type="button" onClick={handleQuickMatchVsCpu} style={{ padding: "10px 14px", borderRadius: 10 }}>
                 Quick Match vs CPU
               </button>
-              <button data-testid="start-game" disabled={!canStartConfigured} onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Start Game
-              </button>
-              <button type="button" onClick={() => { void handleCopySetupLink(); }} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Copy Setup Link
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleCopySetupLink({ autostart: true });
-                }}
-                style={{ padding: "10px 14px", borderRadius: 10 }}
-              >
-                Copy Auto-Start Link
-              </button>
-              <button
-                onClick={() => { setP0Core(p1Core); setP1Core(p0Core); }}
-                style={{ padding: "10px 14px", borderRadius: 10 }}
-              >
-                Swap Cores
-              </button>
-              <button onClick={() => setShowHowTo(true)} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                How to Play
-              </button>
             </div>
+            {!isPhoneSetup && (
+              <>
+                <div className="setup-secondary-actions" style={{ marginTop: 10 }}>
+                  <button type="button" onClick={() => { void handleCopySetupLink(); }} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                    Copy Setup Link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleCopySetupLink({ autostart: true });
+                    }}
+                    style={{ padding: "10px 14px", borderRadius: 10 }}
+                  >
+                    Copy Auto-Start Link
+                  </button>
+                  <button
+                    onClick={() => { setP0Core(p1Core); setP1Core(p0Core); }}
+                    style={{ padding: "10px 14px", borderRadius: 10 }}
+                  >
+                    Swap Cores
+                  </button>
+                  <button onClick={() => setShowHowTo(true)} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                    How to Play
+                  </button>
+                </div>
+                <div style={{ marginTop: 10, fontSize: 12 }}>
+                  <button
+                    type="button"
+                    onClick={openRulebook}
+                    style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
+                  >
+                    Read the full rulebook
+                  </button>
+                </div>
+              </>
+            )}
             {!canStartConfigured && (
               <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>
                 Select required player profiles before starting.
               </div>
             )}
-            <div style={{ marginTop: 10, fontSize: 12 }}>
-              <button
-                type="button"
-                onClick={openRulebook}
-                style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
-              >
-                Read the full rulebook
-              </button>
-            </div>
           </div>
         </div>
         {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}

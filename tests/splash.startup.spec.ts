@@ -24,6 +24,39 @@ for (const viewport of viewports) {
     });
 
 
+    test("setup screen remains scrollable and start game is reachable on mobile", async ({ page }) => {
+      if (viewport.name !== "mobile" && viewport.name !== "small-mobile") {
+        test.skip();
+      }
+
+      await page.goto("/", { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: "Continue as Guest" }).click();
+      const setupScreen = page.getByTestId("screen-setup");
+      const startButton = page.getByTestId("start-game");
+      await expect(setupScreen).toBeVisible();
+
+      const overflowState = await page.evaluate(() => ({
+        hasVerticalOverflow: document.documentElement.scrollHeight > window.innerHeight,
+        hasHorizontalOverflow:
+          document.documentElement.scrollWidth > window.innerWidth || document.body.scrollWidth > window.innerWidth,
+      }));
+      expect(overflowState.hasHorizontalOverflow).toBe(false);
+
+      await startButton.scrollIntoViewIfNeeded();
+      await expect(startButton).toBeVisible();
+      await expect(startButton).toBeInViewport();
+
+      if (overflowState.hasVerticalOverflow) {
+        const scrollTopAfter = await page.evaluate(() => {
+          const root = document.scrollingElement ?? document.documentElement;
+          const baseline = root.scrollTop;
+          root.scrollTop = baseline + 220;
+          return root.scrollTop;
+        });
+        expect(scrollTopAfter).toBeGreaterThan(0);
+      }
+    });
+
     test("mobile gameplay layout stays in-bounds after splash", async ({ page }) => {
       if (viewport.name !== "mobile" && viewport.name !== "small-mobile") {
         test.skip();
