@@ -2509,10 +2509,13 @@ export default function App() {
   const topbarTitle = "Primordial Orbs";
   const gameOverLabel =
     state.phase === "GAME_OVER" ? `Winner: Player ${String((state.winner ?? 0) + 1)}` : null;
-  const mobileCoreSpecial = `Core: ${state.players[active].planet.core}`;
+  const mobileCoreSpecial = state.players[active].planet.core;
   const mobileStatusSummary = state.phase === "PLAY"
     ? `${playsRemaining} plays • ${impactsRemaining} impacts`
     : `Phase: ${state.phase}`;
+  const mobileCriticalStatus = !abilitiesEnabled(state, active)
+    ? "Abilities disabled"
+    : (state.phase === "GAME_OVER" ? gameOverLabel : null);
 
   const activeFlashSlots = flashState?.target === active ? flashState.slots : [];
   const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
@@ -2560,15 +2563,16 @@ export default function App() {
                 <div className="game-mobile-topbar__chips">
                   <span className="game-status-pill ui-chip">Turn {state.turn}</span>
                   <span className="game-status-pill ui-chip">P{active + 1} Active</span>
-                  <span className="game-status-pill ui-chip">{mobileCoreSpecial}</span>
+                  <span className="game-status-pill ui-chip">{mobileCoreSpecial} Core</span>
                   <span className="game-status-pill ui-chip">{mobileStatusSummary}</span>
+                  {mobileCriticalStatus && <span className="game-status-pill ui-chip ui-chip--warn">{mobileCriticalStatus}</span>}
                 </div>
               </div>
               <div className="game-mobile-toolbar" data-testid="mobile-toolbar">
-                <button type="button" className={`ui-btn ${mobileSecondarySection === "players" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("players")}>Players</button>
-                <button type="button" className={`ui-btn ${mobileSecondarySection === "history" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("history")} aria-expanded={mobileSecondarySection === "history"} aria-controls="turn-history-panel">History</button>
-                <button type="button" className={`ui-btn ${mobileSecondarySection === "piles" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("piles")}>Piles</button>
-                <button type="button" className={`ui-btn ${mobileSecondarySection === "inspect" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("inspect")}>Inspect</button>
+                <button type="button" className={`ui-btn ${mobileSecondarySection === "players" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("players")} aria-pressed={mobileSecondarySection === "players"}>Players</button>
+                <button type="button" className={`ui-btn ${mobileSecondarySection === "history" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("history")} aria-pressed={mobileSecondarySection === "history"} aria-expanded={mobileSecondarySection === "history"} aria-controls="turn-history-panel">History</button>
+                <button type="button" className={`ui-btn ${mobileSecondarySection === "piles" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("piles")} aria-pressed={mobileSecondarySection === "piles"}>Piles</button>
+                <button type="button" className={`ui-btn ${mobileSecondarySection === "inspect" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("inspect")} aria-pressed={mobileSecondarySection === "inspect"}>Inspect</button>
               </div>
             </>
           )}
@@ -3415,12 +3419,12 @@ export default function App() {
                   <h3>Players</h3>
                   <div className="mobile-player-summary-grid">
                     <div className={`mobile-player-summary${displayActive === 0 ? " mobile-player-summary--active" : ""}`}>
-                      <div>Player 1</div>
+                      <div className="mobile-player-summary__title">Player 1</div>
                       <div>Life: {displayedP0Viz.life}</div>
                       <div>{displayActive === 0 ? "Active" : "Waiting"}</div>
                     </div>
                     <div className={`mobile-player-summary${displayActive === 1 ? " mobile-player-summary--active" : ""}`}>
-                      <div>Player 2</div>
+                      <div className="mobile-player-summary__title">Player 2</div>
                       <div>Life: {displayedP1Viz.life}</div>
                       <div>{displayActive === 1 ? "Active" : "Waiting"}</div>
                     </div>
@@ -3446,18 +3450,21 @@ export default function App() {
                 <div className="mobile-secondary-card ui-panel" data-testid="mobile-piles-panel">
                   <h3>Piles</h3>
                   <div className="mobile-piles-grid">
-                    <div className="mobile-pile-item"><span>Temporal Anomaly</span><b>{displayedState.bag.length}</b></div>
-                    <div className="mobile-pile-item"><span>Discard Pile</span><b>{displayedState.discard.length}</b></div>
+                    <div className="mobile-pile-item"><span>Anomaly</span><b>{displayedState.bag.length}</b></div>
+                    <div className="mobile-pile-item"><span>Discard</span><b>{displayedState.discard.length}</b></div>
                   </div>
                 </div>
               )}
               {mobileSecondarySection === "inspect" && (
                 <div className="mobile-secondary-card ui-panel" data-testid="mobile-inspect-panel">
                   <h3>Inspect</h3>
+                  <div className="mobile-inspect-status" data-testid="mobile-inspect-status">
+                    {hoveredImpactPreview ? `Selected: ${hoveredImpactPreview.impact}` : "Tap an impact orb to preview."}
+                  </div>
                   {hoveredImpactPreview ? (
                     <ImpactPreviewPanel preview={hoveredImpactPreview} compact />
                   ) : (
-                    <p className="historyOrbDetails__empty">Tap an impact orb in your hand to inspect details.</p>
+                    <p className="historyOrbDetails__empty">Select an impact from hand to view details here.</p>
                   )}
                 </div>
               )}
