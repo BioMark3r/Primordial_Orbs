@@ -1520,6 +1520,10 @@
   padding: 8px 10px;
 }
 
+.game-arena-center {
+  min-width: 0;
+}
+
 
 .game-topbar [data-desktop-only="false"] {
   display: none;
@@ -1527,10 +1531,12 @@
 
 .mobile-secondary-panel {
   margin-top: var(--s2);
+  min-width: 0;
 }
 
 .mobile-secondary-card {
   padding: var(--s2);
+  min-width: 0;
 }
 
 .mobile-player-summary-grid {
@@ -1591,14 +1597,23 @@
 }
 
 @media (max-width: 640px) {
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   .game-shell {
     padding: var(--s1);
     gap: var(--s1);
+    overflow-x: hidden;
   }
 
   .game-topbar {
     padding: var(--s1);
     min-height: auto;
+    overflow: hidden;
   }
 
   .game-layout {
@@ -1620,12 +1635,16 @@
     gap: var(--s1);
   }
 
-  .game-arena-row .player-panel--active {
+  .game-arena-center {
     order: 1;
   }
 
-  .game-arena-row .player-panel--inactive {
+  .game-arena-row .player-panel--active {
     order: 2;
+  }
+
+  .game-arena-row .player-panel--inactive {
+    order: 3;
   }
 
   .player-panel {
@@ -1647,7 +1666,7 @@
   }
 
   .player-panel__slot-btn {
-    min-height: 90px;
+    min-height: 78px;
   }
 
   .player-panel__slot-label,
@@ -1666,7 +1685,7 @@
   }
 
   .hand-token {
-    min-width: 76px;
+    min-width: 68px;
   }
 
   .game-bottom-row {
@@ -1677,6 +1696,7 @@
   .actionsLeft,
   .actionsRight {
     width: 100%;
+    min-width: 0;
   }
 
   .actionsLeft {
@@ -1699,6 +1719,10 @@
     margin-left: 0;
   }
 
+  .statChip {
+    white-space: normal;
+  }
+
   .turn-nudge-text {
     position: static;
     grid-column: 1 / -1;
@@ -1710,6 +1734,7 @@
   #turn-history-panel {
     max-width: 100%;
     min-width: 0;
+    overflow-x: hidden;
   }
 
   .mobile-pile-item,

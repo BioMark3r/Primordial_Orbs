@@ -80,6 +80,9 @@ for (const viewport of viewports) {
       expect(supportingRect.y).toBeGreaterThanOrEqual(boardRect.y - 1);
 
       if (viewport.name === "mobile" || viewport.name === "small-mobile") {
+        const mobilePanelCount = await page.locator('[data-testid="player-panel-0"], [data-testid="player-panel-1"]').count();
+        expect(mobilePanelCount).toBe(1);
+
         await page.getByRole("button", { name: "History" }).click();
         const historyPanel = page.getByTestId("turn-history-panel");
         await expect(historyPanel).toBeVisible();
