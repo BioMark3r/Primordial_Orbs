@@ -1174,7 +1174,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (shareCfgAppliedRef.current || demoState) return;
+    if (shareCfgAppliedRef.current || demoState || screen === "SPLASH") return;
     shareCfgAppliedRef.current = true;
     const params = new URLSearchParams(window.location.search);
     const encodedCfg = params.get("cfg");
@@ -1196,7 +1196,7 @@ export default function App() {
       return;
     }
     setScreen("SETUP");
-  }, [demoState]);
+  }, [demoState, screen]);
 
   async function copyTextToClipboard(text: string): Promise<boolean> {
     try {
