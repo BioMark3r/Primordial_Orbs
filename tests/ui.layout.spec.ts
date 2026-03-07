@@ -5,6 +5,7 @@ const viewports = [
   { name: "desktop", width: 1365, height: 768 },
   { name: "tablet", width: 768, height: 1024 },
   { name: "mobile", width: 390, height: 844 },
+  { name: "small-mobile", width: 375, height: 667 },
 ] as const;
 
 async function gotoStableDemo(page: Page) {
@@ -78,7 +79,7 @@ for (const viewport of viewports) {
       expect(boardRect.y).toBeGreaterThanOrEqual(statusRect.y - 1);
       expect(supportingRect.y).toBeGreaterThanOrEqual(boardRect.y - 1);
 
-      if (viewport.name === "mobile") {
+      if (viewport.name === "mobile" || viewport.name === "small-mobile") {
         await page.getByRole("button", { name: "History" }).click();
         const historyPanel = page.getByTestId("turn-history-panel");
         await expect(historyPanel).toBeVisible();
@@ -92,7 +93,7 @@ for (const viewport of viewports) {
     test("mobile secondary sections are toggleable", async ({ page }) => {
       await gotoStableDemo(page);
 
-      if (viewport.name !== "mobile") {
+      if (viewport.name !== "mobile" && viewport.name !== "small-mobile") {
         test.skip();
       }
 
@@ -112,7 +113,7 @@ for (const viewport of viewports) {
     test("impact inspect works without hover on mobile", async ({ page }) => {
       await gotoStableDemo(page);
 
-      if (viewport.name !== "mobile") {
+      if (viewport.name !== "mobile" && viewport.name !== "small-mobile") {
         test.skip();
       }
 
