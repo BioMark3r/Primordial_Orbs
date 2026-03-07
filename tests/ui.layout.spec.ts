@@ -8,6 +8,15 @@ const viewports = [
   { name: "small-mobile", width: 375, height: 667 },
 ] as const;
 
+async function gotoFromSplashToGame(page: Page) {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.getByTestId("screen-splash")).toBeVisible();
+  await page.getByRole("button", { name: "Continue as Guest" }).click();
+  await expect(page.getByTestId("screen-setup")).toBeVisible();
+  await page.getByTestId("start-game").click();
+  await expect(page.getByTestId("screen-game")).toBeVisible();
+}
+
 async function gotoStableDemo(page: Page) {
   await page.goto("/?demo=1&shots=1", { waitUntil: "networkidle" });
   await page.addStyleTag({
@@ -128,6 +137,48 @@ for (const viewport of viewports) {
       await expect(impactHint).toBeVisible();
       await impactHint.locator('xpath=..').click();
       await expect(inspectPanel.getByText("Impact Preview")).toBeVisible();
+    });
+
+    test("mobile inspect panel reflects tapped impact selection", async ({ page }) => {
+      if (viewport.name !== "mobile" && viewport.name !== "small-mobile") {
+        test.skip();
+      }
+
+      await gotoStableDemo(page);
+
+      await page.getByRole("button", { name: "Inspect" }).click();
+      const inspectPanel = page.getByTestId("mobile-inspect-panel");
+      await expect(inspectPanel).toBeVisible();
+      await expect(page.getByTestId("mobile-inspect-status")).toContainText("Tap an impact orb");
+
+      const impactToken = page.locator('[data-testid="hand-panel"] .hand-token').filter({ has: page.locator('.hand-impact-hint') }).first();
+      await expect(impactToken).toBeVisible();
+      await impactToken.click();
+
+      await expect(page.getByTestId("mobile-inspect-status")).toContainText("Selected:");
+      await expect(inspectPanel.getByText("Impact Preview")).toBeVisible();
+    });
+
+    test("desktop still renders dual player panels", async ({ page }) => {
+      if (viewport.name !== "desktop") {
+        test.skip();
+      }
+
+      await gotoStableDemo(page);
+      await expect(page.getByTestId("player-panel-0")).toBeVisible();
+      await expect(page.getByTestId("player-panel-1")).toBeVisible();
+      await expect(page.getByTestId("mobile-toolbar")).toHaveCount(0);
+    });
+
+    test("phone splash flow reaches playable mobile controls", async ({ page }) => {
+      if (viewport.name !== "mobile" && viewport.name !== "small-mobile") {
+        test.skip();
+      }
+
+      await gotoFromSplashToGame(page);
+      await expect(page.getByTestId("mobile-toolbar")).toBeVisible();
+      await expect(page.getByTestId("region-main-board")).toBeVisible();
+      await expect(page.getByTestId("hand-panel")).toBeVisible();
     });
 
     test("layout screenshots", async ({ page }) => {
