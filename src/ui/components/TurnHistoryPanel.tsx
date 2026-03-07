@@ -82,7 +82,7 @@ export function TurnHistoryPanel(props: {
         {props.orbDetailsPreview ? (
           <ImpactPreviewPanel preview={props.orbDetailsPreview} compact />
         ) : (
-          <p className="historyOrbDetails__empty">Hover an orb to preview details.</p>
+          <p className="historyOrbDetails__empty">Hover or tap an impact orb to preview details.</p>
         )}
       </div>
     </aside>

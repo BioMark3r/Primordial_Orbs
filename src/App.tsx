@@ -95,6 +95,7 @@ import { PinPromptModal } from "./ui/components/PinPromptModal";
 import { ProfilePicker } from "./ui/components/ProfilePicker";
 import { StatsModal } from "./ui/components/StatsModal";
 import { TurnHistoryPanel } from "./ui/components/TurnHistoryPanel";
+import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
 import { useResponsiveLayout } from "./ui/hooks/useResponsiveLayout";
 import { appendMatchResult } from "./profile/matchHistory";
 import {
@@ -116,6 +117,7 @@ type Screen = "SPLASH" | "SETUP" | "GAME";
 type Selected = { kind: "NONE" } | { kind: "HAND"; handIndex: number; orb: Orb };
 type ImpactTargetChoice = "OPPONENT" | "SELF";
 type PlaceBurst = { player: 0 | 1; slotIndex: number; at: number } | null;
+type MobileSecondarySection = "players" | "history" | "piles" | "inspect";
 export type UIEvent =
   | { kind: "IMPACT_CAST"; at: number; impact: Impact; source: 0 | 1; target: 0 | 1 }
   | { kind: "IMPACT_RESOLVED"; at: number; impact: Impact; source: 0 | 1; target: 0 | 1; affectedSlots: number[] }
@@ -536,6 +538,9 @@ export default function App() {
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
   const isDev = import.meta.env.DEV;
   const responsiveLayout = useResponsiveLayout();
+  const isMobileLayout = responsiveLayout.isMobile || (responsiveLayout.isTablet && responsiveLayout.isCoarsePointer);
+  const isTabletLayout = responsiveLayout.isTablet && !isMobileLayout;
+  const [mobileSecondarySection, setMobileSecondarySection] = useState<MobileSecondarySection>("players");
 
   useEffect(() => {
     if (!demoState) return;
@@ -949,6 +954,12 @@ export default function App() {
       setTutorialIndex(nextIndex);
     }
   }, [lastActionEvent, state.active, tutorialIndex, tutorialMode, tutorialOpen]);
+
+  useEffect(() => {
+    if (!isMobileLayout) return;
+    if (!hoveredImpactPreview) return;
+    setMobileSecondarySection("inspect");
+  }, [hoveredImpactPreview, isMobileLayout]);
 
   const impactPreviewIndex =
     hoveredImpactIndex ??
@@ -2318,6 +2329,7 @@ export default function App() {
       if (!responsiveLayout.canHover) {
         setHoveredImpactIndex(i);
       }
+      if (isMobileLayout) setMobileSecondarySection("inspect");
     }
     setSelected({ kind: "HAND", handIndex: i, orb });
     playSfx("orb_select", { volumeMul: 0.8 });
@@ -2497,6 +2509,10 @@ export default function App() {
   const topbarTitle = "Primordial Orbs";
   const gameOverLabel =
     state.phase === "GAME_OVER" ? `Winner: Player ${String((state.winner ?? 0) + 1)}` : null;
+  const mobileCoreSpecial = `Core: ${state.players[active].planet.core}`;
+  const mobileStatusSummary = state.phase === "PLAY"
+    ? `${playsRemaining} plays • ${impactsRemaining} impacts`
+    : `Phase: ${state.phase}`;
 
   const activeFlashSlots = flashState?.target === active ? flashState.slots : [];
   const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
@@ -2517,6 +2533,7 @@ export default function App() {
         data-viewport-mode={responsiveLayout.viewportMode}
         data-can-hover={responsiveLayout.canHover ? "true" : "false"}
         data-coarse-pointer={responsiveLayout.isCoarsePointer ? "true" : "false"}
+        data-tablet-mode={isTabletLayout ? "true" : "false"}
       >
         <CriticalVignette
           criticalPlayer={criticalPlayer}
@@ -2533,8 +2550,27 @@ export default function App() {
             onDone={() => setTurnHandoff(null)}
           />
         )}
-        <div className="game-topbar" data-testid="topbar">
-          <div className="game-topbar-left">
+        <div className="game-topbar" data-testid="topbar" data-mobile={isMobileLayout ? "true" : "false"}>
+          {isMobileLayout && (
+            <>
+              <div className="game-mobile-topbar" data-testid="mobile-topbar">
+                <div className="game-mobile-topbar__title">{topbarTitle}</div>
+                <div className="game-mobile-topbar__chips">
+                  <span className="game-status-pill ui-chip">Turn {state.turn}</span>
+                  <span className="game-status-pill ui-chip">P{active + 1} Active</span>
+                  <span className="game-status-pill ui-chip">{mobileCoreSpecial}</span>
+                  <span className="game-status-pill ui-chip">{mobileStatusSummary}</span>
+                </div>
+              </div>
+              <div className="game-mobile-toolbar" data-testid="mobile-toolbar">
+                <button type="button" className={`ui-btn ${mobileSecondarySection === "players" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("players")}>Players</button>
+                <button type="button" className={`ui-btn ${mobileSecondarySection === "history" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("history")} aria-expanded={mobileSecondarySection === "history"} aria-controls="turn-history-panel">History</button>
+                <button type="button" className={`ui-btn ${mobileSecondarySection === "piles" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("piles")}>Piles</button>
+                <button type="button" className={`ui-btn ${mobileSecondarySection === "inspect" ? "ui-btn--primary" : "ui-btn--ghost"}`} onClick={() => setMobileSecondarySection("inspect")}>Inspect</button>
+              </div>
+            </>
+          )}
+          <div className="game-topbar-left" data-desktop-only={isMobileLayout ? "false" : "true"}>
             <div className="game-topbar-title">{topbarTitle}</div>
             <div className="game-topbar-chipRow">
               <span className="game-status-pill ui-chip">Active: Player {active + 1}</span>
@@ -2551,7 +2587,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="game-topbar-right">
+          <div className="game-topbar-right" data-desktop-only={isMobileLayout ? "false" : "true"}>
             <span className="game-status-pill ui-chip">Phase: {state.phase}</span>
             <span className="game-status-pill ui-chip">Turn: {state.turn}</span>
             {isPlayPhase && (
@@ -3253,7 +3289,7 @@ export default function App() {
                 <h3 className="hand-panel__title">Hand (Player {active + 1})</h3>
                 {playVsComputer && active === 1 && !aiPaused && <div style={{ fontSize: 12, color: "#9cc1ff" }}>Computer thinking…</div>}
                 <div className="hand-panel__hint">
-                  Click Terraform/Colonize then a slot. Select an Impact to choose its target.
+                  Tap Terraform/Colonize then a slot. Select an Impact to choose its target.
                   {canGasRedraw && <span> (Tip: <b>Shift-click</b> to Gas Redraw)</span>}
                 </div>
               </div>
@@ -3370,20 +3406,76 @@ export default function App() {
             </div>
           </div>
           </div>
-          {isHistoryOpen && (
-            <div id="turn-history-panel" data-testid="turn-history-panel">
-              <TurnHistoryPanel
-                entries={actionLog}
-                onClose={() => setIsHistoryOpen(false)}
-                onJumpToIndex={handleJumpToHistoryIndex}
-                onJumpToStart={handleJumpToHistoryStart}
-                onJumpToLatest={handleJumpToHistoryLatest}
-                previewIndex={previewIndex}
-                isPreviewMode={isPreviewMode}
-                onExitPreview={handleExitPreviewMode}
-                orbDetailsPreview={hoveredImpactPreview}
-              />
+          {isMobileLayout ? (
+            <div className="mobile-secondary-panel layout-region layout-region--secondary" data-testid="mobile-secondary-panel">
+              {mobileSecondarySection === "players" && (
+                <div className="mobile-secondary-card ui-panel" data-testid="mobile-players-panel">
+                  <h3>Players</h3>
+                  <div className="mobile-player-summary-grid">
+                    <div className={`mobile-player-summary${displayActive === 0 ? " mobile-player-summary--active" : ""}`}>
+                      <div>Player 1</div>
+                      <div>Life: {displayedP0Viz.life}</div>
+                      <div>{displayActive === 0 ? "Active" : "Waiting"}</div>
+                    </div>
+                    <div className={`mobile-player-summary${displayActive === 1 ? " mobile-player-summary--active" : ""}`}>
+                      <div>Player 2</div>
+                      <div>Life: {displayedP1Viz.life}</div>
+                      <div>{displayActive === 1 ? "Active" : "Waiting"}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {mobileSecondarySection === "history" && (
+                <div id="turn-history-panel" data-testid="turn-history-panel">
+                  <TurnHistoryPanel
+                    entries={actionLog}
+                    onClose={() => setMobileSecondarySection("players")}
+                    onJumpToIndex={handleJumpToHistoryIndex}
+                    onJumpToStart={handleJumpToHistoryStart}
+                    onJumpToLatest={handleJumpToHistoryLatest}
+                    previewIndex={previewIndex}
+                    isPreviewMode={isPreviewMode}
+                    onExitPreview={handleExitPreviewMode}
+                    orbDetailsPreview={hoveredImpactPreview}
+                  />
+                </div>
+              )}
+              {mobileSecondarySection === "piles" && (
+                <div className="mobile-secondary-card ui-panel" data-testid="mobile-piles-panel">
+                  <h3>Piles</h3>
+                  <div className="mobile-piles-grid">
+                    <div className="mobile-pile-item"><span>Temporal Anomaly</span><b>{displayedState.bag.length}</b></div>
+                    <div className="mobile-pile-item"><span>Discard Pile</span><b>{displayedState.discard.length}</b></div>
+                  </div>
+                </div>
+              )}
+              {mobileSecondarySection === "inspect" && (
+                <div className="mobile-secondary-card ui-panel" data-testid="mobile-inspect-panel">
+                  <h3>Inspect</h3>
+                  {hoveredImpactPreview ? (
+                    <ImpactPreviewPanel preview={hoveredImpactPreview} compact />
+                  ) : (
+                    <p className="historyOrbDetails__empty">Tap an impact orb in your hand to inspect details.</p>
+                  )}
+                </div>
+              )}
             </div>
+          ) : (
+            isHistoryOpen && (
+              <div id="turn-history-panel" data-testid="turn-history-panel">
+                <TurnHistoryPanel
+                  entries={actionLog}
+                  onClose={() => setIsHistoryOpen(false)}
+                  onJumpToIndex={handleJumpToHistoryIndex}
+                  onJumpToStart={handleJumpToHistoryStart}
+                  onJumpToLatest={handleJumpToHistoryLatest}
+                  previewIndex={previewIndex}
+                  isPreviewMode={isPreviewMode}
+                  onExitPreview={handleExitPreviewMode}
+                  orbDetailsPreview={hoveredImpactPreview}
+                />
+              </div>
+            )
           )}
         </div>
 

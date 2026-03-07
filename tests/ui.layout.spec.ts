@@ -87,6 +87,45 @@ for (const viewport of viewports) {
       }
     });
 
+
+
+    test("mobile secondary sections are toggleable", async ({ page }) => {
+      await gotoStableDemo(page);
+
+      if (viewport.name !== "mobile") {
+        test.skip();
+      }
+
+      const secondaryPanel = page.getByTestId("mobile-secondary-panel");
+      await expect(secondaryPanel).toBeVisible();
+
+      await page.getByRole("button", { name: "Piles" }).click();
+      await expect(page.getByTestId("mobile-piles-panel")).toBeVisible();
+
+      await page.getByRole("button", { name: "Players" }).click();
+      await expect(page.getByTestId("mobile-players-panel")).toBeVisible();
+
+      await page.getByRole("button", { name: "Inspect" }).click();
+      await expect(page.getByTestId("mobile-inspect-panel")).toBeVisible();
+    });
+
+    test("impact inspect works without hover on mobile", async ({ page }) => {
+      await gotoStableDemo(page);
+
+      if (viewport.name !== "mobile") {
+        test.skip();
+      }
+
+      await page.getByRole("button", { name: "Inspect" }).click();
+      const inspectPanel = page.getByTestId("mobile-inspect-panel");
+      await expect(inspectPanel).toBeVisible();
+
+      const impactHint = page.locator('[data-testid="hand-panel"] .hand-token .hand-impact-hint').first();
+      await expect(impactHint).toBeVisible();
+      await impactHint.locator('xpath=..').click();
+      await expect(inspectPanel.getByText("Impact Preview")).toBeVisible();
+    });
+
     test("layout screenshots", async ({ page }) => {
       await gotoStableDemo(page);
 

@@ -1437,3 +1437,182 @@
     filter: none;
   }
 }
+
+
+.game-topbar[data-mobile="true"] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s2);
+}
+
+.game-mobile-topbar {
+  display: grid;
+  gap: 6px;
+}
+
+.game-mobile-topbar__title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.game-mobile-topbar__chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.game-mobile-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.game-mobile-toolbar .ui-btn {
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+
+.game-topbar [data-desktop-only="false"] {
+  display: none;
+}
+
+.mobile-secondary-panel {
+  margin-top: var(--s2);
+}
+
+.mobile-secondary-card {
+  padding: var(--s2);
+}
+
+.mobile-player-summary-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.mobile-player-summary {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.mobile-player-summary--active {
+  border-color: rgba(140, 170, 255, 0.55);
+  background: rgba(58, 81, 138, 0.2);
+}
+
+.mobile-piles-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.mobile-pile-item {
+  display: flex;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+
+@media (max-width: 900px) {
+  .player-panel__header .player-header__mid,
+  .player-panel__header .player-header__mini-group {
+    gap: 6px;
+  }
+
+  .player-panel__slot-btn {
+    min-height: 96px;
+  }
+
+  .actionsLeft .ui-btn,
+  .actionsRight .ui-btn,
+  .impact-target-row .ui-btn {
+    min-height: 42px;
+    padding: 10px 12px;
+  }
+
+  .game-shell {
+    height: auto;
+    min-height: 100vh;
+    max-height: none;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .game-shell {
+    padding: var(--s1);
+    gap: var(--s1);
+  }
+
+  .game-topbar {
+    padding: var(--s1);
+    min-height: auto;
+  }
+
+  .game-layout {
+    flex-direction: column;
+    gap: var(--s1);
+  }
+
+  .game-content {
+    gap: var(--s1);
+  }
+
+  .coach-strip,
+  .action-banner {
+    display: none;
+  }
+
+  .game-arena-row {
+    grid-template-columns: 1fr;
+    gap: var(--s1);
+  }
+
+  .player-panel {
+    padding: var(--s2);
+  }
+
+  .player-panel--inactive {
+    opacity: 0.9;
+  }
+
+  .player-panel__slots {
+    gap: 6px;
+  }
+
+  .player-panel__slot-btn {
+    min-height: 90px;
+  }
+
+  .player-panel__slot-label,
+  .slot-hint,
+  .hand-impact-hint {
+    font-size: 10px;
+  }
+
+  .hand-panel__header {
+    display: grid;
+    gap: 6px;
+  }
+
+  .hand-scroll {
+    gap: var(--s1);
+  }
+
+  .hand-token {
+    min-width: 76px;
+  }
+
+  .game-bottom-row {
+    gap: var(--s1);
+  }
+
+  .historyPanel {
+    max-height: min(48vh, 420px);
+  }
+}
