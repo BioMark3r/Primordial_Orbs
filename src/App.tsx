@@ -955,12 +955,6 @@ export default function App() {
     }
   }, [lastActionEvent, state.active, tutorialIndex, tutorialMode, tutorialOpen]);
 
-  useEffect(() => {
-    if (!isMobileLayout) return;
-    if (!hoveredImpactPreview) return;
-    setMobileSecondarySection("inspect");
-  }, [hoveredImpactPreview, isMobileLayout]);
-
   const impactPreviewIndex =
     hoveredImpactIndex ??
     (selected.kind === "HAND" && selected.orb.kind === "IMPACT" ? selected.handIndex : null);
@@ -977,6 +971,12 @@ export default function App() {
 
     return null;
   }, [active, activeHand, impactPreviewIndex, other, screen, state]);
+
+  useEffect(() => {
+    if (!isMobileLayout) return;
+    if (!hoveredImpactPreview) return;
+    setMobileSecondarySection("inspect");
+  }, [hoveredImpactPreview, isMobileLayout]);
 
   const coachHints = useMemo(() => {
     if (screen !== "GAME") return [];
@@ -1174,7 +1174,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (shareCfgAppliedRef.current || demoState) return;
+    if (shareCfgAppliedRef.current || demoState || screen === "SPLASH") return;
     shareCfgAppliedRef.current = true;
     const params = new URLSearchParams(window.location.search);
     const encodedCfg = params.get("cfg");
@@ -1196,7 +1196,7 @@ export default function App() {
       return;
     }
     setScreen("SETUP");
-  }, [demoState]);
+  }, [demoState, screen]);
 
   async function copyTextToClipboard(text: string): Promise<boolean> {
     try {
