@@ -955,12 +955,6 @@ export default function App() {
     }
   }, [lastActionEvent, state.active, tutorialIndex, tutorialMode, tutorialOpen]);
 
-  useEffect(() => {
-    if (!isMobileLayout) return;
-    if (!hoveredImpactPreview) return;
-    setMobileSecondarySection("inspect");
-  }, [hoveredImpactPreview, isMobileLayout]);
-
   const impactPreviewIndex =
     hoveredImpactIndex ??
     (selected.kind === "HAND" && selected.orb.kind === "IMPACT" ? selected.handIndex : null);
@@ -977,6 +971,12 @@ export default function App() {
 
     return null;
   }, [active, activeHand, impactPreviewIndex, other, screen, state]);
+
+  useEffect(() => {
+    if (!isMobileLayout) return;
+    if (!hoveredImpactPreview) return;
+    setMobileSecondarySection("inspect");
+  }, [hoveredImpactPreview, isMobileLayout]);
 
   const coachHints = useMemo(() => {
     if (screen !== "GAME") return [];
