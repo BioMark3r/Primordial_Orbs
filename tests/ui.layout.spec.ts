@@ -2,8 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { intersects, rectOf } from "./helpers/layout";
 
 const viewports = [
-  { width: 1365, height: 768 },
-  { width: 1200, height: 768 },
+  { name: "desktop", width: 1365, height: 768 },
+  { name: "tablet", width: 768, height: 1024 },
+  { name: "mobile", width: 390, height: 844 },
 ] as const;
 
 async function gotoStableDemo(page: Page) {
@@ -15,8 +16,8 @@ async function gotoStableDemo(page: Page) {
 }
 
 for (const viewport of viewports) {
-  test.describe(`UI layout guardrails ${viewport.width}x${viewport.height}`, () => {
-    test.use({ viewport });
+  test.describe(`UI layout guardrails ${viewport.name} ${viewport.width}x${viewport.height}`, () => {
+    test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
     test("no horizontal page scroll", async ({ page }) => {
       await gotoStableDemo(page);
@@ -57,19 +58,48 @@ for (const viewport of viewports) {
       ).toBeLessThanOrEqual(panelRect.x + panelRect.width + 1);
     });
 
+    test("main regions keep sensible order", async ({ page }) => {
+      await gotoStableDemo(page);
+
+      const status = page.getByTestId("core-status");
+      const board = page.getByTestId("region-main-board");
+      const supporting = page.getByTestId("region-supporting");
+
+      await expect(status).toBeVisible();
+      await expect(board).toBeVisible();
+      await expect(supporting).toBeVisible();
+
+      const [statusRect, boardRect, supportingRect] = await Promise.all([
+        rectOf(status),
+        rectOf(board),
+        rectOf(supporting),
+      ]);
+
+      expect(boardRect.y).toBeGreaterThanOrEqual(statusRect.y - 1);
+      expect(supportingRect.y).toBeGreaterThanOrEqual(boardRect.y - 1);
+
+      if (viewport.name === "mobile") {
+        await page.getByRole("button", { name: "History" }).click();
+        const historyPanel = page.getByTestId("turn-history-panel");
+        await expect(historyPanel).toBeVisible();
+        const historyRect = await rectOf(historyPanel);
+        expect(historyRect.y).toBeGreaterThanOrEqual(supportingRect.y - 1);
+      }
+    });
+
     test("layout screenshots", async ({ page }) => {
       await gotoStableDemo(page);
 
-      await expect(page.getByTestId("topbar")).toHaveScreenshot(`topbar-${viewport.width}.png`);
-      await expect(page.getByTestId("player-panel-0")).toHaveScreenshot(`player-panel-0-${viewport.width}.png`);
-      await expect(page.getByTestId("player-panel-1")).toHaveScreenshot(`player-panel-1-${viewport.width}.png`);
-      await expect(page.getByTestId("screen-game")).toHaveScreenshot(`screen-game-${viewport.width}.png`);
+      await expect(page.getByTestId("topbar")).toHaveScreenshot(`topbar-${viewport.name}.png`);
+      await expect(page.getByTestId("player-panel-0")).toHaveScreenshot(`player-panel-0-${viewport.name}.png`);
+      await expect(page.getByTestId("player-panel-1")).toHaveScreenshot(`player-panel-1-${viewport.name}.png`);
+      await expect(page.getByTestId("screen-game")).toHaveScreenshot(`screen-game-${viewport.name}.png`);
     });
 
     test("renders element sprite assets (no generic orb sprite)", async ({ page }) => {
       await gotoStableDemo(page);
 
-      const firstOrbSprite = page.locator('.orb__sprite').first();
+      const firstOrbSprite = page.locator(".orb__sprite").first();
       await expect(firstOrbSprite).toBeVisible();
       const src = await firstOrbSprite.getAttribute("src");
       expect(src ?? "", `Unexpected orb sprite src: ${src}`).toMatch(/orb_(lava|ice|nature|void)\.(webp|png)/);

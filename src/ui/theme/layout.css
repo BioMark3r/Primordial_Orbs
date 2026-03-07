@@ -21,6 +21,7 @@
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
+  overflow-x: clip;
   padding: var(--s2);
 }
 
@@ -167,6 +168,7 @@
   flex-direction: column;
   gap: var(--s2);
   min-height: 0;
+  min-width: 0;
   flex: 1 1 auto;
 }
 
@@ -176,6 +178,7 @@
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
+  overflow-x: clip;
 }
 
 .game-main {
@@ -183,6 +186,7 @@
   min-width: 0;
   min-height: 0;
   display: flex;
+  overflow-x: clip;
 }
 
 #turn-history-panel {
@@ -1292,5 +1296,144 @@
     justify-self: stretch;
     justify-content: flex-start;
     grid-column: auto;
+  }
+}
+
+@media (max-width: 1024px) {
+  .game-shell {
+    padding: var(--s2);
+  }
+
+  .game-topbar {
+    grid-template-columns: 1fr;
+    gap: var(--s2);
+    padding: var(--s2);
+  }
+
+  .game-topbar-right {
+    justify-content: flex-start;
+    justify-self: stretch;
+    grid-column: auto;
+  }
+
+  .game-layout {
+    flex-direction: column;
+  }
+
+  #turn-history-panel {
+    flex: 1 1 auto;
+  }
+
+  .historyPanel {
+    width: 100%;
+    max-height: min(52vh, 380px);
+  }
+
+  .game-bottom-row {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .game-shell {
+    height: auto;
+    max-height: none;
+    min-height: 100vh;
+    overflow-y: auto;
+    padding: var(--s1);
+    gap: var(--s1);
+  }
+
+  .game-topbar {
+    min-height: 0;
+    padding: var(--s1);
+  }
+
+  .game-topbar-title {
+    font-size: 15px;
+  }
+
+  .game-topbar-chipRow,
+  .game-topbar-right,
+  .game-topbar-menus {
+    gap: 6px;
+  }
+
+  .game-status-pill {
+    font-size: 11px;
+  }
+
+  .game-shell .arena-view,
+  .player-panel,
+  .historyPanel {
+    padding: var(--s2);
+    border-radius: 12px;
+  }
+
+  .game-shell .arena-view__bowl-wrap {
+    height: 108px;
+  }
+
+  .game-shell .arena-view__bowl {
+    height: 88px;
+  }
+
+  .player-panel__header,
+  .player-header__row,
+  .player-header__left,
+  .player-header__mid {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .player-panel__slots {
+    gap: 6px;
+  }
+
+  .player-panel__slot-btn {
+    min-height: 92px;
+  }
+
+  .hand-scroll {
+    gap: var(--s1);
+  }
+
+  .hand-token {
+    min-width: 64px;
+  }
+
+  .historyPanel {
+    max-height: min(56vh, 360px);
+  }
+
+  .ui-btn,
+  .menuButton,
+  .historyEntry__jump,
+  .impact-target-option {
+    min-height: 40px;
+  }
+
+  .layout-region--status {
+    order: 1;
+  }
+
+  .layout-region--board {
+    order: 2;
+  }
+
+  .layout-region--supporting {
+    order: 3;
+  }
+
+  #turn-history-panel {
+    order: 4;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .player-panel__slot-btn:hover,
+  .hover-slot:hover {
+    transform: none;
+    filter: none;
   }
 }

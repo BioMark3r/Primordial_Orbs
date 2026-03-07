@@ -9,6 +9,12 @@ body {
   overflow: hidden;
 }
 
+@media (max-width: 640px) {
+  body {
+    overflow: auto;
+  }
+}
+
 button, select { font: inherit; }
 .overlay-backdrop {
   position: fixed;
