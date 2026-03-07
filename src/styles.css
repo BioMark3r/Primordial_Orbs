@@ -41,3 +41,129 @@ button, select { font: inherit; }
 .overlay-panel ul {
   margin-top: 6px;
 }
+
+
+.setup-screen {
+  min-height: 100%;
+  overflow-y: auto;
+  overflow-x: clip;
+  padding-bottom: 24px;
+}
+
+.setup-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.setup-card {
+  border: 1px solid #bbb;
+  border-radius: 14px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.setup-card h3,
+.setup-card div,
+.setup-card span,
+.setup-card label,
+.setup-card button {
+  overflow-wrap: anywhere;
+}
+
+.setup-cores-grid,
+.setup-ai-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.setup-profile-box {
+  padding: 10px;
+  border: 1px solid #cfd8ea;
+  border-radius: 10px;
+}
+
+.setup-primary-actions,
+.setup-secondary-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.setup-advanced {
+  margin-top: 14px;
+  border: 1px solid #cfd8ea;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.setup-advanced > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.setup-advanced__content {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  body {
+    overflow: auto;
+  }
+
+  .setup-screen {
+    max-width: 100%;
+    padding: 10px;
+    min-height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .setup-layout,
+  .setup-cores-grid,
+  .setup-ai-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .setup-card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .setup-profile-box {
+    padding: 10px;
+  }
+
+  .setup-primary-actions,
+  .setup-secondary-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .setup-primary-actions button,
+  .setup-secondary-actions button,
+  .setup-screen button,
+  .setup-screen select,
+  .setup-screen input[type="text"],
+  .setup-screen input[type="checkbox"] {
+    min-height: 44px;
+  }
+
+  .setup-screen input[type="checkbox"] {
+    min-height: auto;
+    transform: scale(1.1);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .setup-layout {
+    grid-template-columns: 1fr;
+  }
+}
