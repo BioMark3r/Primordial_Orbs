@@ -95,6 +95,7 @@ import { PinPromptModal } from "./ui/components/PinPromptModal";
 import { ProfilePicker } from "./ui/components/ProfilePicker";
 import { StatsModal } from "./ui/components/StatsModal";
 import { TurnHistoryPanel } from "./ui/components/TurnHistoryPanel";
+import { useResponsiveLayout } from "./ui/hooks/useResponsiveLayout";
 import { appendMatchResult } from "./profile/matchHistory";
 import {
   loadMatches,
@@ -534,6 +535,7 @@ export default function App() {
   // Water swap (two-click) selection; only active if selected.kind === NONE
   const [waterSwapPick, setWaterSwapPick] = useState<number | null>(null);
   const isDev = import.meta.env.DEV;
+  const responsiveLayout = useResponsiveLayout();
 
   useEffect(() => {
     if (!demoState) return;
@@ -720,11 +722,7 @@ export default function App() {
 
   const showSlotAffordances = selected.kind === "HAND" && state.phase === "PLAY";
 
-  const allowAutoFocus = useMemo(() => {
-    if (typeof window === "undefined") return true;
-    if (typeof window.matchMedia !== "function") return true;
-    return window.matchMedia("(pointer: fine)").matches;
-  }, []);
+  const allowAutoFocus = responsiveLayout.canHover;
 
   useEffect(() => {
     if (!flashState) return;
@@ -952,18 +950,22 @@ export default function App() {
     }
   }, [lastActionEvent, state.active, tutorialIndex, tutorialMode, tutorialOpen]);
 
+  const impactPreviewIndex =
+    hoveredImpactIndex ??
+    (selected.kind === "HAND" && selected.orb.kind === "IMPACT" ? selected.handIndex : null);
+
   const hoveredImpactPreview: ImpactPreview | null = useMemo(() => {
     if (screen !== "GAME") return null;
 
-    if (hoveredImpactIndex !== null) {
-      const orb = activeHand[hoveredImpactIndex];
+    if (impactPreviewIndex !== null) {
+      const orb = activeHand[impactPreviewIndex];
       if (orb?.kind === "IMPACT") {
         return computeImpactPreview(state, orb.i, active, other);
       }
     }
 
     return null;
-  }, [active, activeHand, hoveredImpactIndex, other, screen, state]);
+  }, [active, activeHand, impactPreviewIndex, other, screen, state]);
 
   const coachHints = useMemo(() => {
     if (screen !== "GAME") return [];
@@ -2313,6 +2315,9 @@ export default function App() {
     setWaterSwapPick(null);
     if (orb.kind === "IMPACT") {
       setImpactTarget("OPPONENT");
+      if (!responsiveLayout.canHover) {
+        setHoveredImpactIndex(i);
+      }
     }
     setSelected({ kind: "HAND", handIndex: i, orb });
     playSfx("orb_select", { volumeMul: 0.8 });
@@ -2509,6 +2514,9 @@ export default function App() {
         style={containerStyle}
         className="app-shell game-shell"
         data-density={compactMode ? "compact" : "comfortable"}
+        data-viewport-mode={responsiveLayout.viewportMode}
+        data-can-hover={responsiveLayout.canHover ? "true" : "false"}
+        data-coarse-pointer={responsiveLayout.isCoarsePointer ? "true" : "false"}
       >
         <CriticalVignette
           criticalPlayer={criticalPlayer}
@@ -3097,7 +3105,7 @@ export default function App() {
             </div>
           )}
 
-              <div data-testid="core-status">
+              <div data-testid="core-status" className="layout-region layout-region--status">
                 <CoreStatusStrip
                 state={displayedState}
                 active={displayActive}
@@ -3117,7 +3125,7 @@ export default function App() {
 
               <div className="action-banner" role="status" aria-live="polite">{actionBannerText}</div>
 
-              <div className="game-arena-row">
+              <div className="game-arena-row layout-region layout-region--board" data-testid="region-main-board">
             <PlayerPanel
               title="Player 1"
               player={0}
@@ -3239,7 +3247,7 @@ export default function App() {
             />
           </div>
 
-        <div className="game-bottom-row">
+            <div className="game-bottom-row layout-region layout-region--supporting" data-testid="region-supporting">
             <div data-testid="hand-panel" className={`hand-panel hand-panel--active${isLastPlay ? " hand-last-play" : ""}`} id="ui-hand-panel">
               <div className="hand-panel__header">
                 <h3 className="hand-panel__title">Hand (Player {active + 1})</h3>
@@ -3363,7 +3371,7 @@ export default function App() {
           </div>
           </div>
           {isHistoryOpen && (
-            <div id="turn-history-panel">
+            <div id="turn-history-panel" data-testid="turn-history-panel">
               <TurnHistoryPanel
                 entries={actionLog}
                 onClose={() => setIsHistoryOpen(false)}
