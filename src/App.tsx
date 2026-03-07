@@ -2518,6 +2518,8 @@ export default function App() {
   const otherFlashSlots = flashState?.target === other ? flashState.slots : [];
   const activeFlashFx = flashState?.target === active ? flashState.fxImpact ?? null : null;
   const otherFlashFx = flashState?.target === other ? flashState.fxImpact ?? null : null;
+  const showPlayerZeroPanel = !isMobileLayout || displayActive === 0;
+  const showPlayerOnePanel = !isMobileLayout || displayActive === 1;
 
   const backendStatusLabel = !isSupabaseConfigured
     ? "Backend: Supabase env missing"
@@ -3162,7 +3164,7 @@ export default function App() {
               <div className="action-banner" role="status" aria-live="polite">{actionBannerText}</div>
 
               <div className="game-arena-row layout-region layout-region--board" data-testid="region-main-board">
-            <PlayerPanel
+            {showPlayerZeroPanel && <PlayerPanel
               title="Player 1"
               player={0}
               panelTestId="player-panel-0"
@@ -3215,9 +3217,9 @@ export default function App() {
               endPlayRef={!isPreviewMode && active === 0 ? endPlayRef : undefined}
               advanceRef={!isPreviewMode && active === 0 ? advanceRef : undefined}
               undoRef={!isPreviewMode && active === 0 ? undoRef : undefined}
-            />
+            />}
             <div id="ui-arena" style={{ display: "contents" }}>
-              <div data-testid="arena">
+              <div data-testid="arena" className="game-arena-center">
                 <ArenaView
                   lastEvent={arenaEvent}
                   bagCount={displayedState.bag.length}
@@ -3227,7 +3229,7 @@ export default function App() {
                   p1Viz={displayedP1Viz}
                 />
               </div>
-            <PlayerPanel
+            {showPlayerOnePanel && <PlayerPanel
               title={`Player 2${playVsComputer ? " (CPU)" : ""}`}
               player={1}
               panelTestId="player-panel-1"
@@ -3280,7 +3282,7 @@ export default function App() {
               endPlayRef={!isPreviewMode && active === 1 ? endPlayRef : undefined}
               advanceRef={!isPreviewMode && active === 1 ? advanceRef : undefined}
               undoRef={!isPreviewMode && active === 1 ? undoRef : undefined}
-            />
+            />}
           </div>
 
             <div className="game-bottom-row layout-region layout-region--supporting" data-testid="region-supporting">

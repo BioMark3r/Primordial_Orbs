@@ -39,18 +39,23 @@ for (const viewport of viewports) {
       const supporting = page.getByTestId("region-supporting");
       const toolbar = page.getByTestId("mobile-toolbar");
       const handPanel = page.getByTestId("hand-panel");
+      const arena = page.getByTestId("arena");
 
       await expect(gameScreen).toBeVisible();
       await expect(toolbar).toBeVisible();
       await expect(board).toBeVisible();
       await expect(supporting).toBeVisible();
       await expect(handPanel).toBeVisible();
+      await expect(arena).toBeVisible();
 
       const overflow = await page.evaluate(() => ({
         doc: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
         body: document.body.scrollWidth <= document.body.clientWidth,
       }));
       expect(overflow.doc && overflow.body).toBe(true);
+
+      const mobilePanelCount = await page.locator('[data-testid="player-panel-0"], [data-testid="player-panel-1"]').count();
+      expect(mobilePanelCount).toBe(1);
 
       const [boardBox, supportingBox] = await Promise.all([board.boundingBox(), supporting.boundingBox()]);
       expect(boardBox).not.toBeNull();
