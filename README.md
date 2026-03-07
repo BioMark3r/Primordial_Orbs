@@ -101,6 +101,37 @@ http://localhost:5173
 
 ---
 
+## 🏭 Production Build & Packaging
+
+Build a production bundle:
+
+```bash
+npm run build
+```
+
+Preview the production bundle locally:
+
+```bash
+npm run preview
+```
+
+Build and run the production Docker image:
+
+```bash
+make web-docker-build
+make web-docker-run
+```
+
+The containerized app is served at `http://localhost:8080`.
+
+- Nginx serves the built `dist` output.
+- SPA routes fall back to `index.html`.
+- Hashed assets under `/assets/` are sent with long-lived immutable cache headers.
+- `index.html` is intentionally not long-cached to prevent stale deployments.
+- CI validates dependency install, optional lint/tests, production build, and Docker image build.
+
+---
+
 ## 🧪 Demo / Test Mode
 
 To run the game in a **stable, deterministic state** (used by tests and screenshots):
