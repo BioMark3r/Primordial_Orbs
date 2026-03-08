@@ -42,7 +42,6 @@ button, select { font: inherit; }
   margin-top: 6px;
 }
 
-
 .setup-screen {
   min-height: 100%;
   overflow-y: auto;
@@ -50,17 +49,23 @@ button, select { font: inherit; }
   padding-bottom: 24px;
 }
 
-.setup-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 12px;
+.setup-lobby-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.setup-lobby-layout {
+  margin-top: 14px;
 }
 
 .setup-card {
-  border: 1px solid #bbb;
-  border-radius: 14px;
-  padding: 14px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 16px;
   min-width: 0;
 }
 
@@ -68,21 +73,92 @@ button, select { font: inherit; }
 .setup-card div,
 .setup-card span,
 .setup-card label,
-.setup-card button {
+.setup-card button,
+.setup-card p {
   overflow-wrap: anywhere;
 }
 
-.setup-cores-grid,
-.setup-ai-grid {
+.setup-card h3 {
+  margin: 18px 0 10px;
+}
+
+.setup-card h3:first-child {
+  margin-top: 0;
+}
+
+.setup-option-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.setup-option-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.setup-option-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.setup-option-grid--core {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.setup-option-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  min-height: 68px;
+}
+
+.setup-option-card:hover {
+  border-color: #60a5fa;
+}
+
+.setup-option-card.is-selected {
+  border-color: #2563eb;
+  background: #dbeafe;
+  box-shadow: 0 0 0 1px #2563eb inset;
+}
+
+.setup-option-card__title {
+  font-weight: 800;
+}
+
+.setup-option-card__meta {
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.setup-option-card--compact {
+  min-height: 52px;
+}
+
+.setup-core-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
+.setup-section-label {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
 .setup-profile-box {
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #cfd8ea;
-  border-radius: 10px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.setup-muted {
+  color: #475569;
+  font-size: 13px;
 }
 
 .setup-primary-actions,
@@ -92,11 +168,23 @@ button, select { font: inherit; }
   flex-wrap: wrap;
 }
 
+.setup-primary-actions button:first-child {
+  background: #2563eb;
+  color: #fff;
+  border: 1px solid #1d4ed8;
+  font-weight: 700;
+}
+
+.setup-primary-actions button:first-child:disabled {
+  opacity: 0.65;
+}
+
 .setup-advanced {
-  margin-top: 14px;
+  margin-top: 16px;
   border: 1px solid #cfd8ea;
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
 }
 
 .setup-advanced > summary {
@@ -107,7 +195,7 @@ button, select { font: inherit; }
 .setup-advanced__content {
   margin-top: 10px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 @media (max-width: 640px) {
@@ -124,20 +212,21 @@ button, select { font: inherit; }
     -webkit-overflow-scrolling: touch;
   }
 
-  .setup-layout,
-  .setup-cores-grid,
-  .setup-ai-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
   .setup-card {
     padding: 12px;
     border-radius: 12px;
   }
 
-  .setup-profile-box {
-    padding: 10px;
+  .setup-lobby-header {
+    align-items: flex-start;
+  }
+
+  .setup-option-grid--two,
+  .setup-option-grid--three,
+  .setup-option-grid--core,
+  .setup-core-columns,
+  .setup-ai-grid {
+    grid-template-columns: 1fr;
   }
 
   .setup-primary-actions,
@@ -149,21 +238,17 @@ button, select { font: inherit; }
 
   .setup-primary-actions button,
   .setup-secondary-actions button,
+  .setup-option-card,
   .setup-screen button,
   .setup-screen select,
-  .setup-screen input[type="text"],
-  .setup-screen input[type="checkbox"] {
+  .setup-screen input[type="text"] {
     min-height: 44px;
-  }
-
-  .setup-screen input[type="checkbox"] {
-    min-height: auto;
-    transform: scale(1.1);
   }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
-  .setup-layout {
-    grid-template-columns: 1fr;
+  .setup-option-grid--three,
+  .setup-option-grid--core {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

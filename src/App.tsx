@@ -1790,89 +1790,44 @@ export default function App() {
   }
 
   if (screen === "SETUP") {
-    const isPhoneSetup = responsiveLayout.isMobile;
+    const matchModeLabel = playVsComputer ? "vs Computer" : "Local Hotseat";
     return (
       <div data-testid="screen-setup" style={containerStyle} className="setup-screen">
-        <div className="game-inspector__header">
-          <h2 style={{ margin: 0 }}>Setup</h2>
+        <div className="setup-lobby-header">
+          <div>
+            <h2 style={{ margin: 0 }}>Match Lobby</h2>
+            <p style={{ margin: "6px 0 0", color: "#4b5563" }}>Pick the essentials, then jump in.</p>
+          </div>
           <button onClick={() => setScreen("SPLASH")}>Back</button>
         </div>
 
-        <div className="setup-layout">
+        <div className="setup-lobby-layout">
           <div className="setup-card">
-            <h3 style={{ marginTop: 0 }}>Choose Cores</h3>
-
-            <div className="setup-cores-grid">
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Player 1 Core</div>
-                <select
-                  value={p0Core}
-                  onChange={(e) => setP0Core(e.target.value as Core)}
-                  style={{ width: "100%", padding: 10, borderRadius: 10 }}
-                >
-                  {CORES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <CoreTooltip title="Player 1" core={p0Core} />
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Player 2 Core</div>
-                <select
-                  value={p1Core}
-                  onChange={(e) => setP1Core(e.target.value as Core)}
-                  style={{ width: "100%", padding: 10, borderRadius: 10 }}
-                >
-                  {CORES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <CoreTooltip title="Player 2" core={p1Core} />
-              </div>
-            </div>
-          </div>
-
-          <div className="setup-card">
-            <h3 style={{ marginTop: 0 }}>Match Settings</h3>
-            {!isPhoneSetup && (
-              <div className="setup-overview" style={{ marginTop: 6 }}>
-                <div><b>Mode:</b> Local Game</div>
-                <div style={{ marginTop: 6 }}><b>Planet Size:</b> Medium (fixed)</div>
-                <div style={{ marginTop: 6 }}><b>Win:</b> 4 Colonization types</div>
-                <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap 3 • Play 2 • Impact 1</div>
-              </div>
-            )}
-
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Seed (for reproducible games)</div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <input
-                  type="text"
-                  value={seedInput}
-                  onChange={(e) => setSeedInput(e.target.value)}
-                  placeholder="e.g. 12345"
-                  style={{ flex: "1 1 180px", padding: 10, borderRadius: 10, border: "1px solid #bbb" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setSeedInput(String(Date.now()))}
-                  style={{ padding: "10px 12px", borderRadius: 10 }}
-                >
-                  Randomize
-                </button>
-              </div>
-              <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
-                Use the same seed to replay a game flow.
-              </div>
+            <h3 style={{ marginTop: 0 }}>Game Mode</h3>
+            <div className="setup-option-grid setup-option-grid--two">
+              <button
+                type="button"
+                data-testid="setup-mode-hotseat"
+                className={`setup-option-card ${!playVsComputer ? "is-selected" : ""}`}
+                onClick={() => setPlayVsComputer(false)}
+              >
+                <span className="setup-option-card__title">Local Hotseat</span>
+                <span className="setup-option-card__meta">2 players on one device</span>
+              </button>
+              <button
+                type="button"
+                data-testid="setup-mode-cpu"
+                className={`setup-option-card ${playVsComputer ? "is-selected" : ""}`}
+                onClick={() => setPlayVsComputer(true)}
+              >
+                <span className="setup-option-card__title">vs Computer</span>
+                <span className="setup-option-card__meta">Solo match against AI</span>
+              </button>
             </div>
 
-            <div className="setup-profile-box" style={{ marginTop: 14 }}>
-              <div style={{ display: "grid", gap: 10, marginBottom: 10 }}>
+            <h3>Players</h3>
+            <div className="setup-profile-box">
+              <div style={{ display: "grid", gap: 10 }}>
                 <ProfilePicker
                   label="Player 1 Profile"
                   profiles={profiles}
@@ -1893,115 +1848,141 @@ export default function App() {
                     }}
                   />
                 )}
+                {playVsComputer && <div className="setup-muted">Player 2 is controlled by CPU.</div>}
                 {!playVsComputer && p0ProfileId === p1ProfileId && p0ProfileId !== GUEST_ID && (
                   <div style={{ fontSize: 12, color: "#92400e" }}>
                     Both players are using the same profile—stats will mix.
                   </div>
                 )}
               </div>
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={playVsComputer}
-                  onChange={(e) => setPlayVsComputer(e.target.checked)}
-                />
-                <span style={{ fontWeight: 700 }}>Play vs Computer</span>
-              </label>
-              {playVsComputer && (
-                <div className="setup-ai-grid" style={{ marginTop: 10 }}>
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span style={{ fontWeight: 600 }}>Difficulty</span>
-                    <select
-                      value={aiDifficulty}
-                      onChange={(e) => setAiDifficulty(e.target.value as AiConfig["difficulty"])}
-                      style={{ padding: 8, borderRadius: 8 }}
-                    >
-                      <option value="EASY">Easy</option>
-                      <option value="NORMAL">Normal</option>
-                      <option value="HARD">Hard</option>
-                    </select>
-                  </label>
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span style={{ fontWeight: 600 }}>AI Speed</span>
-                    <select
-                      value={aiSpeed}
-                      onChange={(e) => setAiSpeed(e.target.value as AiConfig["speed"])}
-                      style={{ padding: 8, borderRadius: 8 }}
-                    >
-                      <option value="FAST">Fast</option>
-                      <option value="NORMAL">Normal</option>
-                    </select>
-                  </label>
-                  <label style={{ display: "grid", gap: 6, gridColumn: "1 / -1" }}>
-                    <span style={{ fontWeight: 600 }}>Personality</span>
-                    <select
-                      value={aiPersonality}
-                      onChange={(e) => setAiPersonality(e.target.value as AiPersonality)}
-                      style={{ padding: 8, borderRadius: 8 }}
-                    >
-                      <option value="BALANCED">Balanced</option>
-                      <option value="BUILDER">Builder</option>
-                      <option value="AGGRESSIVE">Aggressive</option>
-                    </select>
-                  </label>
-                </div>
-              )}
             </div>
 
-            {isPhoneSetup && (
-              <details className="setup-advanced" open={setupAdvancedOpen} onToggle={(e) => setSetupAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)}>
-                <summary>Advanced Options</summary>
-                <div className="setup-advanced__content">
-                  <div className="setup-overview">
-                    <div><b>Mode:</b> Local Game</div>
-                    <div style={{ marginTop: 6 }}><b>Planet Size:</b> Medium (fixed)</div>
-                    <div style={{ marginTop: 6 }}><b>Win:</b> 4 Colonization types</div>
-                    <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap 3 • Play 2 • Impact 1</div>
-                  </div>
-                  <div className="setup-secondary-actions">
-                    <button type="button" onClick={() => { void handleCopySetupLink(); }} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                      Copy Setup Link
-                    </button>
+            {playVsComputer && (
+              <>
+                <h3>Difficulty</h3>
+                <div className="setup-option-grid setup-option-grid--three">
+                  {[
+                    { value: "EASY", label: "Easy", desc: "Relaxed pace" },
+                    { value: "NORMAL", label: "Normal", desc: "Balanced challenge" },
+                    { value: "HARD", label: "Hard", desc: "Aggressive AI" },
+                  ].map((difficulty) => (
                     <button
                       type="button"
-                      onClick={() => {
-                        void handleCopySetupLink({ autostart: true });
-                      }}
-                      style={{ padding: "10px 14px", borderRadius: 10 }}
+                      key={difficulty.value}
+                      data-testid={`setup-difficulty-${difficulty.value.toLowerCase()}`}
+                      className={`setup-option-card ${aiDifficulty === difficulty.value ? "is-selected" : ""}`}
+                      onClick={() => setAiDifficulty(difficulty.value as AiConfig["difficulty"])}
                     >
-                      Copy Auto-Start Link
+                      <span className="setup-option-card__title">{difficulty.label}</span>
+                      <span className="setup-option-card__meta">{difficulty.desc}</span>
                     </button>
-                    <button
-                      onClick={() => { setP0Core(p1Core); setP1Core(p0Core); }}
-                      style={{ padding: "10px 14px", borderRadius: 10 }}
-                    >
-                      Swap Cores
-                    </button>
-                    <button onClick={() => setShowHowTo(true)} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                      How to Play
-                    </button>
-                    <button type="button" onClick={openRulebook} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                      Read the full rulebook
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              </details>
+              </>
             )}
 
-            <div className="setup-primary-actions" style={{ marginTop: 18 }}>
-              <button data-testid="start-game" disabled={!canStartConfigured} onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Start Game
-              </button>
-              <button type="button" onClick={handleQuickMatchHotseat} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Quick Match (Hotseat)
-              </button>
-              <button type="button" onClick={handleQuickMatchVsCpu} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Quick Match vs CPU
-              </button>
+            <h3>Core Loadout</h3>
+            <div className="setup-core-columns">
+              <div>
+                <div className="setup-section-label">Player 1 Core</div>
+                <div className="setup-option-grid setup-option-grid--core">
+                  {CORES.map((core) => (
+                    <button
+                      type="button"
+                      key={`p0-${core}`}
+                      className={`setup-option-card setup-option-card--compact ${p0Core === core ? "is-selected" : ""}`}
+                      onClick={() => setP0Core(core)}
+                    >
+                      <span className="setup-option-card__title">{core}</span>
+                    </button>
+                  ))}
+                </div>
+                <CoreTooltip title="Player 1" core={p0Core} />
+              </div>
+
+              <div>
+                <div className="setup-section-label">{playVsComputer ? "CPU Core" : "Player 2 Core"}</div>
+                <div className="setup-option-grid setup-option-grid--core">
+                  {CORES.map((core) => (
+                    <button
+                      type="button"
+                      key={`p1-${core}`}
+                      className={`setup-option-card setup-option-card--compact ${p1Core === core ? "is-selected" : ""}`}
+                      onClick={() => setP1Core(core)}
+                    >
+                      <span className="setup-option-card__title">{core}</span>
+                    </button>
+                  ))}
+                </div>
+                <CoreTooltip title={playVsComputer ? "CPU" : "Player 2"} core={p1Core} />
+              </div>
             </div>
-            {!isPhoneSetup && (
-              <>
-                <div className="setup-secondary-actions" style={{ marginTop: 10 }}>
+
+            <details
+              className="setup-advanced"
+              data-testid="setup-advanced"
+              open={setupAdvancedOpen}
+              onToggle={(e) => setSetupAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)}
+            >
+              <summary>Advanced Options</summary>
+              <div className="setup-advanced__content">
+                <div className="setup-overview">
+                  <div><b>Match Type:</b> {matchModeLabel}</div>
+                  <div style={{ marginTop: 6 }}><b>Planet Size:</b> Medium (fixed)</div>
+                  <div style={{ marginTop: 6 }}><b>Win:</b> 4 Colonization types</div>
+                  <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap 3 • Play 2 • Impact 1</div>
+                </div>
+
+                <div>
+                  <div className="setup-section-label">Seed (for reproducible games)</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      type="text"
+                      value={seedInput}
+                      onChange={(e) => setSeedInput(e.target.value)}
+                      placeholder="e.g. 12345"
+                      style={{ flex: "1 1 180px", padding: 10, borderRadius: 10, border: "1px solid #bbb" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSeedInput(String(Date.now()))}
+                      style={{ padding: "10px 12px", borderRadius: 10 }}
+                    >
+                      Randomize
+                    </button>
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>Use the same seed to replay a game flow.</div>
+                </div>
+
+                {playVsComputer && (
+                  <div className="setup-ai-grid">
+                    <label style={{ display: "grid", gap: 6 }}>
+                      <span style={{ fontWeight: 600 }}>AI Speed</span>
+                      <select
+                        value={aiSpeed}
+                        onChange={(e) => setAiSpeed(e.target.value as AiConfig["speed"])}
+                        style={{ padding: 8, borderRadius: 8 }}
+                      >
+                        <option value="FAST">Fast</option>
+                        <option value="NORMAL">Normal</option>
+                      </select>
+                    </label>
+                    <label style={{ display: "grid", gap: 6 }}>
+                      <span style={{ fontWeight: 600 }}>Personality</span>
+                      <select
+                        value={aiPersonality}
+                        onChange={(e) => setAiPersonality(e.target.value as AiPersonality)}
+                        style={{ padding: 8, borderRadius: 8 }}
+                      >
+                        <option value="BALANCED">Balanced</option>
+                        <option value="BUILDER">Builder</option>
+                        <option value="AGGRESSIVE">Aggressive</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
+
+                <div className="setup-secondary-actions">
                   <button type="button" onClick={() => { void handleCopySetupLink(); }} style={{ padding: "10px 14px", borderRadius: 10 }}>
                     Copy Setup Link
                   </button>
@@ -2023,18 +2004,24 @@ export default function App() {
                   <button onClick={() => setShowHowTo(true)} style={{ padding: "10px 14px", borderRadius: 10 }}>
                     How to Play
                   </button>
-                </div>
-                <div style={{ marginTop: 10, fontSize: 12 }}>
-                  <button
-                    type="button"
-                    onClick={openRulebook}
-                    style={{ background: "none", border: "none", padding: 0, color: "#1f5fbf", cursor: "pointer" }}
-                  >
+                  <button type="button" onClick={openRulebook} style={{ padding: "10px 14px", borderRadius: 10 }}>
                     Read the full rulebook
                   </button>
                 </div>
-              </>
-            )}
+              </div>
+            </details>
+
+            <div className="setup-primary-actions" style={{ marginTop: 18 }}>
+              <button data-testid="start-game" disabled={!canStartConfigured} onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Start Game
+              </button>
+              <button type="button" onClick={handleQuickMatchHotseat} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Quick Match (Hotseat)
+              </button>
+              <button type="button" onClick={handleQuickMatchVsCpu} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                Quick Match vs CPU
+              </button>
+            </div>
             {!canStartConfigured && (
               <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>
                 Select required player profiles before starting.
