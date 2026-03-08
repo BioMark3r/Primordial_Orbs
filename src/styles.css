@@ -42,19 +42,124 @@ button, select { font: inherit; }
   margin-top: 6px;
 }
 
-.setup-screen {
-  min-height: 100%;
+.setup-shell {
+  min-height: 100dvh;
+  max-height: 100dvh;
   overflow-y: auto;
   overflow-x: clip;
   padding-bottom: 24px;
+  position: relative;
+}
+
+.setup-cosmic-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 620px at 22% 12%, rgba(90, 126, 255, 0.26), transparent 64%),
+    radial-gradient(760px 520px at 78% 78%, rgba(34, 171, 210, 0.14), transparent 66%),
+    radial-gradient(560px 400px at 52% 42%, rgba(177, 106, 255, 0.08), transparent 68%),
+    linear-gradient(180deg, rgba(5, 8, 18, 0.96), rgba(2, 4, 12, 0.98));
+}
+
+.setup-cosmic-layer::before,
+.setup-cosmic-layer::after {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background-repeat: repeat;
+  opacity: 0.22;
+}
+
+.setup-cosmic-layer::before {
+  background-image: radial-gradient(circle at 50% 50%, rgba(244, 247, 255, 0.92) 0.5px, transparent 1.5px);
+  background-size: 180px 180px;
+  animation: setupStarDriftA 70s linear infinite;
+}
+
+.setup-cosmic-layer::after {
+  background-image: radial-gradient(circle at 50% 50%, rgba(232, 240, 255, 0.72) 0.5px, transparent 1.3px);
+  background-size: 240px 240px;
+  opacity: 0.15;
+  animation: setupStarDriftB 95s linear infinite;
+}
+
+.setup-star {
+  position: absolute;
+  width: 34vmax;
+  height: 34vmax;
+  border-radius: 50%;
+  filter: blur(65px);
+  opacity: 0.22;
+  animation: setupNebulaFloat 34s ease-in-out infinite;
+}
+
+.setup-star--one {
+  left: -8vmax;
+  top: -14vmax;
+  background: rgba(65, 118, 255, 0.42);
+}
+
+.setup-star--two {
+  right: -14vmax;
+  top: 4vmax;
+  background: rgba(36, 176, 212, 0.33);
+  animation-delay: -8s;
+}
+
+.setup-star--three {
+  left: 14vmax;
+  bottom: -16vmax;
+  background: rgba(139, 97, 226, 0.22);
+  animation-delay: -15s;
+}
+
+.setup-star--four,
+.setup-star--five,
+.setup-star--six {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  filter: none;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 10px rgba(226, 239, 255, 0.65);
+  animation: setupTwinkle 5s ease-in-out infinite;
+}
+
+.setup-star--four {
+  top: 24%;
+  left: 14%;
+}
+
+.setup-star--five {
+  top: 64%;
+  left: 82%;
+  animation-delay: -2s;
+}
+
+.setup-star--six {
+  top: 48%;
+  left: 52%;
+  animation-delay: -3.6s;
+}
+
+.setup-screen {
+  min-height: 100dvh;
+  overflow-y: visible;
+  overflow-x: clip;
+  position: relative;
+  z-index: 1;
 }
 
 .setup-lobby-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .setup-lobby-layout {
@@ -62,11 +167,13 @@ button, select { font: inherit; }
 }
 
 .setup-card {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  border-radius: 16px;
+  border: 1px solid rgba(180, 205, 255, 0.28);
+  background: linear-gradient(180deg, rgba(10, 16, 30, 0.9), rgba(7, 11, 22, 0.9));
+  border-radius: 18px;
   padding: 16px;
   min-width: 0;
+  box-shadow: 0 26px 55px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(3px);
 }
 
 .setup-card h3,
@@ -104,25 +211,28 @@ button, select { font: inherit; }
 }
 
 .setup-option-card {
-  border: 1px solid #cbd5e1;
+  border: 1px solid rgba(159, 181, 226, 0.38);
   border-radius: 12px;
-  background: #fff;
+  background: rgba(17, 27, 46, 0.78);
+  color: #eef4ff;
   padding: 12px;
   text-align: left;
   display: grid;
   gap: 4px;
   cursor: pointer;
   min-height: 68px;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
 
 .setup-option-card:hover {
-  border-color: #60a5fa;
+  border-color: rgba(138, 182, 255, 0.88);
+  transform: translateY(-1px);
 }
 
 .setup-option-card.is-selected {
-  border-color: #2563eb;
-  background: #dbeafe;
-  box-shadow: 0 0 0 1px #2563eb inset;
+  border-color: rgba(127, 183, 255, 0.95);
+  background: rgba(43, 74, 128, 0.72);
+  box-shadow: 0 0 0 1px rgba(127, 183, 255, 0.75) inset;
 }
 
 .setup-option-card__title {
@@ -130,7 +240,7 @@ button, select { font: inherit; }
 }
 
 .setup-option-card__meta {
-  color: #4b5563;
+  color: rgba(206, 222, 255, 0.78);
   font-size: 13px;
 }
 
@@ -151,13 +261,13 @@ button, select { font: inherit; }
 
 .setup-profile-box {
   padding: 12px;
-  border: 1px solid #cfd8ea;
+  border: 1px solid rgba(170, 190, 226, 0.26);
   border-radius: 12px;
-  background: #fff;
+  background: rgba(11, 20, 38, 0.7);
 }
 
 .setup-muted {
-  color: #475569;
+  color: rgba(198, 213, 240, 0.82);
   font-size: 13px;
 }
 
@@ -169,9 +279,9 @@ button, select { font: inherit; }
 }
 
 .setup-primary-actions button:first-child {
-  background: #2563eb;
+  background: linear-gradient(180deg, #3477ff, #2457ca);
   color: #fff;
-  border: 1px solid #1d4ed8;
+  border: 1px solid rgba(141, 184, 255, 0.9);
   font-weight: 700;
 }
 
@@ -181,10 +291,10 @@ button, select { font: inherit; }
 
 .setup-advanced {
   margin-top: 16px;
-  border: 1px solid #cfd8ea;
+  border: 1px solid rgba(168, 191, 230, 0.24);
   border-radius: 12px;
   padding: 12px;
-  background: #fff;
+  background: rgba(10, 18, 34, 0.72);
 }
 
 .setup-advanced > summary {
@@ -198,16 +308,72 @@ button, select { font: inherit; }
   gap: 12px;
 }
 
+@keyframes setupNebulaFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.18;
+  }
+  50% {
+    transform: translate3d(1.5vmax, -1vmax, 0) scale(1.05);
+    opacity: 0.28;
+  }
+}
+
+@keyframes setupStarDriftA {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-80px, -80px, 0);
+  }
+}
+
+@keyframes setupStarDriftB {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(120px, -90px, 0);
+  }
+}
+
+@keyframes setupTwinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 0.95;
+    transform: scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-cosmic-layer::before,
+  .setup-cosmic-layer::after,
+  .setup-star {
+    animation: none !important;
+  }
+}
+
 @media (max-width: 640px) {
   body {
     overflow: auto;
+  }
+
+  .setup-shell {
+    min-height: 100dvh;
+    max-height: none;
+    overflow-y: auto;
   }
 
   .setup-screen {
     max-width: 100%;
     padding: 10px;
     min-height: 100dvh;
-    overflow-y: auto;
+    overflow-y: visible;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
   }

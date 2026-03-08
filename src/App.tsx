@@ -1792,17 +1792,26 @@ export default function App() {
   if (screen === "SETUP") {
     const matchModeLabel = playVsComputer ? "vs Computer" : "Local Hotseat";
     return (
-      <div data-testid="screen-setup" style={containerStyle} className="setup-screen">
-        <div className="setup-lobby-header">
-          <div>
-            <h2 style={{ margin: 0 }}>Match Lobby</h2>
-            <p style={{ margin: "6px 0 0", color: "#4b5563" }}>Pick the essentials, then jump in.</p>
-          </div>
-          <button onClick={() => setScreen("SPLASH")}>Back</button>
+      <div className="app-shell lobby-shell setup-shell">
+        <div className="setup-cosmic-layer" aria-hidden="true">
+          <span className="setup-star setup-star--one" />
+          <span className="setup-star setup-star--two" />
+          <span className="setup-star setup-star--three" />
+          <span className="setup-star setup-star--four" />
+          <span className="setup-star setup-star--five" />
+          <span className="setup-star setup-star--six" />
         </div>
+        <div data-testid="screen-setup" style={containerStyle} className="setup-screen">
+          <div className="setup-lobby-header">
+            <div>
+              <h2 style={{ margin: 0 }}>Match Lobby</h2>
+              <p style={{ margin: "6px 0 0", color: "rgba(210, 223, 255, 0.82)" }}>Pick the essentials, then jump in.</p>
+            </div>
+            <button onClick={() => setScreen("SPLASH")}>Back</button>
+          </div>
 
-        <div className="setup-lobby-layout">
-          <div className="setup-card">
+          <div className="setup-lobby-layout">
+            <div className="setup-card">
             <h3 style={{ marginTop: 0 }}>Game Mode</h3>
             <div className="setup-option-grid setup-option-grid--two">
               <button
@@ -2011,25 +2020,26 @@ export default function App() {
               </div>
             </details>
 
-            <div className="setup-primary-actions" style={{ marginTop: 18 }}>
-              <button data-testid="start-game" disabled={!canStartConfigured} onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Start Game
-              </button>
-              <button type="button" onClick={handleQuickMatchHotseat} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Quick Match (Hotseat)
-              </button>
-              <button type="button" onClick={handleQuickMatchVsCpu} style={{ padding: "10px 14px", borderRadius: 10 }}>
-                Quick Match vs CPU
-              </button>
-            </div>
-            {!canStartConfigured && (
-              <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>
-                Select required player profiles before starting.
+              <div className="setup-primary-actions" style={{ marginTop: 18 }}>
+                <button data-testid="start-game" disabled={!canStartConfigured} onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                  Start Game
+                </button>
+                <button type="button" onClick={handleQuickMatchHotseat} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                  Quick Match (Hotseat)
+                </button>
+                <button type="button" onClick={handleQuickMatchVsCpu} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                  Quick Match vs CPU
+                </button>
               </div>
-            )}
+              {!canStartConfigured && (
+                <div style={{ marginTop: 10, fontSize: 12, color: "#fca5a5" }}>
+                  Select required player profiles before starting.
+                </div>
+              )}
+            </div>
           </div>
+          {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
         </div>
-        {showHowTo && <HowToOverlay onClose={() => setShowHowTo(false)} />}
       </div>
     );
   }

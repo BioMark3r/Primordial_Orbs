@@ -17,6 +17,13 @@ async function gotoFromSplashToGame(page: Page) {
   await expect(page.getByTestId("screen-game")).toBeVisible();
 }
 
+async function gotoSetup(page: Page) {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.getByTestId("screen-splash")).toBeVisible();
+  await page.getByRole("button", { name: "Continue as Guest" }).click();
+  await expect(page.getByTestId("screen-setup")).toBeVisible();
+}
+
 async function gotoStableDemo(page: Page) {
   await page.goto("/?demo=1&shots=1", { waitUntil: "networkidle" });
   await page.addStyleTag({
@@ -179,6 +186,68 @@ for (const viewport of viewports) {
       await expect(page.getByTestId("mobile-toolbar")).toBeVisible();
       await expect(page.getByTestId("region-main-board")).toBeVisible();
       await expect(page.getByTestId("hand-panel")).toBeVisible();
+    });
+
+    test("setup lobby renders with dark themed background", async ({ page }) => {
+      await gotoSetup(page);
+
+      const setupBackground = await page.evaluate(() => {
+        const shell = document.querySelector(".setup-shell");
+        const cosmic = document.querySelector(".setup-cosmic-layer");
+        const card = document.querySelector(".setup-card");
+        if (!shell || !cosmic || !card) return null;
+        const shellBg = window.getComputedStyle(shell).backgroundColor;
+        const cardBg = window.getComputedStyle(card).backgroundColor;
+        return { shellBg, cardBg };
+      });
+
+      expect(setupBackground).not.toBeNull();
+      expect(setupBackground?.shellBg).not.toBe("rgb(255, 255, 255)");
+      expect(setupBackground?.cardBg).not.toBe("rgb(255, 255, 255)");
+      await expect(page.locator(".setup-cosmic-layer")).toBeVisible();
+    });
+
+    test("setup mobile flow scrolls and reaches Start Game CTA", async ({ page }) => {
+      if (viewport.name !== "mobile" && viewport.name !== "small-mobile") {
+        test.skip();
+      }
+
+      await gotoSetup(page);
+
+      const setup = page.getByTestId("screen-setup");
+      await expect(setup).toBeVisible();
+      const startGameButton = page.getByTestId("start-game");
+      await startGameButton.scrollIntoViewIfNeeded();
+      await expect(startGameButton).toBeVisible();
+
+      const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+      expect(hasHorizontalOverflow).toBe(false);
+    });
+
+    test("setup advanced options are collapsed by default and can expand", async ({ page }) => {
+      await gotoSetup(page);
+      const advanced = page.getByTestId("setup-advanced");
+      await expect(advanced).toBeVisible();
+      await expect(advanced).not.toHaveAttribute("open", "");
+      await advanced.locator("summary").click();
+      await expect(advanced).toHaveAttribute("open", "");
+    });
+
+    test("setup supports reduced-motion without breaking rendering", async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await gotoSetup(page);
+      await expect(page.locator(".setup-cosmic-layer")).toBeVisible();
+
+      const animationsDisabled = await page.evaluate(() => {
+        const star = document.querySelector(".setup-star--one");
+        const drift = document.querySelector(".setup-cosmic-layer");
+        if (!star || !drift) return false;
+        const starAnimation = window.getComputedStyle(star).animationName;
+        const driftBefore = window.getComputedStyle(drift, "::before").animationName;
+        return starAnimation === "none" && driftBefore === "none";
+      });
+
+      expect(animationsDisabled).toBe(true);
     });
 
     test("layout screenshots", async ({ page }) => {
