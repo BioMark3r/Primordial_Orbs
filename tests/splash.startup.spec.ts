@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const viewports = [
   { name: "desktop", width: 1365, height: 768 },
+  { name: "tablet", width: 768, height: 1024 },
   { name: "mobile", width: 390, height: 844 },
   { name: "small-mobile", width: 375, height: 667 },
 ] as const;
@@ -18,11 +19,13 @@ for (const viewport of viewports) {
 
       await page.getByRole("button", { name: "Continue as Guest" }).click();
       await expect(page.getByTestId("screen-setup")).toBeVisible();
+      await expect(page.getByText("Match Lobby")).toBeVisible();
+      await expect(page.getByTestId("setup-mode-hotseat")).toBeVisible();
+      await expect(page.getByTestId("setup-mode-cpu")).toBeVisible();
 
       await page.getByTestId("start-game").click();
       await expect(page.getByTestId("screen-game")).toBeVisible();
     });
-
 
     test("setup screen remains scrollable and start game is reachable on mobile", async ({ page }) => {
       if (viewport.name !== "mobile" && viewport.name !== "small-mobile") {
@@ -55,6 +58,33 @@ for (const viewport of viewports) {
         });
         expect(scrollTopAfter).toBeGreaterThan(0);
       }
+    });
+
+    test("advanced options expand and collapse from setup", async ({ page }) => {
+      await page.goto("/", { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: "Continue as Guest" }).click();
+
+      const advanced = page.getByTestId("setup-advanced");
+      await expect(advanced).toBeVisible();
+      await expect(page.getByText("Copy Setup Link")).toHaveCount(0);
+
+      await advanced.locator("summary").click();
+      await expect(page.getByRole("button", { name: "Copy Setup Link" })).toBeVisible();
+
+      await advanced.locator("summary").click();
+      await expect(page.getByRole("button", { name: "Copy Setup Link" })).toHaveCount(0);
+    });
+
+    test("cpu setup cards are readable and interactable", async ({ page }) => {
+      await page.goto("/", { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: "Continue as Guest" }).click();
+
+      await page.getByTestId("setup-mode-cpu").click();
+      await expect(page.getByTestId("setup-difficulty-normal")).toBeVisible();
+      await page.getByTestId("setup-difficulty-hard").click();
+
+      await page.getByTestId("start-game").click();
+      await expect(page.getByTestId("screen-game")).toBeVisible();
     });
 
     test("mobile gameplay layout stays in-bounds after splash", async ({ page }) => {
