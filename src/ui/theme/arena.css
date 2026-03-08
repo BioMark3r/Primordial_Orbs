@@ -5,6 +5,11 @@
   overflow: hidden;
 }
 
+.app-shell.setup-shell {
+  overflow-y: auto;
+  overflow-x: clip;
+}
+
 .app-shell::before {
   content: "";
   position: fixed;
