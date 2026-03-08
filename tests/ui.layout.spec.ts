@@ -233,6 +233,51 @@ for (const viewport of viewports) {
       await expect(advanced).toHaveAttribute("open", "");
     });
 
+    test("setup advanced options are scrollable on desktop", async ({ page }) => {
+      if (viewport.name !== "desktop") {
+        test.skip();
+      }
+
+      await gotoSetup(page);
+      const advanced = page.getByTestId("setup-advanced");
+      await advanced.locator("summary").click();
+      await expect(advanced).toHaveAttribute("open", "");
+
+      const shell = page.locator(".setup-shell");
+      await expect(shell).toBeVisible();
+
+      const shellMetrics = await page.evaluate(() => {
+        const container = document.querySelector<HTMLElement>(".setup-shell");
+        if (!container) return null;
+        return {
+          overflowY: window.getComputedStyle(container).overflowY,
+          scrollHeight: container.scrollHeight,
+          clientHeight: container.clientHeight,
+        };
+      });
+
+      expect(shellMetrics).not.toBeNull();
+      expect(shellMetrics?.overflowY).toBe("auto");
+      expect(shellMetrics?.scrollHeight ?? 0).toBeGreaterThan(shellMetrics?.clientHeight ?? 0);
+
+      await page.evaluate(() => {
+        const container = document.querySelector<HTMLElement>(".setup-shell");
+        if (!container) return;
+        container.scrollTop = container.scrollHeight;
+      });
+
+      const scrolledTop = await page.evaluate(() => {
+        const container = document.querySelector<HTMLElement>(".setup-shell");
+        return container?.scrollTop ?? 0;
+      });
+      expect(scrolledTop).toBeGreaterThan(0);
+
+      const startGameButton = page.getByTestId("start-game");
+      await startGameButton.scrollIntoViewIfNeeded();
+      await expect(startGameButton).toBeVisible();
+    });
+
+
     test("setup supports reduced-motion without breaking rendering", async ({ page }) => {
       await page.emulateMedia({ reducedMotion: "reduce" });
       await gotoSetup(page);
