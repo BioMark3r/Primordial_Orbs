@@ -4,6 +4,7 @@ import type { Impact } from "../../engine/types";
 import { fxForImpact } from "../utils/impactFx";
 import type { PlanetViz } from "../utils/planetViz";
 import { OrbIcon, type OrbElement } from "./OrbIcon";
+import { OrbVisual } from "./OrbVisual";
 import { PlanetIcon } from "./PlanetIcon";
 import { PileWidget } from "./PileWidget";
 
@@ -66,6 +67,7 @@ export function ArenaView({
   } | null>(null);
   const [impactResult, setImpactResult] = useState<string | null>(null);
   const [targetPulse, setTargetPulse] = useState<0 | 1 | null>(null);
+  const [lastImpactPulse, setLastImpactPulse] = useState(false);
 
   const impactLabel = useMemo(() => getImpactLabel(lastEvent, lastImpactName), [lastEvent, lastImpactName]);
   const impactTarget = useMemo(() => getImpactTarget(lastEvent), [lastEvent]);
@@ -104,9 +106,11 @@ export function ArenaView({
     const slotLabel = affectedCount === 1 ? "slot" : "slots";
     const result = `${fx.label}: ${affectedCount} ${slotLabel} changed`;
     setImpactResult(result);
+    setLastImpactPulse(true);
 
     const clearResult = window.setTimeout(() => setImpactResult(null), 1000);
     const clearPulse = window.setTimeout(() => setBowlPulse(false), 420);
+    const clearLastPulse = window.setTimeout(() => setLastImpactPulse(false), 620);
     const clearTargetPulse = window.setTimeout(() => {
       setTargetPulse((prev) => (prev === impactEvent.target ? null : prev));
     }, 850);
@@ -115,6 +119,7 @@ export function ArenaView({
       window.clearTimeout(clearFx);
       window.clearTimeout(clearResult);
       window.clearTimeout(clearPulse);
+      window.clearTimeout(clearLastPulse);
       window.clearTimeout(clearTargetPulse);
     };
   }, [impactEvent]);
@@ -153,17 +158,29 @@ export function ArenaView({
             />
           )}
         </div>
-        <div className="arena-view__readout">
-          <div className="arena-view__label">Last Impact</div>
-          <div className="arena-view__impact">
+        <div className={`arena-view__readout${lastImpactPulse ? " arena-view__readout--impact-updated" : ""}`}>
+          <div className="arena-view__label arena-view__label--badge">Last Impact</div>
+          <div className="arena-view__impact arena-view__impact--card">
             {lastImpactIconPath ? (
               impactPathElement ? (
-                <OrbIcon element={impactPathElement} size={52} />
+                <OrbVisual
+                  element={impactPathElement}
+                  categoryClass="impact"
+                  size="md"
+                  isSelected={lastImpactPulse}
+                  animateIn={lastImpactPulse}
+                />
               ) : (
                 <img src={lastImpactIconPath} alt="" />
               )
             ) : impactEvent ? (
-              <OrbIcon element={elementForImpact(impactEvent.impact as Impact)} size={52} />
+              <OrbVisual
+                element={elementForImpact(impactEvent.impact as Impact)}
+                categoryClass="impact"
+                size="md"
+                isSelected={lastImpactPulse}
+                animateIn={lastImpactPulse}
+              />
             ) : (
               <div className="arena-view__impact-placeholder" />
             )}

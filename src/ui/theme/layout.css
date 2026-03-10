@@ -1037,6 +1037,17 @@
   filter: brightness(1.05);
 }
 
+.player-panel__slot-btn--placed::after {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(170, 210, 255, 0.55);
+  box-shadow: 0 0 18px rgba(146, 198, 255, 0.38);
+  animation: slotPlacementRipple 240ms ease-out 1;
+  pointer-events: none;
+}
+
 .player-panel__slot-btn--valid {
   border-color: rgba(140, 196, 255, 0.64) !important;
   box-shadow: 0 0 0 1px rgba(140, 196, 255, 0.3), 0 0 16px rgba(122, 180, 255, 0.2);
@@ -1071,6 +1082,17 @@
 .slot-circle .orb {
   width: 100%;
   height: 100%;
+}
+
+@keyframes slotPlacementRipple {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.75);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.28);
+  }
 }
 
 .player-panel__slot-label {
@@ -1193,7 +1215,7 @@
   .hand-last-play,
   .btn-nudge,
   .marble-actionable,
-  .orb--actionable .orb__shell {
+  .orb--playable .orb__shell {
     animation: none !important;
     transition: none !important;
   }

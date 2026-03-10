@@ -1,6 +1,16 @@
 import React from "react";
+import type { Impact } from "../../engine/types";
 import type { ImpactPreview } from "../utils/impactPreview";
 import { impactIcon } from "../theme/assets";
+import type { OrbElement } from "./OrbIcon";
+import { OrbVisual } from "./OrbVisual";
+
+function elementForImpact(impact: Impact): OrbElement {
+  if (impact === "BLACK_HOLE" || impact === "TEMPORAL_VORTEX") return "void";
+  if (impact === "SOLAR_FLARE" || impact === "METEOR") return "lava";
+  if (impact === "TORNADO") return "ice";
+  return "nature";
+}
 
 export function ImpactPreviewPanel({
   preview,
@@ -85,11 +95,9 @@ export function ImpactPreviewPanel({
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
         {iconSrc ? (
-          <img src={iconSrc} alt={impactName} style={{ width: 36, height: 36 }} />
+          <OrbVisual element={elementForImpact(preview.impact)} categoryClass="impact" size="sm" isPlayable />
         ) : (
-          <div style={{ width: 36, height: 36, display: "grid", placeItems: "center", fontWeight: 700 }}>
-            {impactName[0]}
-          </div>
+          <div style={{ width: 36, height: 36, display: "grid", placeItems: "center", fontWeight: 700 }}>{impactName[0]}</div>
         )}
         <div>
           <div style={{ fontWeight: 700 }}>{impactName}</div>

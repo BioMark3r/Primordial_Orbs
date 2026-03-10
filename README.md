@@ -200,6 +200,16 @@ npm run test:ui:update
 - Orbs: `orbs.css`
 - Vite orb sprites: place ornate orb assets in `/public/assets/orbs` and reference at runtime as `/assets/orbs/...`
 
+### Orb visual animation pipeline
+
+- Shared orb rendering now lives in `src/ui/components/OrbVisual.tsx` and is reused by hand, slot, and impact preview contexts.
+- `src/ui/components/OrbToken.tsx` is the interaction wrapper (click/disabled/tooltips), while `OrbVisual` owns orb framing + animation classes.
+- Tune motion/glow in:
+  - `src/ui/theme/orbs.css` (idle breathing, hover pulse, selected halo, entrance timing)
+  - `src/ui/theme/layout.css` (slot placement ripple)
+  - `src/ui/theme/arena.css` (arena/impact flash + last-impact polish)
+- Keep gameplay logic in engine/reducer files; visual changes should stay in UI components/theme CSS unless a UI event flag is needed.
+
 ---
 
 ## 🤖 AI & Solo Play
