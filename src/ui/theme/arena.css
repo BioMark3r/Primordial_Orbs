@@ -51,6 +51,16 @@
 .arena-view--active {
   border-color: rgba(145, 192, 255, 0.45);
   box-shadow: inset 0 0 0 1px rgba(145, 192, 255, 0.22), 0 0 24px rgba(120, 175, 255, 0.22);
+  animation: arenaFlash 240ms ease-out 1;
+}
+
+@keyframes arenaFlash {
+  0% {
+    filter: brightness(1.15);
+  }
+  100% {
+    filter: brightness(1);
+  }
 }
 
 .arena-view__header {
@@ -207,6 +217,10 @@
   gap: 8px;
 }
 
+.arena-view__readout--impact-updated {
+  animation: impactReadoutIn 220ms ease-out 1;
+}
+
 .arena-view__label {
   font-size: 12px;
   text-transform: uppercase;
@@ -214,10 +228,25 @@
   color: rgba(237, 239, 246, 0.6);
 }
 
+.arena-view__label--badge {
+  width: fit-content;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(156, 196, 255, 0.28);
+  background: linear-gradient(120deg, rgba(70, 102, 158, 0.22), rgba(42, 58, 88, 0.15));
+}
+
 .arena-view__impact {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+.arena-view__impact--card {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(11, 16, 28, 0.6);
+  padding: 8px 10px;
 }
 
 .arena-view__impact-name {
@@ -251,6 +280,17 @@
   }
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes impactReadoutIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -409,14 +449,42 @@
   pointer-events: none;
 }
 
+.arena-impact .arena-view__bowl-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 24% 34%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(162, 204, 255, 0.45), rgba(162, 204, 255, 0));
+  animation: arenaImpactBurst 250ms ease-out 1;
+  pointer-events: none;
+}
+
+@keyframes arenaImpactBurst {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+
 @keyframes arenaShockRing {
   from { transform: scale(0.8); opacity: 0.8; }
   to { transform: scale(1.45); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .arena-view--active,
+  .arena-view__readout--impact-updated,
+  .arena-impact .arena-view__bowl-wrap::before,
   .arena-view--active .arena-view__bowl-wrap::after {
-    animation: none;
+    animation: none !important;
+  }
+
+  .arena-view--active .arena-view__bowl-wrap::after,
+  .arena-impact .arena-view__bowl-wrap::before {
     display: none;
   }
 }

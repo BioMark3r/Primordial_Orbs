@@ -1,12 +1,10 @@
 import React from "react";
 import type { Orb } from "../../engine/types";
 import { getOrbSymbol } from "../icons/orbSymbols";
-import { OrbIcon } from "./OrbIcon";
+import { OrbVisual, type OrbVisualSize } from "./OrbVisual";
 import { ORB_COLORS, type OrbColor, type OrbColorKey } from "../theme/orbColors";
 
-type Size = "sm" | "md" | "lg" | "slot";
-
-const px: Record<Size, number | string> = { sm: 34, md: 52, lg: 74, slot: 72 };
+type Size = OrbVisualSize;
 const FALLBACK_COLORS: OrbColor = {
   base: "#6B7280",
   hi: "#E5E7EB",
@@ -51,35 +49,24 @@ export function OrbToken(props: {
   disabledReason?: string;
   actionable?: boolean;
   burst?: boolean;
+  animateIn?: boolean;
+  hovered?: boolean;
   title?: string;
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   const size = props.size ?? "md";
-  const d = px[size];
   const orbKey = colorKeyForOrb(props.orb);
   const colors = ORB_COLORS[orbKey as OrbColorKey] ?? FALLBACK_COLORS;
   const categoryClass = categoryForOrb(props.orb);
   const elementClass = elementForOrb(props.orb);
 
-  const cls = [
-    "orb",
-    "orb--shimmerable",
-    `orb--${categoryClass}`,
-    `orb--element-${elementClass}`,
-    props.burst ? "orb--burst" : "",
-    props.selected ? "orb--selected" : "",
-    props.disabled ? "orb--disabled" : "",
-    props.actionable ? "orb--actionable" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
   const style: React.CSSProperties & Record<string, string | number> = {
-    width: d,
-    height: d,
-    padding: 0,
-    background: "transparent",
     cursor: props.disabled ? "not-allowed" : props.onClick ? "pointer" : "default",
+    padding: 0,
+    border: 0,
+    background: "transparent",
+    display: "grid",
+    placeItems: "center",
     "--orb-base": colors.base,
     "--orb-hi": colors.hi,
     "--orb-lo": colors.lo,
@@ -90,7 +77,6 @@ export function OrbToken(props: {
   const Component = (isButton ? "button" : "div") as "button" | "div";
 
   const sharedProps = {
-    className: cls,
     style,
     title: props.title ?? props.disabledReason,
   };
@@ -105,26 +91,36 @@ export function OrbToken(props: {
         disabled={isDisabled && !props.disabledReason}
         aria-disabled={isDisabled || undefined}
       >
-        <OrbIcon element={elementClass} size="100%" />
-        <div className="orb__shell" aria-hidden="true" />
-        <div className="orb__spec" aria-hidden="true" />
-        <div className={`orb__ring orb__ring--${categoryClass}`} aria-hidden="true" />
-        <div className="orb__etch" aria-hidden="true">
-          {getOrbSymbol(props.orb)}
-        </div>
+        <OrbVisual
+          element={elementClass}
+          categoryClass={categoryClass}
+          size={size}
+          isSelected={Boolean(props.selected)}
+          isPlayable={Boolean(props.actionable && !props.disabled)}
+          isDisabled={Boolean(props.disabled)}
+          isHovered={Boolean(props.hovered)}
+          animateIn={Boolean(props.animateIn)}
+          burst={Boolean(props.burst)}
+          symbol={getOrbSymbol(props.orb)}
+        />
       </button>
     );
   }
 
   return (
     <div {...sharedProps} aria-disabled={props.disabled || undefined}>
-      <OrbIcon element={elementClass} size="100%" />
-      <div className="orb__shell" aria-hidden="true" />
-      <div className="orb__spec" aria-hidden="true" />
-      <div className={`orb__ring orb__ring--${categoryClass}`} aria-hidden="true" />
-      <div className="orb__etch" aria-hidden="true">
-        {getOrbSymbol(props.orb)}
-      </div>
+      <OrbVisual
+        element={elementClass}
+        categoryClass={categoryClass}
+        size={size}
+        isSelected={Boolean(props.selected)}
+        isPlayable={Boolean(props.actionable && !props.disabled)}
+        isDisabled={Boolean(props.disabled)}
+        isHovered={Boolean(props.hovered)}
+        animateIn={Boolean(props.animateIn)}
+        burst={Boolean(props.burst)}
+        symbol={getOrbSymbol(props.orb)}
+      />
     </div>
   );
 }

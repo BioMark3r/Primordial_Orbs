@@ -371,6 +371,7 @@ export default function App() {
   const [aiPersonality, setAiPersonality] = useState<AiPersonality>("BALANCED");
   const [aiPaused, setAiPaused] = useState(false);
   const [selected, setSelected] = useState<Selected>({ kind: "NONE" });
+  const [hoveredHandIndex, setHoveredHandIndex] = useState<number | null>(null);
   const [hoveredImpactIndex, setHoveredImpactIndex] = useState<number | null>(null);
   const [seedInput, setSeedInput] = useState<string>(() => String(initial.seed));
   const [showInspector, setShowInspector] = useState(false);
@@ -3383,6 +3384,7 @@ export default function App() {
                       size="md"
                       selected={isSel}
                       disabled={isDisabled}
+                      hovered={!isDisabled && hoveredHandIndex === i}
                       disabledReason={disabledReason ?? undefined}
                       actionable={isImpact && canPlayImpact && !isDisabled}
                       title={disabledReason ?? orbTooltip(o)}
@@ -3396,11 +3398,13 @@ export default function App() {
                       className={handTokenClass}
                       onMouseEnter={() => {
                         if (!isDisabled) {
+                          setHoveredHandIndex(i);
                           if (isImpact) setHoveredImpactIndex(i);
                           if (hoverSfxLimiterRef.current()) playSfx("ui_hover", { volumeMul: 0.35 });
                         }
                       }}
                       onMouseLeave={() => {
+                        setHoveredHandIndex((prev) => (prev === i ? null : prev));
                         if (isImpact && !isDisabled) setHoveredImpactIndex((prev) => (prev === i ? null : prev));
                       }}
                     >
@@ -3861,14 +3865,15 @@ function PlayerPanel(props: {
           const slotFxClass = fxStyle ? fxStyle.slotClass : "fx-slot-generic";
           const isLegalSlot = props.legalSlots.has(i);
           const showLegality = props.showSlotAffordances && !locked;
+          const slotBurst = props.placeBurst?.slotIndex === i;
           const slotClass = [
             "player-panel__slot-btn",
             flashSlot ? "slot-flash" : "",
+            slotBurst ? "player-panel__slot-btn--placed" : "",
             showLegality ? (isLegalSlot ? "player-panel__slot-btn--valid" : "player-panel__slot-btn--invalid") : "",
           ]
             .filter(Boolean)
             .join(" ");
-          const slotBurst = props.placeBurst?.slotIndex === i;
 
           return (
             <button
@@ -3904,7 +3909,15 @@ function PlayerPanel(props: {
               <div className="player-panel__slot-content">
                 <div className="slot-circle">
                   {s ? (
-                    <OrbToken orb={s} size="slot" selected={waterPick} disabled={locked} title={orbTooltip(s)} burst={slotBurst} />
+                    <OrbToken
+                      orb={s}
+                      size="slot"
+                      selected={waterPick}
+                      disabled={locked}
+                      title={orbTooltip(s)}
+                      burst={slotBurst}
+                      animateIn={slotBurst}
+                    />
                   ) : (
                     <span className="slot-empty" />
                   )}
