@@ -1055,15 +1055,22 @@
   opacity: 0.84;
 }
 
-.player-panel__slot-btn .orb {
-  width: calc(var(--slot) * 1.12);
-  height: calc(var(--slot) * 1.12);
-}
-
 .player-panel__slot-content {
   display: grid;
   justify-items: center;
   gap: 4px;
+}
+
+.slot-circle {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+}
+
+.slot-circle .orb {
+  width: 100%;
+  height: 100%;
 }
 
 .player-panel__slot-label {

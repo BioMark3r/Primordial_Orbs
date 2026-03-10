@@ -3902,11 +3902,13 @@ function PlayerPanel(props: {
                 />
               )}
               <div className="player-panel__slot-content">
-                {s ? (
-                  <OrbToken orb={s} size="slot" selected={waterPick} disabled={locked} title={orbTooltip(s)} burst={slotBurst} />
-                ) : (
-                  <span className="slot-empty" />
-                )}
+                <div className="slot-circle">
+                  {s ? (
+                    <OrbToken orb={s} size="slot" selected={waterPick} disabled={locked} title={orbTooltip(s)} burst={slotBurst} />
+                  ) : (
+                    <span className="slot-empty" />
+                  )}
+                </div>
                 <div className="player-panel__slot-label">
                   Slot {i + 1}{locked ? " • Locked" : ""}
                 </div>

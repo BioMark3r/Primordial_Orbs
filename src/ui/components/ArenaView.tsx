@@ -3,7 +3,7 @@ import type { UIEvent } from "../../App";
 import type { Impact } from "../../engine/types";
 import { fxForImpact } from "../utils/impactFx";
 import type { PlanetViz } from "../utils/planetViz";
-import { OrbToken } from "./OrbToken";
+import { OrbIcon, type OrbElement } from "./OrbIcon";
 import { PlanetIcon } from "./PlanetIcon";
 import { PileWidget } from "./PileWidget";
 
@@ -24,6 +24,18 @@ function getImpactLabel(event: UIEvent | null, fallback?: string) {
     return event.impact;
   }
   return fallback ?? "—";
+}
+
+function elementForImpact(impact: Impact): OrbElement {
+  if (impact === "BLACK_HOLE" || impact === "TEMPORAL_VORTEX") return "void";
+  if (impact === "SOLAR_FLARE" || impact === "METEOR") return "lava";
+  if (impact === "TORNADO") return "ice";
+  return "nature";
+}
+
+function elementFromImpactPath(iconPath: string): OrbElement | null {
+  const match = iconPath.match(/orb_(lava|ice|nature|void)\./i);
+  return (match?.[1]?.toLowerCase() as OrbElement | undefined) ?? null;
 }
 
 function getImpactTarget(event: UIEvent | null) {
@@ -58,6 +70,10 @@ export function ArenaView({
   const impactLabel = useMemo(() => getImpactLabel(lastEvent, lastImpactName), [lastEvent, lastImpactName]);
   const impactTarget = useMemo(() => getImpactTarget(lastEvent), [lastEvent]);
   const impactEvent = lastEvent?.kind === "IMPACT_CAST" || lastEvent?.kind === "IMPACT_RESOLVED" ? lastEvent : null;
+  const impactPathElement = useMemo(
+    () => (lastImpactIconPath ? elementFromImpactPath(lastImpactIconPath) : null),
+    [lastImpactIconPath],
+  );
   const arenaStatusLabel = impactEvent ? `Resolving: ${impactLabel}` : "Arena";
 
   useEffect(() => {
@@ -141,9 +157,13 @@ export function ArenaView({
           <div className="arena-view__label">Last Impact</div>
           <div className="arena-view__impact">
             {lastImpactIconPath ? (
-              <img src={lastImpactIconPath} alt="" />
+              impactPathElement ? (
+                <OrbIcon element={impactPathElement} size={52} />
+              ) : (
+                <img src={lastImpactIconPath} alt="" />
+              )
             ) : impactEvent ? (
-              <OrbToken orb={{ kind: "IMPACT", i: impactEvent.impact as Impact }} size="md" />
+              <OrbIcon element={elementForImpact(impactEvent.impact as Impact)} size={52} />
             ) : (
               <div className="arena-view__impact-placeholder" />
             )}

@@ -12,9 +12,9 @@ describe("OrbToken sprite mapping", () => {
       </>,
     );
 
-    expect(screen.getByAltText("lava orb")).toHaveAttribute("src", expect.stringContaining("orb_lava.webp"));
-    expect(screen.getByAltText("ice orb")).toHaveAttribute("src", expect.stringContaining("orb_ice.webp"));
-    expect(screen.getByAltText("nature orb")).toHaveAttribute("src", expect.stringContaining("orb_nature.webp"));
-    expect(screen.getByAltText("void orb")).toHaveAttribute("src", expect.stringContaining("orb_void.webp"));
+    expect(screen.getByAltText("lava")).toHaveAttribute("src", expect.stringContaining("orb_lava.webp"));
+    expect(screen.getByAltText("ice")).toHaveAttribute("src", expect.stringContaining("orb_ice.webp"));
+    expect(screen.getByAltText("nature")).toHaveAttribute("src", expect.stringContaining("orb_nature.webp"));
+    expect(screen.getByAltText("void")).toHaveAttribute("src", expect.stringContaining("orb_void.webp"));
   });
 });
