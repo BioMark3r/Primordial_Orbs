@@ -14,16 +14,27 @@
   will-change: transform;
 }
 
-.orb__sprite {
+.orb-icon {
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orb-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.orb > .orb-icon {
   position: absolute;
   inset: 5%;
-  width: 90%;
-  height: 90%;
-  object-fit: contain;
-  border-radius: 999px;
-  pointer-events: none;
+  width: 90% !important;
+  height: 90% !important;
   z-index: 1;
-  filter: saturate(1.04);
+  pointer-events: none;
 }
 
 .orb__shell {
@@ -210,7 +221,7 @@
   animation: orbPulse 1.35s ease-in-out infinite;
 }
 
-.orb .orb__sprite {
+.orb > .orb-icon {
   animation: orbIdleFloat 2.8s ease-in-out infinite;
 }
 
@@ -314,7 +325,7 @@
     opacity: 0 !important;
   }
 
-  .orb .orb__sprite,
+  .orb > .orb-icon,
   .orb--selected .orb__shell,
   .orb--burst::before,
   .orb--actionable .orb__shell {
