@@ -1072,6 +1072,7 @@ export default function App() {
           detail: validation.reason,
           at: Date.now(),
         });
+        playSfx("invalid", { volumeMul: 0.75 });
         return false;
       }
     }
@@ -1101,8 +1102,14 @@ export default function App() {
     switch (action.type) {
       case "PLAY_TERRAFORM":
       case "PLAY_COLONIZE":
-      case "PLAY_IMPACT":
         playSfx("orb_play");
+        break;
+      case "PLAY_IMPACT":
+        playSfx("impact_cast", { volumeMul: 0.95 });
+        break;
+      case "DRAW_2":
+      case "GAS_REDRAW":
+        playSfx("draw", { volumeMul: 0.75 });
         break;
       case "END_PLAY":
         playSfx("turn_end");
@@ -2513,6 +2520,7 @@ export default function App() {
         detail: undoCheck.reason,
         at: Date.now(),
       });
+      playSfx("invalid", { volumeMul: 0.75 });
       return;
     }
     setHistory((prev) => undo(prev));

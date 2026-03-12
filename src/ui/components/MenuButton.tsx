@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import { Menu } from "./Menu";
 import { useClickOutside } from "../hooks/useClickOutside";
+import { playSfx } from "../../audio/audioManager";
 
 type MenuButtonProps = {
   label: string;
@@ -42,7 +43,10 @@ export function MenuButton({ label, testId, open, onToggle, onClose, align = "ri
         ref={buttonRef}
         data-testid={testId}
         className="menuButton ui-btn ui-btn--ghost"
-        onClick={onToggle}
+        onClick={() => {
+          playSfx("ui_click", { volumeMul: 0.45 });
+          onToggle();
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
       >
