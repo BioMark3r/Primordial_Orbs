@@ -212,6 +212,34 @@ npm run test:ui:update
 
 ---
 
+
+## 🧰 SVG Icon Normalization (No Binary Changes)
+
+Some orb/core SVGs can look visually undersized when their artwork only occupies a small portion of the SVG canvas. This repo includes a deterministic normalization utility that tightens each SVG `viewBox` to the actual geometry bounds and adds a small safety margin, so icons fill their slot more consistently without rasterizing assets.
+
+- Script: `scripts/normalize-svg-viewbox.mjs`
+- Default targets: `src/assets/orbs` and `src/assets/cores`
+- Default padding: `6%` of max(art width, art height)
+- Output stays SVG/text-only (no PNG/WebP generation)
+
+Check whether files need normalization:
+
+```bash
+npm run icons:check
+```
+
+Normalize SVGs in place:
+
+```bash
+npm run icons:normalize
+```
+
+Notes:
+- The script preserves/ensures `viewBox` and removes fixed `width`/`height` attributes when found, so scaling remains responsive in the React/Vite pipeline.
+- `--check` exits non-zero if a file would change (CI-friendly).
+- For safety, SVGs with transforms or unsupported constructs are skipped with warnings instead of being rewritten.
+- This workflow is intentionally text-only so Codex/PR review stays clean and diffable.
+
 ## 🤖 AI & Solo Play
 
 AI is simple and deterministic, designed for playtesting.
