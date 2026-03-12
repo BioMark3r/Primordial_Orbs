@@ -55,13 +55,15 @@ export function OrbVisual({
 
   return (
     <div className={cls} style={{ width: d, height: d, ...style }} title={title}>
-      <OrbIcon element={element} size="100%" />
-      <div className="orb__shell" aria-hidden="true" />
+      <div className="orb__bg" aria-hidden="true">
+        <OrbIcon element={element} size="100%" />
+        <div className="orb__shell" />
+      </div>
+      <div className="orb__symbol-wrap" aria-hidden="true">
+        <div className="orb__symbol">{symbol}</div>
+      </div>
       <div className="orb__spec" aria-hidden="true" />
       <div className={`orb__ring orb__ring--${categoryClass}`} aria-hidden="true" />
-      <div className="orb__etch" aria-hidden="true">
-        {symbol}
-      </div>
     </div>
   );
 }
