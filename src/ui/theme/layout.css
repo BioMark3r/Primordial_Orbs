@@ -1023,6 +1023,7 @@
   position: relative;
   min-height: 106px;
   border-radius: 12px;
+  transform: translateZ(0);
   transition:
     transform 180ms ease,
     filter 180ms ease,
@@ -1030,11 +1031,26 @@
     box-shadow 180ms ease,
     opacity 180ms ease,
     background-color 180ms ease;
+  will-change: transform, filter;
 }
 
 .player-panel__slot-btn:hover {
-  transform: translateY(-1px) scale(1.015);
-  filter: brightness(1.05);
+  transform: translateY(-1px) scale(1.04);
+  filter: brightness(1.08);
+  box-shadow: 0 0 0 1px rgba(158, 200, 255, 0.25), 0 0 18px rgba(128, 178, 255, 0.22);
+}
+
+.player-panel__slot-btn--occupied:hover {
+  box-shadow: 0 0 0 1px rgba(172, 212, 255, 0.3), 0 0 22px rgba(142, 194, 255, 0.28);
+}
+
+
+.player-panel--active .player-panel__slot-btn:not(:disabled) {
+  animation: activeSlotPulse 2.8s ease-in-out infinite;
+}
+
+.player-panel--active .player-panel__slot-btn:not(:disabled):hover {
+  animation-play-state: paused;
 }
 
 .player-panel__slot-btn--placed::after {
@@ -1082,6 +1098,16 @@
 .slot-circle .orb {
   width: 100%;
   height: 100%;
+}
+
+@keyframes activeSlotPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(132, 178, 255, 0.12), 0 0 10px rgba(108, 164, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(148, 194, 255, 0.22), 0 0 14px rgba(122, 178, 255, 0.18);
+  }
 }
 
 @keyframes slotPlacementRipple {
@@ -1511,6 +1537,7 @@
   .hover-slot:hover {
     transform: none;
     filter: none;
+    box-shadow: none;
   }
 }
 

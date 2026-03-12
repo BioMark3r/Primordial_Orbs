@@ -3876,6 +3876,7 @@ function PlayerPanel(props: {
           const slotBurst = props.placeBurst?.slotIndex === i;
           const slotClass = [
             "player-panel__slot-btn",
+            s ? "player-panel__slot-btn--occupied" : "",
             flashSlot ? "slot-flash" : "",
             slotBurst ? "player-panel__slot-btn--placed" : "",
             showLegality ? (isLegalSlot ? "player-panel__slot-btn--valid" : "player-panel__slot-btn--invalid") : "",
