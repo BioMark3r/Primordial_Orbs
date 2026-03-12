@@ -126,7 +126,7 @@
 
 .orb__symbol-wrap {
   position: absolute;
-  inset: 9%;
+  inset: 7%;
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -140,7 +140,7 @@
   place-items: center;
   color: color-mix(in srgb, var(--orb-etch) 76%, #ffffff 24%);
   opacity: 0.98;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+  filter: brightness(1.1) contrast(1.05) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
 }
 
 .orb__symbol svg {
