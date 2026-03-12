@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { playSfx } from "../../audio/audioManager";
 
 type MenuItemProps = {
   children: ReactNode;
@@ -12,7 +13,10 @@ export function MenuItem({ children, onSelect, tone = "default", ...rest }: Menu
       type="button"
       className={`menuItem ui-menuItem${tone === "danger" ? " menuItem--danger" : ""}`}
       role="menuitem"
-      onClick={onSelect}
+      onClick={() => {
+        playSfx("ui_click", { volumeMul: 0.45 });
+        onSelect?.();
+      }}
       {...rest}
     >
       {children}

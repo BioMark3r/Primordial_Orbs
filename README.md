@@ -220,22 +220,44 @@ AI is simple and deterministic, designed for playtesting.
 
 ## 🔊 Audio
 
-The app now includes a lightweight browser `Audio` manager with separate SFX and ambient controls. This PR intentionally does **not** commit any audio binaries.
+The game uses a lightweight shared HTMLAudioElement-based manager in `src/audio/audioManager.ts`.
 
-Drop files here when ready:
+### Audio audit snapshot
 
-- `public/audio/sfx/ui_hover.ogg`
-- `public/audio/sfx/orb_select.ogg`
-- `public/audio/sfx/orb_play.ogg`
-- `public/audio/sfx/hit.ogg`
-- `public/audio/sfx/shield.ogg`
-- `public/audio/sfx/combo.ogg`
-- `public/audio/sfx/turn_end.ogg`
-- `public/audio/sfx/victory.ogg`
-- `public/audio/sfx/defeat.ogg`
-- `public/audio/ambient/space_loop.ogg`
+- Shared manager exists and is wired in `App.tsx` (no ad-hoc `new Audio(...)` calls in gameplay code).
+- Browser gesture lock is handled (audio unlocks on first pointer/key interaction).
+- Per-channel settings already exist and persist in localStorage:
+  - master mute
+  - SFX enabled + SFX volume
+  - ambient enabled + ambient volume
+- Legacy helper `src/ui/utils/sfx.ts` is no longer used by the main app.
 
-If files are missing, the game logs a one-time warning and continues without crashing.
+### Asset locations
+
+Current mix uses both existing committed MP3 placeholders and optional OGG files:
+
+- Existing committed assets:
+  - `public/sfx/click.mp3`
+  - `public/sfx/orb_place.mp3`
+  - `public/sfx/impact_cast.mp3`
+  - `public/sfx/impact_land.mp3`
+  - `public/sfx/unlock.mp3`
+  - `public/sfx/end_play.mp3`
+  - `public/sfx/error.mp3`
+- Optional higher-fidelity swap-ins (drop-in paths already supported):
+  - `public/audio/sfx/ui_hover.ogg`
+  - `public/audio/sfx/orb_select.ogg`
+  - `public/audio/sfx/shield.ogg`
+  - `public/audio/sfx/victory.ogg`
+  - `public/audio/ambient/space_loop.ogg`
+
+If any file is missing, playback fails gracefully with a one-time console warning.
+
+### Tuning defaults
+
+- Default SFX volume: `0.55`
+- Default ambient volume: `0.3`
+- Ambient starts only after a valid user gesture and only when enabled in settings.
 
 ---
 

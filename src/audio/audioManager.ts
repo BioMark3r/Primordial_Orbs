@@ -1,13 +1,17 @@
 import { assetUrl } from "../ui/utils/assetUrl";
 
 export type SfxName =
+  | "ui_click"
   | "ui_hover"
+  | "draw"
   | "orb_select"
   | "orb_play"
+  | "impact_cast"
   | "hit"
   | "shield"
   | "combo"
   | "turn_end"
+  | "invalid"
   | "victory"
   | "defeat";
 
@@ -24,15 +28,19 @@ type AudioState = {
 const VOICE_POOL_SIZE = 3;
 
 const sfxPaths: Record<SfxName, string> = {
+  ui_click: "sfx/click.mp3",
   ui_hover: "audio/sfx/ui_hover.ogg",
+  draw: "sfx/click.mp3",
   orb_select: "audio/sfx/orb_select.ogg",
-  orb_play: "audio/sfx/orb_play.ogg",
-  hit: "audio/sfx/hit.ogg",
+  orb_play: "sfx/orb_place.mp3",
+  impact_cast: "sfx/impact_cast.mp3",
+  hit: "sfx/impact_land.mp3",
   shield: "audio/sfx/shield.ogg",
-  combo: "audio/sfx/combo.ogg",
-  turn_end: "audio/sfx/turn_end.ogg",
+  combo: "sfx/unlock.mp3",
+  turn_end: "sfx/end_play.mp3",
+  invalid: "sfx/error.mp3",
   victory: "audio/sfx/victory.ogg",
-  defeat: "audio/sfx/defeat.ogg",
+  defeat: "sfx/error.mp3",
 };
 
 const disabledSfx = new Set<SfxName>();
