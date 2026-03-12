@@ -18,7 +18,9 @@
     "dev:db": "cd server && npx supabase start",
     "dev:db:stop": "cd server && npx supabase stop",
     "dev:web": "npm run dev",
-    "dev:all": "node scripts/dev-all.mjs"
+    "dev:all": "node scripts/dev-all.mjs",
+    "icons:check": "node scripts/normalize-svg-viewbox.mjs --check",
+    "icons:normalize": "node scripts/normalize-svg-viewbox.mjs --write"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
