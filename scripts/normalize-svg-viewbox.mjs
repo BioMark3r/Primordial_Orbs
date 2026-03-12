@@ -393,7 +393,8 @@ function normalizeSvg(svgText, paddingPercent) {
     attrs = attrs.replace(/\s+viewBox\s*=\s*("[^"]*"|'[^']*')/i, '');
     attrs = attrs.replace(/\s+width\s*=\s*("[^"]*"|'[^']*')/i, '');
     attrs = attrs.replace(/\s+height\s*=\s*("[^"]*"|'[^']*')/i, '');
-    return `<svg${attrs} viewBox="${result.viewBox}">`;
+    attrs = attrs.replace(/\s+preserveAspectRatio\s*=\s*("[^"]*"|'[^']*')/i, '');
+    return `<svg${attrs} viewBox="${result.viewBox}" preserveAspectRatio="xMidYMid meet">`;
   });
 
   return { viewBox: result.viewBox, text: `${rewritten.trim()}\n` };
