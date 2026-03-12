@@ -17,4 +17,18 @@ describe("OrbToken sprite mapping", () => {
     expect(screen.getByAltText("nature")).toHaveAttribute("src", expect.stringContaining("orb_nature.webp"));
     expect(screen.getByAltText("void")).toHaveAttribute("src", expect.stringContaining("orb_void.webp"));
   });
+  it("renders a dedicated symbol layer above orb background", () => {
+    const { container } = render(<OrbToken orb={{ kind: "TERRAFORM", t: "LAND" }} size="slot" />);
+
+    const orb = container.querySelector(".orb");
+    expect(orb).toBeTruthy();
+    expect(orb?.querySelector(".orb__bg .orb-icon img")).toBeTruthy();
+
+    const symbolWrap = orb?.querySelector(".orb__symbol-wrap");
+    const symbol = orb?.querySelector(".orb__symbol");
+    expect(symbolWrap).toBeTruthy();
+    expect(symbol).toBeTruthy();
+    expect(symbol?.querySelector("svg")).toBeTruthy();
+  });
+
 });
