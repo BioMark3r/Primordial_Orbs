@@ -1848,8 +1848,9 @@ export default function App() {
 
             <h3>Players</h3>
             <div className="setup-profile-box">
-              <div style={{ display: "grid", gap: 10 }}>
+              <div className="setup-player-grid">
                 <ProfilePicker
+                  className="setup-player-field"
                   label="Player 1 Profile"
                   profiles={profiles}
                   value={p0ProfileId}
@@ -1860,6 +1861,7 @@ export default function App() {
                 />
                 {!playVsComputer && (
                   <ProfilePicker
+                    className="setup-player-field"
                     label="Player 2 Profile"
                     profiles={profiles}
                     value={p1ProfileId}
@@ -1869,13 +1871,13 @@ export default function App() {
                     }}
                   />
                 )}
-                {playVsComputer && <div className="setup-muted">Player 2 is controlled by CPU.</div>}
-                {!playVsComputer && p0ProfileId === p1ProfileId && p0ProfileId !== GUEST_ID && (
-                  <div style={{ fontSize: 12, color: "#92400e" }}>
-                    Both players are using the same profile—stats will mix.
-                  </div>
-                )}
               </div>
+              {playVsComputer && <div className="setup-muted">Player 2 is controlled by CPU.</div>}
+              {!playVsComputer && p0ProfileId === p1ProfileId && p0ProfileId !== GUEST_ID && (
+                <div style={{ marginTop: 8, fontSize: 12, color: "#92400e" }}>
+                  Both players are using the same profile—stats will mix.
+                </div>
+              )}
             </div>
 
             {playVsComputer && (
@@ -2032,17 +2034,32 @@ export default function App() {
               </div>
             </details>
 
-              <div className="setup-primary-actions" style={{ marginTop: 18 }}>
+              <div className="setup-primary-actions" style={{ marginTop: 16 }}>
                 <button data-testid="start-game" disabled={!canStartConfigured} onClick={() => startGame()} style={{ padding: "10px 14px", borderRadius: 10 }}>
                   Start Game
                 </button>
-                <button type="button" onClick={handleQuickMatchHotseat} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                <button
+                  type="button"
+                  onClick={handleQuickMatchHotseat}
+                  style={{ padding: "10px 14px", borderRadius: 10 }}
+                  title="Starts a local hotseat match quickly with sensible default settings."
+                  aria-label="Quick Match Hotseat: starts a local hotseat match with default settings"
+                >
                   Quick Match (Hotseat)
                 </button>
-                <button type="button" onClick={handleQuickMatchVsCpu} style={{ padding: "10px 14px", borderRadius: 10 }}>
+                <button
+                  type="button"
+                  onClick={handleQuickMatchVsCpu}
+                  style={{ padding: "10px 14px", borderRadius: 10 }}
+                  title="Starts a fast match against AI using sensible default settings."
+                  aria-label="Quick Match vs CPU: starts a match against AI with default settings"
+                >
                   Quick Match vs CPU
                 </button>
               </div>
+              <p className="setup-muted setup-quick-match-note">
+                Quick Match (Hotseat) launches a local two-player game with default setup. Quick Match vs CPU uses similar defaults and seats Player 2 as AI.
+              </p>
               {!canStartConfigured && (
                 <div style={{ marginTop: 10, fontSize: 12, color: "#fca5a5" }}>
                   Select required player profiles before starting.

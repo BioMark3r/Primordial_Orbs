@@ -158,14 +158,17 @@ button, select { font: inherit; }
 }
 
 .setup-lobby-layout {
-  margin-top: 14px;
+  margin-top: 10px;
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
 }
 
 .setup-card {
   border: 1px solid rgba(180, 205, 255, 0.28);
   background: linear-gradient(180deg, rgba(10, 16, 30, 0.9), rgba(7, 11, 22, 0.9));
   border-radius: 18px;
-  padding: 16px;
+  padding: 14px;
   min-width: 0;
   box-shadow: 0 26px 55px rgba(0, 0, 0, 0.36);
   backdrop-filter: blur(3px);
@@ -181,7 +184,7 @@ button, select { font: inherit; }
 }
 
 .setup-card h3 {
-  margin: 18px 0 10px;
+  margin: 14px 0 8px;
 }
 
 .setup-card h3:first-child {
@@ -190,7 +193,7 @@ button, select { font: inherit; }
 
 .setup-option-grid {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .setup-option-grid--two {
@@ -254,8 +257,9 @@ button, select { font: inherit; }
   margin-bottom: 8px;
 }
 
+
 .setup-profile-box {
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid rgba(170, 190, 226, 0.26);
   border-radius: 12px;
   background: rgba(11, 20, 38, 0.7);
@@ -269,8 +273,18 @@ button, select { font: inherit; }
 .setup-primary-actions,
 .setup-secondary-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.setup-primary-actions {
+  max-width: 760px;
+}
+
+.setup-quick-match-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  max-width: 70ch;
 }
 
 .setup-primary-actions button:first-child {
@@ -284,8 +298,9 @@ button, select { font: inherit; }
   opacity: 0.65;
 }
 
+
 .setup-advanced {
-  margin-top: 16px;
+  margin-top: 14px;
   border: 1px solid rgba(168, 191, 230, 0.24);
   border-radius: 12px;
   padding: 12px;
@@ -300,7 +315,18 @@ button, select { font: inherit; }
 .setup-advanced__content {
   margin-top: 10px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
+}
+
+.setup-player-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  max-width: 720px;
+}
+
+.setup-player-field {
+  min-width: 0;
 }
 
 @keyframes setupNebulaFloat {
@@ -386,7 +412,8 @@ button, select { font: inherit; }
   .setup-option-grid--three,
   .setup-option-grid--core,
   .setup-core-columns,
-  .setup-ai-grid {
+  .setup-ai-grid,
+  .setup-player-grid {
     grid-template-columns: 1fr;
   }
 
@@ -409,7 +436,8 @@ button, select { font: inherit; }
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .setup-option-grid--three,
-  .setup-option-grid--core {
+  .setup-option-grid--core,
+  .setup-player-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

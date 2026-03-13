@@ -6,11 +6,12 @@ type ProfilePickerProps = {
   profiles: Profile[];
   value: ProfileId;
   onChange: (profileId: ProfileId) => void;
+  className?: string;
 };
 
-export function ProfilePicker({ label, profiles, value, onChange }: ProfilePickerProps) {
+export function ProfilePicker({ label, profiles, value, onChange, className }: ProfilePickerProps) {
   return (
-    <label style={{ display: "grid", gap: 6 }}>
+    <label className={className} style={{ display: "grid", gap: 6 }}>
       <span style={{ fontWeight: 700 }}>{label}</span>
       <select
         value={value}
