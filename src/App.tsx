@@ -800,6 +800,12 @@ export default function App() {
     setLastActionEvent(event);
   }
 
+  function attemptAudioUnlock() {
+    if (!getAudioUnlocked()) {
+      unlockAudio();
+    }
+  }
+
   useEffect(() => {
     if (screen !== "GAME") return;
     if (hasSeenTutorial()) return;
@@ -1054,6 +1060,7 @@ export default function App() {
   }
 
   function dispatchWithLog(action: Action): boolean {
+    attemptAudioUnlock();
     if (isPreviewMode) {
       pushToast({
         id: `preview-blocked-${Date.now()}`,
@@ -1140,6 +1147,7 @@ export default function App() {
   }
 
   function startGame(options?: { vsComputer?: boolean; setupConfig?: SetupConfig }) {
+    attemptAudioUnlock();
     const setupConfig = options?.setupConfig;
     if (!canStartConfigured) {
       pushToast({
@@ -1768,6 +1776,7 @@ export default function App() {
           rememberMe={rememberMe}
           onRememberMeChange={setRememberMe}
           onContinue={() => {
+            attemptAudioUnlock();
             setGuestSession();
             setActiveProfileId(GUEST_ID);
             setP0ProfileId(GUEST_ID);
