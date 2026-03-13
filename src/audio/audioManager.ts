@@ -1,19 +1,5 @@
 import { assetUrl } from "../ui/utils/assetUrl";
-
-export type SfxName =
-  | "ui_click"
-  | "ui_hover"
-  | "draw"
-  | "orb_select"
-  | "orb_play"
-  | "impact_cast"
-  | "hit"
-  | "shield"
-  | "combo"
-  | "turn_end"
-  | "invalid"
-  | "victory"
-  | "defeat";
+import { audioManifest, type SfxName } from "./audioManifest";
 
 type SfxOptions = { volumeMul?: number };
 
@@ -29,30 +15,17 @@ const AUDIO_DEBUG = import.meta.env.DEV;
 
 const VOICE_POOL_SIZE = 3;
 
-const sfxPaths: Record<SfxName, string> = {
-  ui_click: "sfx/click.mp3",
-  ui_hover: "sfx/click.mp3",
-  draw: "sfx/click.mp3",
-  orb_select: "sfx/click.mp3",
-  orb_play: "sfx/orb_place.mp3",
-  impact_cast: "sfx/impact_cast.mp3",
-  hit: "sfx/impact_land.mp3",
-  shield: "sfx/unlock.mp3",
-  combo: "sfx/unlock.mp3",
-  turn_end: "sfx/end_play.mp3",
-  invalid: "sfx/error.mp3",
-  victory: "sfx/unlock.mp3",
-  defeat: "sfx/error.mp3",
-};
-
 const disabledSfx = new Set<SfxName>();
-const warnedAssetUrls = new Set<string>();
+const missingConfigLogged = new Set<string>();
 const sfxVoices = new Map<SfxName, HTMLAudioElement[]>();
 const sfxVoiceIndex = new Map<SfxName, number>();
 
-const ambientAudio = new Audio(assetUrl("sfx/advance.mp3"));
-ambientAudio.preload = "auto";
-ambientAudio.loop = true;
+const ambientPath = audioManifest.ambient;
+const ambientAudio = ambientPath ? new Audio(assetUrl(ambientPath)) : null;
+if (ambientAudio) {
+  ambientAudio.preload = "auto";
+  ambientAudio.loop = true;
+}
 
 let isAudioUnlocked = false;
 let pendingAmbientStart = false;
@@ -71,15 +44,15 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-function warnOnce(message: string, url: string): void {
-  if (warnedAssetUrls.has(url)) return;
-  warnedAssetUrls.add(url);
-  console.warn(message);
-}
-
 function debugLog(message: string, ...details: unknown[]): void {
   if (!AUDIO_DEBUG) return;
   console.debug(`[audio] ${message}`, ...details);
+}
+
+function debugOnce(message: string, key: string): void {
+  if (!AUDIO_DEBUG || missingConfigLogged.has(key)) return;
+  missingConfigLogged.add(key);
+  console.debug(`[audio] ${message}`);
 }
 
 function effectiveVolume(volume: number): number {
@@ -87,21 +60,32 @@ function effectiveVolume(volume: number): number {
   return clamp01(volume);
 }
 
-function initSfxVoices(name: SfxName): HTMLAudioElement[] {
+function initSfxVoices(name: SfxName): HTMLAudioElement[] | null {
   const existing = sfxVoices.get(name);
   if (existing) return existing;
 
-  const src = assetUrl(sfxPaths[name]);
+  const path = audioManifest.sfx[name];
+  if (!path) {
+    disabledSfx.add(name);
+    debugOnce(`SFX "${name}" is unconfigured; skipping playback.`, `sfx:${name}`);
+    return null;
+  }
+
+  const src = assetUrl(path);
   const voices = Array.from({ length: VOICE_POOL_SIZE }, () => {
     const audio = new Audio(src);
     audio.preload = "auto";
     audio.addEventListener("error", () => {
       disabledSfx.add(name);
-      warnOnce(`[audio] Failed to load SFX: ${src}`, src);
+      debugOnce(`Failed to load SFX "${name}" from ${src}; disabling it.`, src);
     });
-    audio.addEventListener("canplaythrough", () => {
-      debugLog(`Loaded SFX \"${name}\" from ${src}`);
-    }, { once: true });
+    audio.addEventListener(
+      "canplaythrough",
+      () => {
+        debugLog(`Loaded SFX "${name}" from ${src}`);
+      },
+      { once: true },
+    );
     return audio;
   });
 
@@ -111,6 +95,7 @@ function initSfxVoices(name: SfxName): HTMLAudioElement[] {
 }
 
 function updateAmbientVolume(): void {
+  if (!ambientAudio) return;
   ambientAudio.volume = effectiveVolume(state.ambientEnabled ? state.ambientVolume : 0);
 }
 
@@ -119,33 +104,51 @@ function requestAmbientStart(): void {
 }
 
 function tryStartAmbient(): void {
+  if (!ambientAudio) return;
   if (!isAudioUnlocked || !state.ambientEnabled || state.masterMuted) return;
   updateAmbientVolume();
   debugLog("Attempting ambient playback", { src: ambientAudio.src, volume: ambientAudio.volume });
   void ambientAudio.play().catch(() => {
-    warnOnce(`[audio] Ambient playback blocked: ${ambientAudio.src}`, ambientAudio.src);
+    debugOnce(`Ambient playback blocked for ${ambientAudio.src}.`, ambientAudio.src);
   });
 }
 
-ambientAudio.addEventListener("error", () => {
-  state.ambientEnabled = false;
-  pendingAmbientStart = false;
-  warnOnce(`[audio] Failed to load ambient track: ${ambientAudio.src}`, ambientAudio.src);
-});
+if (ambientAudio) {
+  ambientAudio.addEventListener("error", () => {
+    state.ambientEnabled = false;
+    pendingAmbientStart = false;
+    debugOnce(`Failed to load ambient track: ${ambientAudio.src}; ambient disabled.`, ambientAudio.src);
+  });
+}
 
 export function initAudio(): void {
   debugLog("Initializing audio manager", { baseUrl: import.meta.env.BASE_URL });
-  (Object.keys(sfxPaths) as SfxName[]).forEach((name) => {
+  (Object.keys(audioManifest.sfx) as SfxName[]).forEach((name) => {
     initSfxVoices(name);
   });
+  if (!audioManifest.ambient) {
+    debugOnce("Ambient audio is unconfigured; ambient playback is disabled.", "ambient:missing");
+  }
   updateAmbientVolume();
 }
 
 export function unlockAudio(): void {
   if (isAudioUnlocked || unlockInFlight) return;
+
+  const probeVoices = initSfxVoices("ui_click");
+  const probe = probeVoices?.[0];
+
+  if (!probe) {
+    isAudioUnlocked = true;
+    if (pendingAmbientStart || state.ambientEnabled) {
+      tryStartAmbient();
+      pendingAmbientStart = false;
+    }
+    return;
+  }
+
   unlockInFlight = true;
 
-  const probe = initSfxVoices("ui_click")[0];
   const previousVolume = probe.volume;
   probe.volume = 0;
   probe.currentTime = 0;
@@ -178,12 +181,14 @@ export function getAudioUnlocked(): boolean {
 
 export function playSfx(name: SfxName, opts?: SfxOptions): void {
   if (!isAudioUnlocked) {
-    debugLog(`Skipped SFX \"${name}\" because audio is still locked`);
+    debugLog(`Skipped SFX "${name}" because audio is still locked`);
     return;
   }
   if (state.masterMuted || !state.sfxEnabled || disabledSfx.has(name)) return;
 
   const voices = initSfxVoices(name);
+  if (!voices || voices.length === 0) return;
+
   const nextIndex = sfxVoiceIndex.get(name) ?? 0;
   const voice = voices[nextIndex];
   sfxVoiceIndex.set(name, (nextIndex + 1) % voices.length);
@@ -192,17 +197,21 @@ export function playSfx(name: SfxName, opts?: SfxOptions): void {
     voice.pause();
     voice.currentTime = 0;
     voice.volume = effectiveVolume(state.sfxVolume * (opts?.volumeMul ?? 1));
-    debugLog(`Playing SFX \"${name}\"`, { volume: voice.volume, src: voice.src });
+    debugLog(`Playing SFX "${name}"`, { volume: voice.volume, src: voice.src });
     void voice.play().catch(() => {
-      debugLog(`Playback blocked for SFX \"${name}\"`, { src: voice.src });
+      debugLog(`Playback blocked for SFX "${name}"`, { src: voice.src });
     });
   } catch {
-    debugLog(`Playback failed for SFX \"${name}\"`);
+    debugLog(`Playback failed for SFX "${name}"`);
   }
 }
 
 export function startAmbient(): void {
   state.ambientEnabled = true;
+  if (!ambientAudio) {
+    debugOnce("Ambient requested but no ambient asset is configured.", "ambient:requested-without-asset");
+    return;
+  }
   updateAmbientVolume();
   if (!isAudioUnlocked) {
     requestAmbientStart();
@@ -214,6 +223,7 @@ export function startAmbient(): void {
 export function stopAmbient(): void {
   state.ambientEnabled = false;
   pendingAmbientStart = false;
+  if (!ambientAudio) return;
   ambientAudio.pause();
   ambientAudio.currentTime = 0;
   updateAmbientVolume();
@@ -221,6 +231,7 @@ export function stopAmbient(): void {
 
 export function setMasterMuted(muted: boolean): void {
   state.masterMuted = Boolean(muted);
+  if (!ambientAudio) return;
   if (state.masterMuted) {
     ambientAudio.pause();
   } else if (state.ambientEnabled && isAudioUnlocked) {
