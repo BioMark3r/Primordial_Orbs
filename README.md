@@ -248,44 +248,37 @@ AI is simple and deterministic, designed for playtesting.
 
 ## 🔊 Audio
 
-The game uses a lightweight shared HTMLAudioElement-based manager in `src/audio/audioManager.ts`.
+The game uses a shared HTMLAudioElement-based manager in `src/audio/audioManager.ts`, with asset wiring centralized in `src/audio/audioManifest.ts`.
 
-### Audio audit snapshot
+### Current status (repo-safe defaults)
 
-- Shared manager exists and is wired in `App.tsx` (no ad-hoc `new Audio(...)` calls in gameplay code).
-- Browser gesture lock is handled (audio unlocks on first pointer/key interaction).
-- Per-channel settings already exist and persist in localStorage:
-  - master mute
-  - SFX enabled + SFX volume
-  - ambient enabled + ambient volume
-- Legacy helper `src/ui/utils/sfx.ts` is no longer used by the main app.
+- Audio architecture is active (manager, unlock flow, settings integration), but all sound assets are intentionally unconfigured by default.
+- Manifest defaults every event to `null`, so no missing-file requests are made and gameplay stays quiet/stable until real assets are added.
+- In development, unconfigured sounds emit concise one-time debug logs. Production remains quiet.
+- Legacy helper `src/ui/utils/sfx.ts` is retained for compatibility and follows the same null-manifest behavior.
 
-### Asset locations
+### Add real audio later
 
-Current mix uses both existing committed MP3 placeholders and optional OGG files:
+1. Place assets under `public/` (recommended: `public/sfx/` and/or `public/audio/ambient/`).
+2. Update `src/audio/audioManifest.ts`:
+   - set `sfx.<event>` values to relative public paths (e.g. `"sfx/click.mp3"`)
+   - set `ambient` to a relative path when an ambient loop exists
+3. Keep paths relative to `public/` (no leading slash needed).
+4. Optional: if any legacy code still uses `src/ui/utils/sfx.ts`, mirror those paths in `legacySfxManifest`.
 
-- Existing committed assets:
-  - `public/sfx/click.mp3`
-  - `public/sfx/orb_place.mp3`
-  - `public/sfx/impact_cast.mp3`
-  - `public/sfx/impact_land.mp3`
-  - `public/sfx/unlock.mp3`
-  - `public/sfx/end_play.mp3`
-  - `public/sfx/error.mp3`
-- Optional higher-fidelity swap-ins (drop-in paths already supported):
-  - `public/audio/sfx/ui_hover.ogg`
-  - `public/audio/sfx/orb_select.ogg`
-  - `public/audio/sfx/shield.ogg`
-  - `public/audio/sfx/victory.ogg`
-  - `public/audio/ambient/space_loop.ogg`
+Example manifest shape:
 
-If any file is missing, playback fails gracefully with a one-time console warning.
-
-### Tuning defaults
-
-- Default SFX volume: `0.55`
-- Default ambient volume: `0.3`
-- Ambient starts only after a valid user gesture and only when enabled in settings.
+```ts
+{
+  sfx: {
+    ui_click: null,
+    orb_play: null,
+    impact_cast: null,
+    // ...
+  },
+  ambient: null,
+}
+```
 
 ---
 

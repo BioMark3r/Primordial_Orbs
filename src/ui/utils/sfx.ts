@@ -13,22 +13,46 @@ export type SfxName =
 
 type SfxOptions = { volumeMul?: number };
 
-let audioUnlocked = false;
+const AUDIO_DEBUG = import.meta.env.DEV;
 
-const audioMap: Record<SfxName, HTMLAudioElement> = {
-  click: new Audio("/sfx/click.mp3"),
-  orb_place: new Audio("/sfx/orb_place.mp3"),
-  impact_cast: new Audio("/sfx/impact_cast.mp3"),
-  impact_land: new Audio("/sfx/impact_land.mp3"),
-  unlock: new Audio("/sfx/unlock.mp3"),
-  end_play: new Audio("/sfx/end_play.mp3"),
-  advance: new Audio("/sfx/advance.mp3"),
-  error: new Audio("/sfx/error.mp3"),
+let audioUnlocked = false;
+const missingLogged = new Set<SfxName>();
+
+/**
+ * Legacy helper manifest. Kept for compatibility with old callers.
+ * Leave entries as null until real assets are added.
+ */
+const legacySfxManifest: Record<SfxName, string | null> = {
+  click: null,
+  orb_place: null,
+  impact_cast: null,
+  impact_land: null,
+  unlock: null,
+  end_play: null,
+  advance: null,
+  error: null,
 };
 
-Object.values(audioMap).forEach((audio) => {
+const audioMap: Partial<Record<SfxName, HTMLAudioElement>> = {};
+
+function getAudio(name: SfxName): HTMLAudioElement | null {
+  const existing = audioMap[name];
+  if (existing) return existing;
+
+  const path = legacySfxManifest[name];
+  if (!path) {
+    if (AUDIO_DEBUG && !missingLogged.has(name)) {
+      missingLogged.add(name);
+      console.debug(`[audio:legacy] SFX "${name}" is unconfigured; skipping.`);
+    }
+    return null;
+  }
+
+  const audio = new Audio(path);
   audio.preload = "auto";
-});
+  audioMap[name] = audio;
+  return audio;
+}
 
 export function initAudioUnlock(): void {
   audioUnlocked = true;
@@ -37,13 +61,13 @@ export function initAudioUnlock(): void {
 export function playSfx(name: SfxName, settings: UserSettings, opts?: SfxOptions): void {
   if (!settings.soundEnabled) return;
   if (!audioUnlocked) return;
-  const audio = audioMap[name];
+  const audio = getAudio(name);
   if (!audio) return;
   try {
     audio.currentTime = 0;
     audio.volume = clamp01(settings.volume * (opts?.volumeMul ?? 1));
     void audio.play().catch(() => {
-      // swallow autoplay/decode issues (e.g., Safari quirks or placeholder assets)
+      // swallow autoplay/decode issues
     });
   } catch {
     // never throw from audio
