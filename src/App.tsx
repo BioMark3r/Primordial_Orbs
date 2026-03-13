@@ -375,6 +375,10 @@ export default function App() {
   const [hoveredImpactIndex, setHoveredImpactIndex] = useState<number | null>(null);
   const [seedInput, setSeedInput] = useState<string>(() => String(initial.seed));
   const [showInspector, setShowInspector] = useState(false);
+  const [showDebugInfo, setShowDebugInfo] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("po_show_debug_info") === "1";
+  });
   const [backendStatus, setBackendStatus] = useState<"idle" | "configured" | "connected" | "unreachable">(
     isSupabaseConfigured ? "configured" : "idle"
   );
@@ -2562,6 +2566,14 @@ export default function App() {
     saveSettings(normalized);
   }
 
+  function handleToggleDebugInfo() {
+    setShowDebugInfo((prev) => {
+      const next = !prev;
+      window.localStorage.setItem("po_show_debug_info", next ? "1" : "0");
+      return next;
+    });
+  }
+
   const topbarTitle = "Primordial Orbs";
   const gameOverLabel =
     state.phase === "GAME_OVER" ? `Winner: Player ${String((state.winner ?? 0) + 1)}` : null;
@@ -2618,7 +2630,6 @@ export default function App() {
                 <div className="game-mobile-topbar__title">{topbarTitle}</div>
                 <div className="game-mobile-topbar__chips">
                   <span className="game-status-pill ui-chip">Turn {state.turn}</span>
-                  <span className="game-status-pill ui-chip">P{active + 1} Active</span>
                   <span className="game-status-pill ui-chip">{mobileCoreSpecial} Core</span>
                   <span className="game-status-pill ui-chip">{mobileStatusSummary}</span>
                   {mobileCriticalStatus && <span className="game-status-pill ui-chip ui-chip--warn">{mobileCriticalStatus}</span>}
@@ -2635,7 +2646,6 @@ export default function App() {
           <div className="game-topbar-left" data-desktop-only={isMobileLayout ? "false" : "true"}>
             <div className="game-topbar-title">{topbarTitle}</div>
             <div className="game-topbar-chipRow">
-              <span className="game-status-pill ui-chip">Active: Player {active + 1}</span>
               {gameOverLabel && <span className="game-status-pill ui-chip">{gameOverLabel}</span>}
               {state.phase === "GAME_OVER" && (
                 <button type="button" onClick={() => setStatsOpen(true)} style={{ padding: "4px 8px", borderRadius: 8 }}>
@@ -2645,7 +2655,7 @@ export default function App() {
               {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
                 <span className="game-status-pill ui-chip" title="Solar Flare">Abilities Disabled</span>
               )}
-              <span className="game-status-pill ui-chip">{backendStatusLabel}</span>
+              {showDebugInfo && <span className="game-status-pill ui-chip">{backendStatusLabel}</span>}
             </div>
           </div>
 
@@ -2677,15 +2687,6 @@ export default function App() {
               </>
             )}
             <div className="game-topbar-menus">
-              <button
-                type="button"
-                className={`ui-btn ${isHistoryOpen ? "ui-btn--primary" : "ui-btn--ghost"}`}
-                aria-expanded={isHistoryOpen}
-                aria-controls="turn-history-panel"
-                onClick={() => setIsHistoryOpen((prev) => !prev)}
-              >
-                History
-              </button>
               <MenuButton
                 label="Game"
                 testId="menu-game"
@@ -2693,7 +2694,9 @@ export default function App() {
                 onToggle={() => toggleMenu("game")}
                 onClose={closeMenus}
               >
+                <div className="menuGroupLabel" role="presentation">Start & Session</div>
                 <MenuItem onSelect={menuAction(handleNewGame)}>New Game</MenuItem>
+                <MenuItem onSelect={menuAction(() => setScreen("SETUP"))}>Setup</MenuItem>
                 <MenuItem
                   tone="danger"
                   onSelect={menuAction(() => {
@@ -2704,7 +2707,8 @@ export default function App() {
                 >
                   Quit Game
                 </MenuItem>
-                <MenuItem onSelect={menuAction(() => setScreen("SETUP"))}>Setup</MenuItem>
+                <div className="menuDivider" role="separator" aria-hidden="true" />
+                <div className="menuGroupLabel" role="presentation">Save & Share</div>
                 <MenuItem onSelect={menuAction(handleSaveNow)}>Save</MenuItem>
                 <MenuItem onSelect={menuAction(handleLoadNow)}>Load</MenuItem>
                 {isDev && <MenuItem onSelect={menuAction(handleLoadDemoState)}>Load Demo State</MenuItem>}
@@ -2721,6 +2725,8 @@ export default function App() {
                 >
                   Import Match Code
                 </MenuItem>
+                <div className="menuDivider" role="separator" aria-hidden="true" />
+                <div className="menuGroupLabel" role="presentation">Replay & Reports</div>
                 <MenuItem onSelect={menuAction(handleReplayExportOpen)}>Export Replay</MenuItem>
                 <MenuItem
                   onSelect={menuAction(() => {
@@ -2734,49 +2740,6 @@ export default function App() {
                 <MenuItem onSelect={menuAction(handleReplayFromStart)}>Replay From Start</MenuItem>
                 <MenuItem onSelect={menuAction(() => { void handleCopyReportBundle(); })}>Copy Report Bundle</MenuItem>
                 <MenuItem onSelect={menuAction(handleDownloadReportBundle)}>Download Report Bundle (.txt)</MenuItem>
-              </MenuButton>
-              <MenuButton
-                label="View"
-                testId="menu-view"
-                open={viewMenuOpen}
-                onToggle={() => toggleMenu("view")}
-                onClose={closeMenus}
-              >
-                <MenuItem onSelect={menuAction(() => setIsHistoryOpen((prev) => !prev))}>
-                  {isHistoryOpen ? "Hide Turn History" : "Show Turn History"}
-                </MenuItem>
-                <MenuItem onSelect={menuAction(() => setCompactMode((prev) => !prev))}>
-                  {compactMode ? "Comfortable Density" : "Compact Density"}
-                </MenuItem>
-                <MenuItem onSelect={menuAction(() => setSettingsOpen(true))}>Settings...</MenuItem>
-                {playVsComputer && (
-                  <MenuItem onSelect={menuAction(() => setAiPaused((prev) => !prev))}>
-                    {aiPaused ? "Resume AI" : "Pause AI"}
-                  </MenuItem>
-                )}
-                  {isDev && (
-                  <>
-                    <MenuItem onSelect={menuAction(() => setShowInspector((prev) => !prev))}>
-                      {showInspector ? "Hide Inspector" : "Show Inspector"}
-                    </MenuItem>
-                    <MenuItem onSelect={menuAction(() => setShowDeterminismTools((prev) => !prev))}>
-                      {showDeterminismTools ? "Hide Dev Tools" : "Dev Tools..."}
-                    </MenuItem>
-                  </>
-                )}
-              </MenuButton>
-              <MenuButton
-                label="Help"
-                testId="menu-help"
-                open={helpMenuOpen}
-                onToggle={() => toggleMenu("help")}
-                onClose={closeMenus}
-              >
-                <MenuItem onSelect={menuAction(handleOpenGuidedTutorial)}>Tutorial (Guided)</MenuItem>
-                <MenuItem onSelect={menuAction(handleOpenTutorial)}>Tutorial (Manual)</MenuItem>
-                <MenuItem onSelect={menuAction(() => setShowHowTo(true))}>How to Play</MenuItem>
-                <MenuItem onSelect={menuAction(() => setShortcutsOpen(true))}>Keyboard Shortcuts</MenuItem>
-                <MenuItem onSelect={menuAction(openRulebook)}>Rulebook</MenuItem>
               </MenuButton>
               <MenuButton
                 label={activeProfile ? `Profile: ${activeProfile.name}` : "Profile: Guest"}
@@ -2812,6 +2775,61 @@ export default function App() {
                 ) : (
                   <MenuItem onSelect={menuAction(() => setScreen("SPLASH"))}>Sign in / Create Profile</MenuItem>
                 )}
+              </MenuButton>
+              <MenuButton
+                label="View"
+                testId="menu-view"
+                open={viewMenuOpen}
+                onToggle={() => toggleMenu("view")}
+                onClose={closeMenus}
+              >
+                <MenuItem onSelect={menuAction(() => setIsHistoryOpen((prev) => !prev))}>
+                  {isHistoryOpen ? "Hide Turn History" : "Show Turn History"}
+                </MenuItem>
+                <MenuItem onSelect={menuAction(() => setCompactMode((prev) => !prev))}>
+                  {compactMode ? "Comfortable Density" : "Compact Density"}
+                </MenuItem>
+                <MenuItem onSelect={menuAction(handleToggleDebugInfo)}>
+                  {showDebugInfo ? "Hide Debug Info" : "Show Debug Info"}
+                </MenuItem>
+                <MenuItem onSelect={menuAction(() => setSettingsOpen(true))}>Settings...</MenuItem>
+                {playVsComputer && (
+                  <MenuItem onSelect={menuAction(() => setAiPaused((prev) => !prev))}>
+                    {aiPaused ? "Resume AI" : "Pause AI"}
+                  </MenuItem>
+                )}
+                  {isDev && (
+                  <>
+                    <MenuItem onSelect={menuAction(() => setShowInspector((prev) => !prev))}>
+                      {showInspector ? "Hide Inspector" : "Show Inspector"}
+                    </MenuItem>
+                    <MenuItem onSelect={menuAction(() => setShowDeterminismTools((prev) => !prev))}>
+                      {showDeterminismTools ? "Hide Dev Tools" : "Dev Tools..."}
+                    </MenuItem>
+                  </>
+                )}
+              </MenuButton>
+              <button
+                type="button"
+                className={`ui-btn ${isHistoryOpen ? "ui-btn--primary" : "ui-btn--ghost"}`}
+                aria-expanded={isHistoryOpen}
+                aria-controls="turn-history-panel"
+                onClick={() => setIsHistoryOpen((prev) => !prev)}
+              >
+                History
+              </button>
+              <MenuButton
+                label="Help"
+                testId="menu-help"
+                open={helpMenuOpen}
+                onToggle={() => toggleMenu("help")}
+                onClose={closeMenus}
+              >
+                <MenuItem onSelect={menuAction(handleOpenGuidedTutorial)}>Tutorial (Guided)</MenuItem>
+                <MenuItem onSelect={menuAction(handleOpenTutorial)}>Tutorial (Manual)</MenuItem>
+                <MenuItem onSelect={menuAction(() => setShowHowTo(true))}>How to Play</MenuItem>
+                <MenuItem onSelect={menuAction(() => setShortcutsOpen(true))}>Keyboard Shortcuts</MenuItem>
+                <MenuItem onSelect={menuAction(openRulebook)}>Rulebook</MenuItem>
               </MenuButton>
             </div>
           </div>

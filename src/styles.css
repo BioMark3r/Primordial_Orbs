@@ -6,13 +6,8 @@ body,
 }
 
 body {
-  overflow: hidden;
-}
-
-@media (max-width: 640px) {
-  body {
-    overflow: auto;
-  }
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 button, select { font: inherit; }
