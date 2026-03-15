@@ -66,6 +66,8 @@ import {
   subscribeAudioDebugSnapshot,
   playSfx,
   setAmbientEnabled,
+  playMusic,
+  transitionSplashToAmbient,
   startAmbient,
   stopAmbient,
   setAmbientVolume,
@@ -853,6 +855,12 @@ export default function App() {
     return unlockPromise;
   }, []);
 
+  const exitSplashToLobby = useCallback(async (source: string) => {
+    await attemptAudioUnlock(source);
+    await transitionSplashToAmbient(1000);
+    setScreen("SETUP");
+  }, [attemptAudioUnlock, transitionSplashToAmbient]);
+
   useEffect(() => {
     if (screen !== "GAME") return;
     if (hasSeenTutorial()) return;
@@ -1087,8 +1095,7 @@ export default function App() {
     setActiveProfileId(selectedLoginProfileId);
     setP0ProfileId(selectedLoginProfileId);
     setPinModalOpen(false);
-    void attemptAudioUnlock("pin login");
-    setScreen("SETUP");
+    void exitSplashToLobby("pin login");
   }
 
   async function handleRegisterSubmit(name: string, pin: string) {
@@ -1101,8 +1108,7 @@ export default function App() {
       setP0ProfileId(profile.id);
       setAuthError(null);
       setRegisterModalOpen(false);
-      void attemptAudioUnlock("register profile");
-      setScreen("SETUP");
+      void exitSplashToLobby("register profile");
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Unable to register profile.");
     }
@@ -1585,6 +1591,11 @@ export default function App() {
   }, [attemptAudioUnlock, audioDebugSnapshot.unlocked]);
 
   useEffect(() => {
+    if (screen !== "SPLASH") return;
+    playMusic("splashTheme");
+  }, [playMusic, screen]);
+
+  useEffect(() => {
     aiConfigRef.current = aiConfig;
   }, [aiConfig]);
 
@@ -1856,11 +1867,10 @@ export default function App() {
           rememberMe={rememberMe}
           onRememberMeChange={setRememberMe}
           onContinue={() => {
-            void attemptAudioUnlock("continue as guest");
             setGuestSession();
             setActiveProfileId(GUEST_ID);
             setP0ProfileId(GUEST_ID);
-            setScreen("SETUP");
+            void exitSplashToLobby("continue as guest");
           }}
         />
         <PinPromptModal
