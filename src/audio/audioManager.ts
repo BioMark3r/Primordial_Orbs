@@ -241,6 +241,7 @@ export function initAudio(): void {
 
 export async function unlockAudio(source = "unknown"): Promise<boolean> {
   debugLog(`unlock gesture received source=${source}`);
+  debugLog(`locked=${String(!isAudioUnlocked)} before unlock`);
   if (isAudioUnlocked || unlockInFlight) {
     debugLog(`resume requested skipped unlocked=${isAudioUnlocked} inFlight=${unlockInFlight}`);
     return isAudioUnlocked;
@@ -253,6 +254,7 @@ export async function unlockAudio(source = "unknown"): Promise<boolean> {
   if (!probe) {
     setAudioUnlocked(true, "fallback-no-probe");
     debugLog("unlock fallback complete (no probe available)");
+    debugLog("locked=false");
     if (pendingAmbientStart || state.ambientEnabled) {
       tryStartAmbient();
       setPendingAmbientStart(false);
@@ -281,10 +283,11 @@ export async function unlockAudio(source = "unknown"): Promise<boolean> {
     setUnlockInFlight(false);
     debugLog(`after resume: ${getWebAudioContextState()}`);
     debugLog("unlock success");
+    debugLog("locked=false");
 
     if (AUDIO_DEBUG && !unlockCanaryPlayed) {
       unlockCanaryPlayed = true;
-      debugLog("canary click test play requested");
+      debugLog("playSfx(click) canary");
       playSfx("click", { volumeMul: 0.7 });
     }
 
