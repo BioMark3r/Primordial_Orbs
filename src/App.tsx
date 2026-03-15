@@ -61,9 +61,9 @@ import type { AiConfig, AiPersonality } from "./ai/aiTypes";
 import { DEMO_ARENA_EVENT_V1, DEMO_FLASH_STATE_V1, DEMO_REPLAY_LOG_V1, DEMO_STATE_V1 } from "./demo/demoState";
 import { isDemoModeRequested, isScreenshotModeRequested, loadDemoStateIfRequested } from "./demo/loadDemoState";
 import {
-  getAudioUnlocked,
   initAudio,
   getAudioDebugSnapshot,
+  subscribeAudioDebugSnapshot,
   playSfx,
   setAmbientEnabled,
   startAmbient,
@@ -432,7 +432,7 @@ export default function App() {
     fxImpact?: Impact;
   } | null>(null);
   const pendingDiffRef = useRef<PendingDiff>(null);
-  const audioCanaryPlayedRef = useRef(false);
+  const [audioDebugSnapshot, setAudioDebugSnapshot] = useState(() => getAudioDebugSnapshot());
 
   function audioTrace(message: string, details?: unknown) {
     if (!AUDIO_DEV) return;
@@ -814,19 +814,17 @@ export default function App() {
     setLastActionEvent(event);
   }
 
-  function attemptAudioUnlock(source = "unknown") {
-    const alreadyUnlocked = getAudioUnlocked();
+  async function attemptAudioUnlock(source = "unknown"): Promise<boolean> {
+    const alreadyUnlocked = audioDebugSnapshot.unlocked;
     audioTrace(`unlock attempt from ${source} unlocked=${alreadyUnlocked}`);
-    if (!alreadyUnlocked) {
-      unlockAudio();
+    if (alreadyUnlocked) return true;
+    const unlocked = await unlockAudio(source);
+    if (unlocked) {
+      setAudioHint(null);
+    } else {
+      setAudioHint(AUDIO_DEV ? "Audio unlock failed (dev): check console [audio] logs." : "Audio is still locked. Tap again to retry.");
     }
-    if (AUDIO_DEV && !audioCanaryPlayedRef.current) {
-      audioCanaryPlayedRef.current = true;
-      window.setTimeout(() => {
-        audioTrace("canary playSfx(click) after first interaction");
-        playSfx("click", { volumeMul: 0.75 });
-      }, 0);
-    }
+    return unlocked;
   }
 
   useEffect(() => {
@@ -1063,7 +1061,7 @@ export default function App() {
     setActiveProfileId(selectedLoginProfileId);
     setP0ProfileId(selectedLoginProfileId);
     setPinModalOpen(false);
-    attemptAudioUnlock("pin login");
+    void attemptAudioUnlock("pin login");
     setScreen("SETUP");
   }
 
@@ -1077,7 +1075,7 @@ export default function App() {
       setP0ProfileId(profile.id);
       setAuthError(null);
       setRegisterModalOpen(false);
-      attemptAudioUnlock("register profile");
+      void attemptAudioUnlock("register profile");
       setScreen("SETUP");
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Unable to register profile.");
@@ -1085,7 +1083,7 @@ export default function App() {
   }
 
   function dispatchWithLog(action: Action): boolean {
-    attemptAudioUnlock("game action");
+    void attemptAudioUnlock("game action");
     if (isPreviewMode) {
       pushToast({
         id: `preview-blocked-${Date.now()}`,
@@ -1177,7 +1175,7 @@ export default function App() {
   }
 
   function startGame(options?: { vsComputer?: boolean; setupConfig?: SetupConfig }) {
-    attemptAudioUnlock("game action");
+    void attemptAudioUnlock("game action");
     const setupConfig = options?.setupConfig;
     if (!canStartConfigured) {
       pushToast({
@@ -1513,6 +1511,12 @@ export default function App() {
 
   useEffect(() => {
     initAudio();
+    return subscribeAudioDebugSnapshot((snapshot) => {
+      setAudioDebugSnapshot(snapshot);
+      if (AUDIO_DEV) {
+        console.debug("[audio] snapshot", snapshot);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -1525,17 +1529,22 @@ export default function App() {
   }, [settings.ambientEnabled, settings.ambientVolume, settings.masterMuted, settings.sfxEnabled, settings.sfxVolume]);
 
   useEffect(() => {
-    const unlock = () => {
-      attemptAudioUnlock("global gesture");
-      setAudioHint(null);
+    if (audioDebugSnapshot.unlocked) return;
+    const unlock = (event: Event) => {
+      const eventType = event.type;
+      void attemptAudioUnlock(`global:${eventType}`);
     };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("click", unlock);
+    window.addEventListener("touchstart", unlock);
+    window.addEventListener("keydown", unlock);
     return () => {
       window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("touchstart", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, []);
+  }, [audioDebugSnapshot.unlocked]);
 
   useEffect(() => {
     aiConfigRef.current = aiConfig;
@@ -1807,7 +1816,7 @@ export default function App() {
           rememberMe={rememberMe}
           onRememberMeChange={setRememberMe}
           onContinue={() => {
-            attemptAudioUnlock("continue as guest");
+            void attemptAudioUnlock("continue as guest");
             setGuestSession();
             setActiveProfileId(GUEST_ID);
             setP0ProfileId(GUEST_ID);
@@ -2653,8 +2662,6 @@ export default function App() {
     ? "Backend: Supabase env missing"
     : (backendStatus === "connected" ? "Backend: Supabase online" : `Backend: ${backendStatus}`);
 
-  const audioDebugSnapshot = getAudioDebugSnapshot();
-
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
       <div
@@ -3134,11 +3141,11 @@ export default function App() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!getAudioUnlocked()) {
-                      setAudioHint("Audio locked — click anywhere to enable sound.");
-                      return;
-                    }
+                  onClick={async () => {
+                    const unlocked = audioDebugSnapshot.locked
+                      ? await attemptAudioUnlock("settings:test-sound")
+                      : true;
+                    if (!unlocked) return;
                     playSfx("click", { volumeMul: 0.8 });
                   }}
                 >
@@ -3150,7 +3157,7 @@ export default function App() {
                     type="checkbox"
                     checked={settings.ambientEnabled}
                     onChange={(event) => {
-                      if (event.target.checked && !getAudioUnlocked()) {
+                      if (event.target.checked && audioDebugSnapshot.locked) {
                         setAudioHint("Audio locked — click anywhere to enable sound.");
                       }
                       updateSettings({ ...settings, ambientEnabled: event.target.checked });
@@ -3173,16 +3180,22 @@ export default function App() {
                   <div style={{ border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: 10, display: "grid", gap: 8 }}>
                     <strong style={{ fontSize: 13 }}>Audio Debug</strong>
                     <div style={{ fontSize: 12, opacity: 0.9 }}>
-                      unlocked={String(audioDebugSnapshot.unlocked)} inFlight={String(audioDebugSnapshot.unlockInFlight)} pendingAmbient={String(audioDebugSnapshot.pendingAmbientStart)}
+                      locked={String(audioDebugSnapshot.locked)} unlocked={String(audioDebugSnapshot.unlocked)} inFlight={String(audioDebugSnapshot.unlockInFlight)} pendingAmbient={String(audioDebugSnapshot.pendingAmbientStart)}
                     </div>
                     <div style={{ fontSize: 12, opacity: 0.9 }}>
                       masterMuted={String(audioDebugSnapshot.masterMuted)} sfxEnabled={String(audioDebugSnapshot.sfxEnabled)} ambientEnabled={String(audioDebugSnapshot.ambientEnabled)}
                     </div>
                     <div style={{ fontSize: 12, opacity: 0.9 }}>
-                      sfxVolume={audioDebugSnapshot.sfxVolume.toFixed(2)} ambientVolume={audioDebugSnapshot.ambientVolume.toFixed(2)}
+                      context={audioDebugSnapshot.audioContextState} sfxVolume={audioDebugSnapshot.sfxVolume.toFixed(2)} ambientVolume={audioDebugSnapshot.ambientVolume.toFixed(2)}
                     </div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button type="button" onClick={() => playSfx("click", { volumeMul: 0.8 })}>Play Click Test</button>
+                      <button type="button" onClick={async () => {
+                        const unlocked = audioDebugSnapshot.locked
+                          ? await attemptAudioUnlock("debug:test-click-sound")
+                          : true;
+                        if (!unlocked) return;
+                        playSfx("click", { volumeMul: 0.8 });
+                      }}>Test Click Sound</button>
                       <button type="button" onClick={() => playSfx("orbPlace", { volumeMul: 0.8 })}>Play Orb Place Test</button>
                       <button type="button" onClick={() => startAmbient()}>Play Ambient Test</button>
                       <button type="button" onClick={() => stopAmbient()}>Stop Ambient</button>
