@@ -433,15 +433,17 @@ export default function App() {
   } | null>(null);
   const pendingDiffRef = useRef<PendingDiff>(null);
   const [audioDebugSnapshot, setAudioDebugSnapshot] = useState(() => getAudioDebugSnapshot());
+  const audioSnapshotRef = useRef(audioDebugSnapshot);
+  const unlockPromiseRef = useRef<Promise<boolean> | null>(null);
 
-  function audioTrace(message: string, details?: unknown) {
+  const audioTrace = useCallback((message: string, details?: unknown) => {
     if (!AUDIO_DEV) return;
     if (details === undefined) {
       console.debug(`[audio] ${message}`);
       return;
     }
     console.debug(`[audio] ${message}`, details);
-  }
+  }, []);
   const hoverSfxLimiterRef = useRef(createRateLimiter(200));
   const prevGamePhaseForSfxRef = useRef(state.phase);
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -814,18 +816,42 @@ export default function App() {
     setLastActionEvent(event);
   }
 
-  async function attemptAudioUnlock(source = "unknown"): Promise<boolean> {
-    const alreadyUnlocked = audioDebugSnapshot.unlocked;
-    audioTrace(`unlock attempt from ${source} unlocked=${alreadyUnlocked}`);
-    if (alreadyUnlocked) return true;
-    const unlocked = await unlockAudio(source);
-    if (unlocked) {
+  const attemptAudioUnlock = useCallback((source = "unknown"): Promise<boolean> => {
+    const before = audioSnapshotRef.current;
+    audioTrace(`unlock gesture received source=${source}`);
+    audioTrace(`locked=${String(before.locked)} before unlock`);
+    if (!before.locked) {
       setAudioHint(null);
-    } else {
-      setAudioHint(AUDIO_DEV ? "Audio unlock failed (dev): check console [audio] logs." : "Audio is still locked. Tap again to retry.");
+      return Promise.resolve(true);
     }
-    return unlocked;
-  }
+    if (unlockPromiseRef.current) {
+      return unlockPromiseRef.current;
+    }
+
+    const unlockPromise = unlockAudio(source)
+      .then((unlocked) => {
+        if (unlocked) {
+          audioTrace("unlock success");
+          audioTrace("locked=false");
+          setAudioHint(null);
+          return true;
+        }
+        audioTrace("unlock failed");
+        setAudioHint(AUDIO_DEV ? "Audio unlock failed (dev): check console [audio] logs." : "Audio is still locked. Tap again to retry.");
+        return false;
+      })
+      .catch((error: unknown) => {
+        audioTrace("unlock failed", error);
+        setAudioHint(AUDIO_DEV ? "Audio unlock failed (dev): check console [audio] logs." : "Audio is still locked. Tap again to retry.");
+        return false;
+      })
+      .finally(() => {
+        unlockPromiseRef.current = null;
+      });
+
+    unlockPromiseRef.current = unlockPromise;
+    return unlockPromise;
+  }, []);
 
   useEffect(() => {
     if (screen !== "GAME") return;
@@ -1512,6 +1538,7 @@ export default function App() {
   useEffect(() => {
     initAudio();
     return subscribeAudioDebugSnapshot((snapshot) => {
+      audioSnapshotRef.current = snapshot;
       setAudioDebugSnapshot(snapshot);
       if (AUDIO_DEV) {
         console.debug("[audio] snapshot", snapshot);
@@ -1529,22 +1556,33 @@ export default function App() {
   }, [settings.ambientEnabled, settings.ambientVolume, settings.masterMuted, settings.sfxEnabled, settings.sfxVolume]);
 
   useEffect(() => {
+    if (!audioDebugSnapshot.locked) {
+      setAudioHint(null);
+    }
+  }, [audioDebugSnapshot.locked]);
+
+  useEffect(() => {
     if (audioDebugSnapshot.unlocked) return;
     const unlock = (event: Event) => {
+      if (audioSnapshotRef.current.unlocked) return;
       const eventType = event.type;
       void attemptAudioUnlock(`global:${eventType}`);
     };
+    document.addEventListener("pointerdown", unlock, { capture: true });
+    document.addEventListener("click", unlock, { capture: true });
+    document.addEventListener("touchstart", unlock, { capture: true });
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("click", unlock);
     window.addEventListener("touchstart", unlock);
-    window.addEventListener("keydown", unlock);
     return () => {
+      document.removeEventListener("pointerdown", unlock, { capture: true });
+      document.removeEventListener("click", unlock, { capture: true });
+      document.removeEventListener("touchstart", unlock, { capture: true });
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("click", unlock);
       window.removeEventListener("touchstart", unlock);
-      window.removeEventListener("keydown", unlock);
     };
-  }, [audioDebugSnapshot.unlocked]);
+  }, [attemptAudioUnlock, audioDebugSnapshot.unlocked]);
 
   useEffect(() => {
     aiConfigRef.current = aiConfig;
@@ -1620,19 +1658,21 @@ export default function App() {
   }, []);
 
   const toggleMenu = useCallback((menu: "game" | "view" | "help" | "profile") => {
+    void attemptAudioUnlock(`menu:${menu}`);
     setGameMenuOpen((prev) => (menu === "game" ? !prev : false));
     setViewMenuOpen((prev) => (menu === "view" ? !prev : false));
     setHelpMenuOpen((prev) => (menu === "help" ? !prev : false));
     setProfileMenuOpen((prev) => (menu === "profile" ? !prev : false));
-  }, []);
+  }, [attemptAudioUnlock]);
 
   const menuAction = useCallback(
     (action: () => void) => () => {
+      void attemptAudioUnlock("menu:action");
       playSfx("click", { volumeMul: 0.7 });
       action();
       closeMenus();
     },
-    [closeMenus]
+    [attemptAudioUnlock, closeMenus]
   );
 
   const shortcutContext = useMemo<ShortcutContext>(
@@ -3180,6 +3220,9 @@ export default function App() {
                   <div style={{ border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: 10, display: "grid", gap: 8 }}>
                     <strong style={{ fontSize: 13 }}>Audio Debug</strong>
                     <div style={{ fontSize: 12, opacity: 0.9 }}>
+                      Audio locked: <b>{String(audioDebugSnapshot.locked)}</b>
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.9 }}>
                       locked={String(audioDebugSnapshot.locked)} unlocked={String(audioDebugSnapshot.unlocked)} inFlight={String(audioDebugSnapshot.unlockInFlight)} pendingAmbient={String(audioDebugSnapshot.pendingAmbientStart)}
                     </div>
                     <div style={{ fontSize: 12, opacity: 0.9 }}>
@@ -3189,6 +3232,9 @@ export default function App() {
                       context={audioDebugSnapshot.audioContextState} sfxVolume={audioDebugSnapshot.sfxVolume.toFixed(2)} ambientVolume={audioDebugSnapshot.ambientVolume.toFixed(2)}
                     </div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button type="button" onClick={() => { void attemptAudioUnlock("debug:unlock-button"); }}>
+                        Unlock Audio
+                      </button>
                       <button type="button" onClick={async () => {
                         const unlocked = audioDebugSnapshot.locked
                           ? await attemptAudioUnlock("debug:test-click-sound")
