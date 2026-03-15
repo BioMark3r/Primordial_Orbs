@@ -1,5 +1,5 @@
 import { assetUrl } from "../ui/utils/assetUrl";
-import { audioManifest, type SfxName } from "./audioManifest";
+import { audioManifest, type MusicName, type SfxName } from "./audioManifest";
 
 type SfxOptions = { volumeMul?: number };
 
@@ -11,16 +11,31 @@ type AudioState = {
   ambientVolume: number;
 };
 
-const AUDIO_DEBUG = import.meta.env.DEV;
+type VariationRange = {
+  playbackRate: readonly [number, number];
+  volume: readonly [number, number];
+};
 
+const AUDIO_DEBUG = import.meta.env.DEV;
 const VOICE_POOL_SIZE = 3;
+
+const sfxVariation: Record<SfxName, VariationRange> = {
+  click: { playbackRate: [0.98, 1.02], volume: [0.95, 1] },
+  orbPlace: { playbackRate: [0.96, 1.04], volume: [0.92, 1] },
+  impactCast: { playbackRate: [0.95, 1.05], volume: [0.94, 1] },
+  impactLand: { playbackRate: [0.96, 1.03], volume: [0.95, 1] },
+  draw: { playbackRate: [0.97, 1.03], volume: [0.94, 1] },
+  unlock: { playbackRate: [0.97, 1.03], volume: [0.95, 1] },
+  endPlay: { playbackRate: [0.99, 1.01], volume: [0.96, 1] },
+  error: { playbackRate: [0.99, 1.01], volume: [0.96, 1] },
+};
 
 const disabledSfx = new Set<SfxName>();
 const missingConfigLogged = new Set<string>();
 const sfxVoices = new Map<SfxName, HTMLAudioElement[]>();
 const sfxVoiceIndex = new Map<SfxName, number>();
 
-const ambientPath = audioManifest.ambient;
+const ambientPath = audioManifest.music.ambient;
 const ambientAudio = ambientPath ? new Audio(assetUrl(ambientPath)) : null;
 if (ambientAudio) {
   ambientAudio.preload = "auto";
@@ -42,6 +57,10 @@ const state: AudioState = {
 function clamp01(value: number): number {
   if (Number.isNaN(value)) return 0;
   return Math.min(1, Math.max(0, value));
+}
+
+function randomInRange([min, max]: readonly [number, number]): number {
+  return min + Math.random() * (max - min);
 }
 
 function debugLog(message: string, ...details: unknown[]): void {
@@ -79,13 +98,6 @@ function initSfxVoices(name: SfxName): HTMLAudioElement[] | null {
       disabledSfx.add(name);
       debugOnce(`Failed to load SFX "${name}" from ${src}; disabling it.`, src);
     });
-    audio.addEventListener(
-      "canplaythrough",
-      () => {
-        debugLog(`Loaded SFX "${name}" from ${src}`);
-      },
-      { once: true },
-    );
     return audio;
   });
 
@@ -107,7 +119,6 @@ function tryStartAmbient(): void {
   if (!ambientAudio) return;
   if (!isAudioUnlocked || !state.ambientEnabled || state.masterMuted) return;
   updateAmbientVolume();
-  debugLog("Attempting ambient playback", { src: ambientAudio.src, volume: ambientAudio.volume });
   void ambientAudio.play().catch(() => {
     debugOnce(`Ambient playback blocked for ${ambientAudio.src}.`, ambientAudio.src);
   });
@@ -126,7 +137,7 @@ export function initAudio(): void {
   (Object.keys(audioManifest.sfx) as SfxName[]).forEach((name) => {
     initSfxVoices(name);
   });
-  if (!audioManifest.ambient) {
+  if (!audioManifest.music.ambient) {
     debugOnce("Ambient audio is unconfigured; ambient playback is disabled.", "ambient:missing");
   }
   updateAmbientVolume();
@@ -135,7 +146,7 @@ export function initAudio(): void {
 export function unlockAudio(): void {
   if (isAudioUnlocked || unlockInFlight) return;
 
-  const probeVoices = initSfxVoices("ui_click");
+  const probeVoices = initSfxVoices("click");
   const probe = probeVoices?.[0];
 
   if (!probe) {
@@ -153,16 +164,14 @@ export function unlockAudio(): void {
   probe.volume = 0;
   probe.currentTime = 0;
 
-  debugLog("Attempting audio unlock");
-
-  void probe.play()
+  void probe
+    .play()
     .then(() => {
       probe.pause();
       probe.currentTime = 0;
       probe.volume = previousVolume;
       isAudioUnlocked = true;
       unlockInFlight = false;
-      debugLog("Audio unlock succeeded");
       if (pendingAmbientStart || state.ambientEnabled) {
         tryStartAmbient();
         pendingAmbientStart = false;
@@ -180,10 +189,7 @@ export function getAudioUnlocked(): boolean {
 }
 
 export function playSfx(name: SfxName, opts?: SfxOptions): void {
-  if (!isAudioUnlocked) {
-    debugLog(`Skipped SFX "${name}" because audio is still locked`);
-    return;
-  }
+  if (!isAudioUnlocked) return;
   if (state.masterMuted || !state.sfxEnabled || disabledSfx.has(name)) return;
 
   const voices = initSfxVoices(name);
@@ -193,11 +199,15 @@ export function playSfx(name: SfxName, opts?: SfxOptions): void {
   const voice = voices[nextIndex];
   sfxVoiceIndex.set(name, (nextIndex + 1) % voices.length);
 
+  const variation = sfxVariation[name];
+  const variedRate = randomInRange(variation.playbackRate);
+  const variedVolume = randomInRange(variation.volume);
+
   try {
     voice.pause();
     voice.currentTime = 0;
-    voice.volume = effectiveVolume(state.sfxVolume * (opts?.volumeMul ?? 1));
-    debugLog(`Playing SFX "${name}"`, { volume: voice.volume, src: voice.src });
+    voice.playbackRate = variedRate;
+    voice.volume = effectiveVolume(state.sfxVolume * (opts?.volumeMul ?? 1) * variedVolume);
     void voice.play().catch(() => {
       debugLog(`Playback blocked for SFX "${name}"`, { src: voice.src });
     });
@@ -206,7 +216,8 @@ export function playSfx(name: SfxName, opts?: SfxOptions): void {
   }
 }
 
-export function startAmbient(): void {
+export function playMusic(name: MusicName): void {
+  if (name !== "ambient") return;
   state.ambientEnabled = true;
   if (!ambientAudio) {
     debugOnce("Ambient requested but no ambient asset is configured.", "ambient:requested-without-asset");
@@ -220,13 +231,22 @@ export function startAmbient(): void {
   tryStartAmbient();
 }
 
-export function stopAmbient(): void {
+export function stopMusic(name: MusicName): void {
+  if (name !== "ambient") return;
   state.ambientEnabled = false;
   pendingAmbientStart = false;
   if (!ambientAudio) return;
   ambientAudio.pause();
   ambientAudio.currentTime = 0;
   updateAmbientVolume();
+}
+
+export function startAmbient(): void {
+  playMusic("ambient");
+}
+
+export function stopAmbient(): void {
+  stopMusic("ambient");
 }
 
 export function setMasterMuted(muted: boolean): void {
@@ -246,10 +266,10 @@ export function setSfxEnabled(enabled: boolean): void {
 
 export function setAmbientEnabled(enabled: boolean): void {
   if (enabled) {
-    startAmbient();
+    playMusic("ambient");
     return;
   }
-  stopAmbient();
+  stopMusic("ambient");
 }
 
 export function setSfxVolume(volume: number): void {

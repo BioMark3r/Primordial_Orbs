@@ -248,37 +248,16 @@ AI is simple and deterministic, designed for playtesting.
 
 ## 🔊 Audio
 
-The game uses a shared HTMLAudioElement-based manager in `src/audio/audioManager.ts`, with asset wiring centralized in `src/audio/audioManifest.ts`.
+Audio is driven by `src/audio/audioManager.ts` with path wiring in `src/audio/audioManifest.ts`.
 
-### Current status (repo-safe defaults)
-
-- Audio architecture is active (manager, unlock flow, settings integration), but all sound assets are intentionally unconfigured by default.
-- Manifest defaults every event to `null`, so no missing-file requests are made and gameplay stays quiet/stable until real assets are added.
-- In development, unconfigured sounds emit concise one-time debug logs. Production remains quiet.
-- Legacy helper `src/ui/utils/sfx.ts` is retained for compatibility and follows the same null-manifest behavior.
-
-### Add real audio later
-
-1. Place assets under `public/` (recommended: `public/sfx/` and/or `public/audio/ambient/`).
-2. Update `src/audio/audioManifest.ts`:
-   - set `sfx.<event>` values to relative public paths (e.g. `"sfx/click.mp3"`)
-   - set `ambient` to a relative path when an ambient loop exists
-3. Keep paths relative to `public/` (no leading slash needed).
-4. Optional: if any legacy code still uses `src/ui/utils/sfx.ts`, mirror those paths in `legacySfxManifest`.
-
-Example manifest shape:
-
-```ts
-{
-  sfx: {
-    ui_click: null,
-    orb_play: null,
-    impact_cast: null,
-    // ...
-  },
-  ambient: null,
-}
-```
+- Asset locations:
+  - SFX: `public/sfx/*.mp3`
+  - Ambient music: `public/music/ambient_space.mp3`
+- Logical SFX events: `click`, `orbPlace`, `impactCast`, `impactLand`, `draw`, `endPlay`, `error`, `unlock`.
+- Logical music events: `ambient`.
+- To replace a sound, keep the same filename/path in `public/` or update only `src/audio/audioManifest.ts`.
+- SFX playback applies subtle per-play pitch/volume variation to avoid robotic repeats.
+- Ambient music is looped and **does not** use playback variation.
 
 ---
 

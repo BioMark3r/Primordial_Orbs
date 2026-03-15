@@ -3,12 +3,12 @@ import { clamp01 } from "./settings";
 
 export type SfxName =
   | "click"
-  | "orb_place"
-  | "impact_cast"
-  | "impact_land"
+  | "orbPlace"
+  | "impactCast"
+  | "impactLand"
   | "unlock"
-  | "end_play"
-  | "advance"
+  | "endPlay"
+  | "draw"
   | "error";
 
 type SfxOptions = { volumeMul?: number };
@@ -19,18 +19,17 @@ let audioUnlocked = false;
 const missingLogged = new Set<SfxName>();
 
 /**
- * Legacy helper manifest. Kept for compatibility with old callers.
- * Leave entries as null until real assets are added.
+ * Legacy helper manifest. Keep this aligned with src/audio/audioManifest.ts.
  */
 const legacySfxManifest: Record<SfxName, string | null> = {
-  click: null,
-  orb_place: null,
-  impact_cast: null,
-  impact_land: null,
-  unlock: null,
-  end_play: null,
-  advance: null,
-  error: null,
+  click: "sfx/click.mp3",
+  orbPlace: "sfx/orb_place.mp3",
+  impactCast: "sfx/impact_cast.mp3",
+  impactLand: "sfx/impact_land.mp3",
+  unlock: "sfx/unlock.mp3",
+  endPlay: "sfx/end_play.mp3",
+  draw: "sfx/draw.mp3",
+  error: "sfx/error.mp3",
 };
 
 const audioMap: Partial<Record<SfxName, HTMLAudioElement>> = {};

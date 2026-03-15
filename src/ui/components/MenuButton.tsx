@@ -44,7 +44,7 @@ export function MenuButton({ label, testId, open, onToggle, onClose, align = "ri
         data-testid={testId}
         className="menuButton ui-btn ui-btn--ghost"
         onClick={() => {
-          playSfx("ui_click", { volumeMul: 0.45 });
+          playSfx("click", { volumeMul: 0.45 });
           onToggle();
         }}
         aria-haspopup="menu"

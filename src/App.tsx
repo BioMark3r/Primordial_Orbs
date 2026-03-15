@@ -836,7 +836,7 @@ export default function App() {
   useEffect(() => {
     if (arenaEvent?.kind === "IMPACT_RESOLVED") {
       lastImpactEventRef.current = arenaEvent;
-      playSfx("hit", { volumeMul: 1.1 });
+      playSfx("impactLand", { volumeMul: 1.1 });
     }
   }, [arenaEvent]);
 
@@ -876,7 +876,7 @@ export default function App() {
       events.forEach((event) => {
         if (event.kind === "TOAST") {
           if (event.key === "ICE_SHIELD_USED" || event.key === "PLANT_MITIGATION_USED") {
-            playSfx("shield", { volumeMul: 0.8 });
+            playSfx("impactLand", { volumeMul: 0.8 });
           }
           const toastId = `${event.key}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
           pushUniqueToast(
@@ -920,7 +920,7 @@ export default function App() {
     ([0, 1] as const).forEach((player) => {
       const newlyUnlocked = diffProgress(prev[player], next[player]);
       if (newlyUnlocked.length > 0) {
-        playSfx("combo");
+        playSfx("unlock");
         newlyUnlocked.forEach((type) => {
           pushToast({
             id: `unlock-${player}-${type}-${now}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1083,7 +1083,7 @@ export default function App() {
           detail: validation.reason,
           at: Date.now(),
         });
-        playSfx("invalid", { volumeMul: 0.75 });
+        playSfx("error", { volumeMul: 0.75 });
         return false;
       }
     }
@@ -1113,20 +1113,20 @@ export default function App() {
     switch (action.type) {
       case "PLAY_TERRAFORM":
       case "PLAY_COLONIZE":
-        playSfx("orb_play");
+        playSfx("orbPlace");
         break;
       case "PLAY_IMPACT":
-        playSfx("impact_cast", { volumeMul: 0.95 });
+        playSfx("impactCast", { volumeMul: 0.95 });
         break;
       case "DRAW_2":
       case "GAS_REDRAW":
         playSfx("draw", { volumeMul: 0.75 });
         break;
       case "END_PLAY":
-        playSfx("turn_end");
+        playSfx("endPlay");
         break;
       case "ADVANCE":
-        playSfx("turn_end", { volumeMul: 0.85 });
+        playSfx("endPlay", { volumeMul: 0.85 });
         break;
       default:
         break;
@@ -1588,7 +1588,7 @@ export default function App() {
 
   const menuAction = useCallback(
     (action: () => void) => () => {
-      playSfx("orb_select", { volumeMul: 0.7 });
+      playSfx("click", { volumeMul: 0.7 });
       action();
       closeMenus();
     },
@@ -1711,8 +1711,8 @@ export default function App() {
   useEffect(() => {
     const prev = prevGamePhaseForSfxRef.current;
     if (screen === "GAME" && prev !== "GAME_OVER" && state.phase === "GAME_OVER") {
-      if (state.winner === 0) playSfx("victory", { volumeMul: 0.9 });
-      if (state.winner === 1) playSfx("defeat", { volumeMul: 0.9 });
+      if (state.winner === 0) playSfx("endPlay", { volumeMul: 0.9 });
+      if (state.winner === 1) playSfx("endPlay", { volumeMul: 0.9 });
     }
     prevGamePhaseForSfxRef.current = state.phase;
   }, [screen, state.phase, state.winner]);
@@ -2417,7 +2417,7 @@ export default function App() {
       if (isMobileLayout) setMobileSecondarySection("inspect");
     }
     setSelected({ kind: "HAND", handIndex: i, orb });
-    playSfx("orb_select", { volumeMul: 0.8 });
+    playSfx("click", { volumeMul: 0.8 });
   }
 
   function onClickSlot(slotIndex: number) {
@@ -2550,7 +2550,7 @@ export default function App() {
         detail: undoCheck.reason,
         at: Date.now(),
       });
-      playSfx("invalid", { volumeMul: 0.75 });
+      playSfx("error", { volumeMul: 0.75 });
       return;
     }
     setHistory((prev) => undo(prev));
@@ -3101,7 +3101,7 @@ export default function App() {
                       setAudioHint("Audio locked — click anywhere to enable sound.");
                       return;
                     }
-                    playSfx("orb_select", { volumeMul: 0.8 });
+                    playSfx("click", { volumeMul: 0.8 });
                   }}
                 >
                   Test Sound
@@ -3452,7 +3452,7 @@ export default function App() {
                         if (!isDisabled) {
                           setHoveredHandIndex(i);
                           if (isImpact) setHoveredImpactIndex(i);
-                          if (hoverSfxLimiterRef.current()) playSfx("ui_hover", { volumeMul: 0.35 });
+                          if (hoverSfxLimiterRef.current()) playSfx("click", { volumeMul: 0.35 });
                         }
                       }}
                       onMouseLeave={() => {

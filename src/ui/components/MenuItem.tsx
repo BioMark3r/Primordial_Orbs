@@ -14,7 +14,7 @@ export function MenuItem({ children, onSelect, tone = "default", ...rest }: Menu
       className={`menuItem ui-menuItem${tone === "danger" ? " menuItem--danger" : ""}`}
       role="menuitem"
       onClick={() => {
-        playSfx("ui_click", { volumeMul: 0.45 });
+        playSfx("click", { volumeMul: 0.45 });
         onSelect?.();
       }}
       {...rest}
