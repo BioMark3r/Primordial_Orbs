@@ -18,6 +18,7 @@ type VariationRange = {
 
 export type AudioDebugSnapshot = {
   unlocked: boolean;
+  locked: boolean;
   unlockInFlight: boolean;
   pendingAmbientStart: boolean;
   masterMuted: boolean;
@@ -26,7 +27,14 @@ export type AudioDebugSnapshot = {
   sfxVolume: number;
   ambientVolume: number;
   ambientPath: string | null;
+  audioContextState: AudioContextState;
 };
+
+type AudioContextStateValue = "suspended" | "running" | "closed" | "interrupted";
+
+export type AudioContextState = AudioContextStateValue | "none";
+
+type AudioSnapshotListener = (snapshot: AudioDebugSnapshot) => void;
 
 const AUDIO_DEBUG = import.meta.env.DEV;
 const VOICE_POOL_SIZE = 3;
@@ -57,6 +65,9 @@ if (ambientAudio) {
 let isAudioUnlocked = false;
 let pendingAmbientStart = false;
 let unlockInFlight = false;
+let unlockCanaryPlayed = false;
+let unlockContext: AudioContext | null = null;
+const audioSnapshotListeners = new Set<AudioSnapshotListener>();
 
 const state: AudioState = {
   masterMuted: false,
@@ -78,6 +89,49 @@ function randomInRange([min, max]: readonly [number, number]): number {
 function debugLog(message: string, ...details: unknown[]): void {
   if (!AUDIO_DEBUG) return;
   console.debug(`[audio] ${message}`, ...details);
+}
+
+function ensureUnlockContext(): AudioContext | null {
+  if (unlockContext) return unlockContext;
+  const maybeWindow = globalThis as Window & { webkitAudioContext?: typeof AudioContext };
+  const Ctx = maybeWindow.AudioContext ?? maybeWindow.webkitAudioContext;
+  if (!Ctx) return null;
+  try {
+    unlockContext = new Ctx();
+    return unlockContext;
+  } catch {
+    return null;
+  }
+}
+
+function getWebAudioContextState(): AudioContextState {
+  const context = ensureUnlockContext();
+  if (!context) return "none";
+  return context.state as AudioContextStateValue;
+}
+
+function emitAudioSnapshot(): void {
+  const snapshot = getAudioDebugSnapshot();
+  audioSnapshotListeners.forEach((listener) => listener(snapshot));
+}
+
+function setAudioUnlocked(next: boolean, reason: string): void {
+  if (isAudioUnlocked === next) return;
+  isAudioUnlocked = next;
+  debugLog(`locked=${String(!next)} (${reason})`);
+  emitAudioSnapshot();
+}
+
+function setUnlockInFlight(next: boolean): void {
+  if (unlockInFlight === next) return;
+  unlockInFlight = next;
+  emitAudioSnapshot();
+}
+
+function setPendingAmbientStart(next: boolean): void {
+  if (pendingAmbientStart === next) return;
+  pendingAmbientStart = next;
+  emitAudioSnapshot();
 }
 
 function debugOnce(message: string, key: string): void {
@@ -133,7 +187,7 @@ function updateAmbientVolume(): void {
 }
 
 function requestAmbientStart(): void {
-  pendingAmbientStart = state.ambientEnabled;
+  setPendingAmbientStart(state.ambientEnabled);
 }
 
 function tryStartAmbient(): void {
@@ -167,7 +221,7 @@ if (ambientAudio) {
   }, { once: true });
   ambientAudio.addEventListener("error", () => {
     state.ambientEnabled = false;
-    pendingAmbientStart = false;
+    setPendingAmbientStart(false);
     debugOnce(`load music ambient failed -> ${ambientAudio.src}; ambient disabled`, `ambient:error:${ambientAudio.src}`);
   });
 }
@@ -182,12 +236,14 @@ export function initAudio(): void {
   }
   updateAmbientVolume();
   logSettings("init complete");
+  emitAudioSnapshot();
 }
 
-export function unlockAudio(): void {
+export async function unlockAudio(source = "unknown"): Promise<boolean> {
+  debugLog(`unlock gesture received source=${source}`);
   if (isAudioUnlocked || unlockInFlight) {
     debugLog(`resume requested skipped unlocked=${isAudioUnlocked} inFlight=${unlockInFlight}`);
-    return;
+    return isAudioUnlocked;
   }
 
   debugLog("resume requested after user gesture");
@@ -195,40 +251,55 @@ export function unlockAudio(): void {
   const probe = probeVoices?.[0];
 
   if (!probe) {
-    isAudioUnlocked = true;
+    setAudioUnlocked(true, "fallback-no-probe");
     debugLog("unlock fallback complete (no probe available)");
     if (pendingAmbientStart || state.ambientEnabled) {
       tryStartAmbient();
-      pendingAmbientStart = false;
+      setPendingAmbientStart(false);
     }
-    return;
+    return true;
   }
 
-  unlockInFlight = true;
+  setUnlockInFlight(true);
+  const context = ensureUnlockContext();
+  debugLog(`before resume: ${context ? context.state : "none"}`);
 
   const previousVolume = probe.volume;
   probe.volume = 0;
   probe.currentTime = 0;
 
-  void probe
-    .play()
-    .then(() => {
-      probe.pause();
-      probe.currentTime = 0;
-      probe.volume = previousVolume;
-      isAudioUnlocked = true;
-      unlockInFlight = false;
-      debugLog("unlock success");
-      if (pendingAmbientStart || state.ambientEnabled) {
-        tryStartAmbient();
-        pendingAmbientStart = false;
-      }
-    })
-    .catch((error) => {
-      probe.volume = previousVolume;
-      unlockInFlight = false;
-      debugLog(`unlock blocked: ${(error as Error)?.message ?? "unknown"}`);
-    });
+  try {
+    if (context && context.state !== "running") {
+      await context.resume();
+    }
+    debugLog("html-audio canary play requested");
+    await probe.play();
+    probe.pause();
+    probe.currentTime = 0;
+    probe.volume = previousVolume;
+    setAudioUnlocked(true, "probe-play-resolved");
+    setUnlockInFlight(false);
+    debugLog(`after resume: ${getWebAudioContextState()}`);
+    debugLog("unlock success");
+
+    if (AUDIO_DEBUG && !unlockCanaryPlayed) {
+      unlockCanaryPlayed = true;
+      debugLog("canary click test play requested");
+      playSfx("click", { volumeMul: 0.7 });
+    }
+
+    if (pendingAmbientStart || state.ambientEnabled) {
+      tryStartAmbient();
+      setPendingAmbientStart(false);
+    }
+
+    return true;
+  } catch (error) {
+    probe.volume = previousVolume;
+    setUnlockInFlight(false);
+    debugLog(`unlock failure: ${(error as Error)?.message ?? "unknown"}`);
+    return false;
+  }
 }
 
 export function getAudioUnlocked(): boolean {
@@ -238,6 +309,7 @@ export function getAudioUnlocked(): boolean {
 export function getAudioDebugSnapshot(): AudioDebugSnapshot {
   return {
     unlocked: isAudioUnlocked,
+    locked: !isAudioUnlocked,
     unlockInFlight,
     pendingAmbientStart,
     masterMuted: state.masterMuted,
@@ -246,6 +318,15 @@ export function getAudioDebugSnapshot(): AudioDebugSnapshot {
     sfxVolume: state.sfxVolume,
     ambientVolume: state.ambientVolume,
     ambientPath: ambientPath ? assetUrl(ambientPath) : null,
+    audioContextState: getWebAudioContextState(),
+  };
+}
+
+export function subscribeAudioDebugSnapshot(listener: AudioSnapshotListener): () => void {
+  audioSnapshotListeners.add(listener);
+  listener(getAudioDebugSnapshot());
+  return () => {
+    audioSnapshotListeners.delete(listener);
   };
 }
 
@@ -315,7 +396,7 @@ export function playMusic(name: MusicName): void {
 export function stopMusic(name: MusicName): void {
   if (name !== "ambient") return;
   state.ambientEnabled = false;
-  pendingAmbientStart = false;
+  setPendingAmbientStart(false);
   if (!ambientAudio) return;
   ambientAudio.pause();
   ambientAudio.currentTime = 0;
@@ -344,11 +425,13 @@ export function setMasterMuted(muted: boolean): void {
   }
   updateAmbientVolume();
   logSettings("setMasterMuted");
+  emitAudioSnapshot();
 }
 
 export function setSfxEnabled(enabled: boolean): void {
   state.sfxEnabled = Boolean(enabled);
   logSettings("setSfxEnabled");
+  emitAudioSnapshot();
 }
 
 export function setAmbientEnabled(enabled: boolean): void {
@@ -362,10 +445,12 @@ export function setAmbientEnabled(enabled: boolean): void {
 export function setSfxVolume(volume: number): void {
   state.sfxVolume = clamp01(volume);
   logSettings("setSfxVolume");
+  emitAudioSnapshot();
 }
 
 export function setAmbientVolume(volume: number): void {
   state.ambientVolume = clamp01(volume);
   updateAmbientVolume();
   logSettings("setAmbientVolume");
+  emitAudioSnapshot();
 }
