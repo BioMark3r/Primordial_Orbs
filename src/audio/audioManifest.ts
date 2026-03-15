@@ -8,7 +8,7 @@ export type SfxName =
   | "error"
   | "unlock";
 
-export type MusicName = "ambient";
+export type MusicName = "ambient" | "splashTheme";
 
 export type AudioManifest = {
   sfx: Record<SfxName, string | null>;
@@ -35,5 +35,6 @@ export const audioManifest: AudioManifest = {
   },
   music: {
     ambient: "music/ambient_space.mp3",
+    splashTheme: "music/splash_theme.mp3",
   },
 };

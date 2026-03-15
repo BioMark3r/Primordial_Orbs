@@ -27,6 +27,7 @@ export type AudioDebugSnapshot = {
   sfxVolume: number;
   ambientVolume: number;
   ambientPath: string | null;
+  splashThemePath: string | null;
   audioContextState: AudioContextState;
 };
 
@@ -56,10 +57,17 @@ const sfxVoices = new Map<SfxName, HTMLAudioElement[]>();
 const sfxVoiceIndex = new Map<SfxName, number>();
 
 const ambientPath = audioManifest.music.ambient;
+const splashThemePath = audioManifest.music.splashTheme;
 const ambientAudio = ambientPath ? new Audio(assetUrl(ambientPath)) : null;
+const splashThemeAudio = splashThemePath ? new Audio(assetUrl(splashThemePath)) : null;
+
 if (ambientAudio) {
   ambientAudio.preload = "auto";
   ambientAudio.loop = true;
+}
+if (splashThemeAudio) {
+  splashThemeAudio.preload = "auto";
+  splashThemeAudio.loop = true;
 }
 
 let isAudioUnlocked = false;
@@ -68,6 +76,7 @@ let unlockInFlight = false;
 let unlockCanaryPlayed = false;
 let unlockContext: AudioContext | null = null;
 const audioSnapshotListeners = new Set<AudioSnapshotListener>();
+let splashFadeInterval: number | null = null;
 
 const state: AudioState = {
   masterMuted: false,
@@ -186,6 +195,25 @@ function updateAmbientVolume(): void {
   ambientAudio.volume = effectiveVolume(state.ambientEnabled ? state.ambientVolume : 0);
 }
 
+function updateSplashThemeVolume(): void {
+  if (!splashThemeAudio) return;
+  splashThemeAudio.volume = effectiveVolume(state.ambientEnabled ? state.ambientVolume : 0);
+}
+
+function stopSplashFade(): void {
+  if (splashFadeInterval === null) return;
+  window.clearInterval(splashFadeInterval);
+  splashFadeInterval = null;
+}
+
+function stopSplashTheme(): void {
+  stopSplashFade();
+  if (!splashThemeAudio) return;
+  splashThemeAudio.pause();
+  splashThemeAudio.currentTime = 0;
+  updateSplashThemeVolume();
+}
+
 function requestAmbientStart(): void {
   setPendingAmbientStart(state.ambientEnabled);
 }
@@ -208,10 +236,65 @@ function tryStartAmbient(): void {
     return;
   }
 
+  stopSplashTheme();
   updateAmbientVolume();
   debugLog(`playMusic(ambient) allowed=true volume=${ambientAudio.volume.toFixed(2)} src=${ambientAudio.src}`);
   void ambientAudio.play().catch((error) => {
     debugOnce(`playMusic(ambient) blocked: ${(error as Error)?.message ?? "unknown"}`, `ambient:play:${ambientAudio.src}`);
+  });
+}
+
+function tryStartSplashTheme(): void {
+  if (!splashThemeAudio) {
+    debugLog("playMusic(splashTheme) skipped: no splash theme asset");
+    return;
+  }
+  if (!isAudioUnlocked) {
+    debugLog("playMusic(splashTheme) skipped: no user unlock yet");
+    return;
+  }
+  if (!state.ambientEnabled) {
+    debugLog("playMusic(splashTheme) skipped: music disabled");
+    return;
+  }
+  if (state.masterMuted) {
+    debugLog("playMusic(splashTheme) skipped: master muted");
+    return;
+  }
+
+  if (ambientAudio) {
+    ambientAudio.pause();
+    ambientAudio.currentTime = 0;
+  }
+  stopSplashFade();
+  splashThemeAudio.loop = true;
+  updateSplashThemeVolume();
+  debugLog(`playMusic(splashTheme) allowed=true volume=${splashThemeAudio.volume.toFixed(2)} src=${splashThemeAudio.src}`);
+  void splashThemeAudio.play().catch((error) => {
+    debugOnce(`playMusic(splashTheme) blocked: ${(error as Error)?.message ?? "unknown"}`, `splash:play:${splashThemeAudio.src}`);
+  });
+}
+
+function fadeOutSplashTheme(ms = 1000): Promise<void> {
+  if (!splashThemeAudio) return Promise.resolve();
+  stopSplashFade();
+  const startVolume = splashThemeAudio.volume;
+  if (startVolume <= 0 || splashThemeAudio.paused) {
+    stopSplashTheme();
+    return Promise.resolve();
+  }
+  const start = Date.now();
+
+  return new Promise((resolve) => {
+    splashFadeInterval = window.setInterval(() => {
+      const elapsed = Date.now() - start;
+      const progress = Math.min(1, elapsed / ms);
+      splashThemeAudio.volume = startVolume * (1 - progress);
+      if (progress >= 1) {
+        stopSplashTheme();
+        resolve();
+      }
+    }, 50);
   });
 }
 
@@ -226,6 +309,15 @@ if (ambientAudio) {
   });
 }
 
+if (splashThemeAudio) {
+  splashThemeAudio.addEventListener("canplaythrough", () => {
+    debugOnce(`loaded music splashTheme -> ${splashThemeAudio.src}`, `loaded:splashTheme:${splashThemeAudio.src}`);
+  }, { once: true });
+  splashThemeAudio.addEventListener("error", () => {
+    debugOnce(`load music splashTheme failed -> ${splashThemeAudio.src}`, `splashTheme:error:${splashThemeAudio.src}`);
+  });
+}
+
 export function initAudio(): void {
   debugLog("init start", { baseUrl: import.meta.env.BASE_URL });
   (Object.keys(audioManifest.sfx) as SfxName[]).forEach((name) => {
@@ -234,7 +326,11 @@ export function initAudio(): void {
   if (!audioManifest.music.ambient) {
     debugOnce("ambient unconfigured; ambient playback disabled", "ambient:missing");
   }
+  if (!audioManifest.music.splashTheme) {
+    debugOnce("splash theme unconfigured; splash playback disabled", "splashTheme:missing");
+  }
   updateAmbientVolume();
+  updateSplashThemeVolume();
   logSettings("init complete");
   emitAudioSnapshot();
 }
@@ -255,7 +351,7 @@ export async function unlockAudio(source = "unknown"): Promise<boolean> {
     setAudioUnlocked(true, "fallback-no-probe");
     debugLog("unlock fallback complete (no probe available)");
     debugLog("locked=false");
-    if (pendingAmbientStart || state.ambientEnabled) {
+    if (pendingAmbientStart) {
       tryStartAmbient();
       setPendingAmbientStart(false);
     }
@@ -291,7 +387,7 @@ export async function unlockAudio(source = "unknown"): Promise<boolean> {
       playSfx("click", { volumeMul: 0.7 });
     }
 
-    if (pendingAmbientStart || state.ambientEnabled) {
+    if (pendingAmbientStart) {
       tryStartAmbient();
       setPendingAmbientStart(false);
     }
@@ -321,6 +417,7 @@ export function getAudioDebugSnapshot(): AudioDebugSnapshot {
     sfxVolume: state.sfxVolume,
     ambientVolume: state.ambientVolume,
     ambientPath: ambientPath ? assetUrl(ambientPath) : null,
+    splashThemePath: splashThemePath ? assetUrl(splashThemePath) : null,
     audioContextState: getWebAudioContextState(),
   };
 }
@@ -381,30 +478,52 @@ export function playSfx(name: SfxName, opts?: SfxOptions): void {
 }
 
 export function playMusic(name: MusicName): void {
-  if (name !== "ambient") return;
   state.ambientEnabled = true;
-  if (!ambientAudio) {
-    debugOnce("playMusic(ambient) skipped: no ambient asset is configured", "ambient:requested-without-asset");
+  if (name === "ambient") {
+    if (!ambientAudio) {
+      debugOnce("playMusic(ambient) skipped: no ambient asset is configured", "ambient:requested-without-asset");
+      return;
+    }
+    updateAmbientVolume();
+    if (!isAudioUnlocked) {
+      requestAmbientStart();
+      debugLog("playMusic(ambient) queued pending unlock");
+      return;
+    }
+    tryStartAmbient();
     return;
   }
-  updateAmbientVolume();
+
+  if (name !== "splashTheme") return;
+  if (!splashThemeAudio) {
+    debugOnce("playMusic(splashTheme) skipped: no splash theme asset is configured", "splashTheme:requested-without-asset");
+    return;
+  }
+  updateSplashThemeVolume();
   if (!isAudioUnlocked) {
-    requestAmbientStart();
-    debugLog("playMusic(ambient) queued pending unlock");
+    setPendingAmbientStart(false);
+    debugLog("playMusic(splashTheme) skipped until unlock");
     return;
   }
-  tryStartAmbient();
+  tryStartSplashTheme();
 }
 
 export function stopMusic(name: MusicName): void {
-  if (name !== "ambient") return;
-  state.ambientEnabled = false;
-  setPendingAmbientStart(false);
-  if (!ambientAudio) return;
-  ambientAudio.pause();
-  ambientAudio.currentTime = 0;
-  updateAmbientVolume();
-  debugLog("stopMusic(ambient)");
+  if (name === "ambient") {
+    state.ambientEnabled = false;
+    setPendingAmbientStart(false);
+    if (ambientAudio) {
+      ambientAudio.pause();
+      ambientAudio.currentTime = 0;
+      updateAmbientVolume();
+    }
+    debugLog("stopMusic(ambient)");
+    return;
+  }
+
+  if (name !== "splashTheme") return;
+  stopSplashTheme();
+  debugLog("stopMusic(splashTheme)");
 }
 
 export function startAmbient(): void {
@@ -415,6 +534,15 @@ export function stopAmbient(): void {
   stopMusic("ambient");
 }
 
+export async function transitionSplashToAmbient(fadeMs = 1000): Promise<void> {
+  if (!state.ambientEnabled) {
+    stopSplashTheme();
+    return;
+  }
+  await fadeOutSplashTheme(fadeMs);
+  tryStartAmbient();
+}
+
 export function setMasterMuted(muted: boolean): void {
   state.masterMuted = Boolean(muted);
   if (!ambientAudio) {
@@ -423,10 +551,18 @@ export function setMasterMuted(muted: boolean): void {
   }
   if (state.masterMuted) {
     ambientAudio.pause();
+    if (splashThemeAudio) {
+      splashThemeAudio.pause();
+    }
   } else if (state.ambientEnabled && isAudioUnlocked) {
-    tryStartAmbient();
+    if (splashThemeAudio && !splashThemeAudio.paused && !splashThemeAudio.ended) {
+      tryStartSplashTheme();
+    } else {
+      tryStartAmbient();
+    }
   }
   updateAmbientVolume();
+  updateSplashThemeVolume();
   logSettings("setMasterMuted");
   emitAudioSnapshot();
 }
@@ -438,11 +574,34 @@ export function setSfxEnabled(enabled: boolean): void {
 }
 
 export function setAmbientEnabled(enabled: boolean): void {
-  if (enabled) {
-    playMusic("ambient");
+  state.ambientEnabled = Boolean(enabled);
+  if (!state.ambientEnabled) {
+    setPendingAmbientStart(false);
+    stopSplashTheme();
+    if (ambientAudio) {
+      ambientAudio.pause();
+      ambientAudio.currentTime = 0;
+    }
+    updateAmbientVolume();
+    updateSplashThemeVolume();
+    emitAudioSnapshot();
     return;
   }
-  stopMusic("ambient");
+
+  updateAmbientVolume();
+  updateSplashThemeVolume();
+  if (!isAudioUnlocked) {
+    requestAmbientStart();
+    emitAudioSnapshot();
+    return;
+  }
+
+  if (splashThemeAudio && !splashThemeAudio.paused) {
+    tryStartSplashTheme();
+  } else {
+    tryStartAmbient();
+  }
+  emitAudioSnapshot();
 }
 
 export function setSfxVolume(volume: number): void {
@@ -454,6 +613,7 @@ export function setSfxVolume(volume: number): void {
 export function setAmbientVolume(volume: number): void {
   state.ambientVolume = clamp01(volume);
   updateAmbientVolume();
+  updateSplashThemeVolume();
   logSettings("setAmbientVolume");
   emitAudioSnapshot();
 }
