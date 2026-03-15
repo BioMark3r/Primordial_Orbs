@@ -9,12 +9,31 @@ export type UserSettings = {
 
 const SETTINGS_KEY = "po_settings_v1";
 
-const DEFAULT_SFX_VOLUME = 0.55;
-const DEFAULT_AMBIENT_VOLUME = 0.3;
+const DEFAULT_SFX_VOLUME = 0.9;
+const DEFAULT_AMBIENT_VOLUME = 0.15;
 
 export function clamp01(n: number): number {
   if (Number.isNaN(n)) return 0;
   return Math.min(1, Math.max(0, n));
+}
+
+function parseBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") return true;
+    if (normalized === "false" || normalized === "0") return false;
+  }
+  return fallback;
+}
+
+function parseVolume(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) return clamp01(value);
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return clamp01(parsed);
+  }
+  return fallback;
 }
 
 function defaultReduceMotion(): boolean {
@@ -45,22 +64,16 @@ export function loadSettings(): UserSettings {
       soundEnabled?: boolean;
       volume?: number;
     };
-    const migratedSfxEnabled =
-      typeof parsed.sfxEnabled === "boolean"
-        ? parsed.sfxEnabled
-        : (typeof parsed.soundEnabled === "boolean" ? parsed.soundEnabled : fallback.sfxEnabled);
-    const migratedSfxVolume =
-      typeof parsed.sfxVolume === "number"
-        ? clamp01(parsed.sfxVolume)
-        : (typeof parsed.volume === "number" ? clamp01(parsed.volume) : fallback.sfxVolume);
+    const migratedSfxEnabled = parseBoolean(parsed.sfxEnabled, parseBoolean(parsed.soundEnabled, fallback.sfxEnabled));
+    const migratedSfxVolume = parseVolume(parsed.sfxVolume, parseVolume(parsed.volume, fallback.sfxVolume));
 
     return {
-      masterMuted: typeof parsed.masterMuted === "boolean" ? parsed.masterMuted : fallback.masterMuted,
+      masterMuted: parseBoolean(parsed.masterMuted, fallback.masterMuted),
       sfxEnabled: migratedSfxEnabled,
       sfxVolume: migratedSfxVolume,
-      ambientEnabled: typeof parsed.ambientEnabled === "boolean" ? parsed.ambientEnabled : fallback.ambientEnabled,
-      ambientVolume: typeof parsed.ambientVolume === "number" ? clamp01(parsed.ambientVolume) : fallback.ambientVolume,
-      reduceMotion: typeof parsed.reduceMotion === "boolean" ? parsed.reduceMotion : fallback.reduceMotion,
+      ambientEnabled: parseBoolean(parsed.ambientEnabled, fallback.ambientEnabled),
+      ambientVolume: parseVolume(parsed.ambientVolume, fallback.ambientVolume),
+      reduceMotion: parseBoolean(parsed.reduceMotion, fallback.reduceMotion),
     };
   } catch {
     return fallback;

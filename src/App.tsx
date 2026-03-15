@@ -63,8 +63,11 @@ import { isDemoModeRequested, isScreenshotModeRequested, loadDemoStateIfRequeste
 import {
   getAudioUnlocked,
   initAudio,
+  getAudioDebugSnapshot,
   playSfx,
   setAmbientEnabled,
+  startAmbient,
+  stopAmbient,
   setAmbientVolume,
   setMasterMuted,
   setSfxEnabled,
@@ -127,6 +130,7 @@ export type UIEvent =
 const CORES: Core[] = ["LAND", "WATER", "ICE", "LAVA", "GAS"];
 const HISTORY_LIMIT = 30;
 const RULEBOOK_URL = "/rulebook.html";
+const AUDIO_DEV = import.meta.env.DEV;
 
 function openRulebook() {
   window.open(RULEBOOK_URL, "_blank", "noopener,noreferrer");
@@ -428,6 +432,16 @@ export default function App() {
     fxImpact?: Impact;
   } | null>(null);
   const pendingDiffRef = useRef<PendingDiff>(null);
+  const audioCanaryPlayedRef = useRef(false);
+
+  function audioTrace(message: string, details?: unknown) {
+    if (!AUDIO_DEV) return;
+    if (details === undefined) {
+      console.debug(`[audio] ${message}`);
+      return;
+    }
+    console.debug(`[audio] ${message}`, details);
+  }
   const hoverSfxLimiterRef = useRef(createRateLimiter(200));
   const prevGamePhaseForSfxRef = useRef(state.phase);
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -800,9 +814,18 @@ export default function App() {
     setLastActionEvent(event);
   }
 
-  function attemptAudioUnlock() {
-    if (!getAudioUnlocked()) {
+  function attemptAudioUnlock(source = "unknown") {
+    const alreadyUnlocked = getAudioUnlocked();
+    audioTrace(`unlock attempt from ${source} unlocked=${alreadyUnlocked}`);
+    if (!alreadyUnlocked) {
       unlockAudio();
+    }
+    if (AUDIO_DEV && !audioCanaryPlayedRef.current) {
+      audioCanaryPlayedRef.current = true;
+      window.setTimeout(() => {
+        audioTrace("canary playSfx(click) after first interaction");
+        playSfx("click", { volumeMul: 0.75 });
+      }, 0);
     }
   }
 
@@ -1040,6 +1063,7 @@ export default function App() {
     setActiveProfileId(selectedLoginProfileId);
     setP0ProfileId(selectedLoginProfileId);
     setPinModalOpen(false);
+    attemptAudioUnlock("pin login");
     setScreen("SETUP");
   }
 
@@ -1053,6 +1077,7 @@ export default function App() {
       setP0ProfileId(profile.id);
       setAuthError(null);
       setRegisterModalOpen(false);
+      attemptAudioUnlock("register profile");
       setScreen("SETUP");
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Unable to register profile.");
@@ -1060,7 +1085,7 @@ export default function App() {
   }
 
   function dispatchWithLog(action: Action): boolean {
-    attemptAudioUnlock();
+    attemptAudioUnlock("game action");
     if (isPreviewMode) {
       pushToast({
         id: `preview-blocked-${Date.now()}`,
@@ -1113,19 +1138,24 @@ export default function App() {
     switch (action.type) {
       case "PLAY_TERRAFORM":
       case "PLAY_COLONIZE":
+        audioTrace("trigger playSfx orbPlace from action");
         playSfx("orbPlace");
         break;
       case "PLAY_IMPACT":
+        audioTrace("trigger playSfx impactCast from action");
         playSfx("impactCast", { volumeMul: 0.95 });
         break;
       case "DRAW_2":
       case "GAS_REDRAW":
+        audioTrace("trigger playSfx draw from action");
         playSfx("draw", { volumeMul: 0.75 });
         break;
       case "END_PLAY":
+        audioTrace("trigger playSfx endPlay from action");
         playSfx("endPlay");
         break;
       case "ADVANCE":
+        audioTrace("trigger playSfx endPlay(advance) from action");
         playSfx("endPlay", { volumeMul: 0.85 });
         break;
       default:
@@ -1147,7 +1177,7 @@ export default function App() {
   }
 
   function startGame(options?: { vsComputer?: boolean; setupConfig?: SetupConfig }) {
-    attemptAudioUnlock();
+    attemptAudioUnlock("game action");
     const setupConfig = options?.setupConfig;
     if (!canStartConfigured) {
       pushToast({
@@ -1486,6 +1516,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    audioTrace("settings applied", settings);
     setMasterMuted(settings.masterMuted);
     setSfxEnabled(settings.sfxEnabled);
     setSfxVolume(settings.sfxVolume);
@@ -1495,7 +1526,7 @@ export default function App() {
 
   useEffect(() => {
     const unlock = () => {
-      unlockAudio();
+      attemptAudioUnlock("global gesture");
       setAudioHint(null);
     };
     window.addEventListener("pointerdown", unlock, { once: true });
@@ -1776,7 +1807,7 @@ export default function App() {
           rememberMe={rememberMe}
           onRememberMeChange={setRememberMe}
           onContinue={() => {
-            attemptAudioUnlock();
+            attemptAudioUnlock("continue as guest");
             setGuestSession();
             setActiveProfileId(GUEST_ID);
             setP0ProfileId(GUEST_ID);
@@ -2622,6 +2653,8 @@ export default function App() {
     ? "Backend: Supabase env missing"
     : (backendStatus === "connected" ? "Backend: Supabase online" : `Backend: ${backendStatus}`);
 
+  const audioDebugSnapshot = getAudioDebugSnapshot();
+
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
       <div
@@ -2818,6 +2851,11 @@ export default function App() {
                 <MenuItem onSelect={menuAction(handleToggleDebugInfo)}>
                   {showDebugInfo ? "Hide Debug Info" : "Show Debug Info"}
                 </MenuItem>
+                {AUDIO_DEV && (
+                  <MenuItem onSelect={menuAction(() => setSettingsOpen(true))}>
+                    Audio Debug
+                  </MenuItem>
+                )}
                 <MenuItem onSelect={menuAction(() => setSettingsOpen(true))}>Settings...</MenuItem>
                 {playVsComputer && (
                   <MenuItem onSelect={menuAction(() => setAiPaused((prev) => !prev))}>
@@ -3131,6 +3169,26 @@ export default function App() {
                     onChange={(event) => updateSettings({ ...settings, ambientVolume: Number(event.target.value) / 100 })}
                   />
                 </label>
+                {AUDIO_DEV && showDebugInfo && (
+                  <div style={{ border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: 10, display: "grid", gap: 8 }}>
+                    <strong style={{ fontSize: 13 }}>Audio Debug</strong>
+                    <div style={{ fontSize: 12, opacity: 0.9 }}>
+                      unlocked={String(audioDebugSnapshot.unlocked)} inFlight={String(audioDebugSnapshot.unlockInFlight)} pendingAmbient={String(audioDebugSnapshot.pendingAmbientStart)}
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.9 }}>
+                      masterMuted={String(audioDebugSnapshot.masterMuted)} sfxEnabled={String(audioDebugSnapshot.sfxEnabled)} ambientEnabled={String(audioDebugSnapshot.ambientEnabled)}
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.9 }}>
+                      sfxVolume={audioDebugSnapshot.sfxVolume.toFixed(2)} ambientVolume={audioDebugSnapshot.ambientVolume.toFixed(2)}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button type="button" onClick={() => playSfx("click", { volumeMul: 0.8 })}>Play Click Test</button>
+                      <button type="button" onClick={() => playSfx("orbPlace", { volumeMul: 0.8 })}>Play Orb Place Test</button>
+                      <button type="button" onClick={() => startAmbient()}>Play Ambient Test</button>
+                      <button type="button" onClick={() => stopAmbient()}>Stop Ambient</button>
+                    </div>
+                  </div>
+                )}
                 {audioHint && <div style={{ fontSize: 12, color: "#c08f2a" }}>{audioHint}</div>}
                 <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                   <span>Reduce Motion</span>
