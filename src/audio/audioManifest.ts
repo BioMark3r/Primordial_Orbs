@@ -1,21 +1,18 @@
 export type SfxName =
-  | "ui_click"
-  | "ui_hover"
+  | "click"
   | "draw"
-  | "orb_select"
-  | "orb_play"
-  | "impact_cast"
-  | "hit"
-  | "shield"
-  | "combo"
-  | "turn_end"
-  | "invalid"
-  | "victory"
-  | "defeat";
+  | "orbPlace"
+  | "impactCast"
+  | "impactLand"
+  | "endPlay"
+  | "error"
+  | "unlock";
+
+export type MusicName = "ambient";
 
 export type AudioManifest = {
   sfx: Record<SfxName, string | null>;
-  ambient: string | null;
+  music: Record<MusicName, string | null>;
 };
 
 /**
@@ -27,19 +24,16 @@ export type AudioManifest = {
  */
 export const audioManifest: AudioManifest = {
   sfx: {
-    ui_click: null,
-    ui_hover: null,
-    draw: null,
-    orb_select: null,
-    orb_play: null,
-    impact_cast: null,
-    hit: null,
-    shield: null,
-    combo: null,
-    turn_end: null,
-    invalid: null,
-    victory: null,
-    defeat: null,
+    click: "sfx/click.mp3",
+    orbPlace: "sfx/orb_place.mp3",
+    impactCast: "sfx/impact_cast.mp3",
+    impactLand: "sfx/impact_land.mp3",
+    draw: "sfx/draw.mp3",
+    endPlay: "sfx/end_play.mp3",
+    error: "sfx/error.mp3",
+    unlock: "sfx/unlock.mp3",
   },
-  ambient: null,
+  music: {
+    ambient: "music/ambient_space.mp3",
+  },
 };
