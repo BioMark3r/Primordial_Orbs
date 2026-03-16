@@ -35,7 +35,7 @@ import { nextIndexOnEvent } from "./ui/utils/tutorialGuide";
 import { TUTORIAL_STEPS } from "./ui/utils/tutorialSteps";
 import { hasSeenTutorial, markSeenTutorial } from "./ui/utils/tutorialStorage";
 import { getButtonDisabledReason, getOrbDisabledReason } from "./ui/utils/disabledReasons";
-import { DEFAULT_HAND_SIZE_LIMIT, validateIntent, type ActionIntent } from "./ui/utils/actionValidation";
+import { validateIntent, type ActionIntent } from "./ui/utils/actionValidation";
 import {
   exportMatchCode,
   importMatchCode,
@@ -75,6 +75,7 @@ import {
   setSfxEnabled,
   setSfxVolume,
   unlockAudio,
+  getAudioUnlocked,
 } from "./audio/audioManager";
 import { createRateLimiter } from "./audio/hoverLimiter";
 import { loadSettings, saveSettings, type UserSettings } from "./ui/utils/settings";
@@ -98,6 +99,7 @@ import { SplashLoginScreen } from "./ui/screens/SplashLoginScreen";
 import { RegisterProfileModal } from "./ui/components/RegisterProfileModal";
 import { PinPromptModal } from "./ui/components/PinPromptModal";
 import { ProfilePicker } from "./ui/components/ProfilePicker";
+import { AppTopHeader } from "./ui/components/AppTopHeader";
 import { StatsModal } from "./ui/components/StatsModal";
 import { TurnHistoryPanel } from "./ui/components/TurnHistoryPanel";
 import { ImpactPreviewPanel } from "./ui/components/ImpactPreviewPanel";
@@ -155,10 +157,6 @@ function colonizeTypesCount(planet: (Orb | null)[]): number {
   const set = new Set<string>();
   for (const s of planet) if (s?.kind === "COLONIZE") set.add(s.c);
   return set.size;
-}
-function isHandOverflow(state: GameState): boolean {
-  const p = state.active;
-  return state.players[p].hand.length > 3;
 }
 function abilitiesEnabled(state: GameState, p: 0 | 1): boolean {
   const until = state.players[p].abilities.disabled_until_turn;
@@ -342,7 +340,7 @@ export default function App() {
   const demoState = useMemo(() => loadDemoStateIfRequested(), [demoRequested]);
   const initialSeed = useMemo(() => (demoState ? demoState.seed : Date.now()), [demoState]);
   const initial = useMemo(
-    () => demoState ?? newGame("LOCAL_2P", "LAND", "ICE", initialSeed),
+    () => demoState ?? newGame("LOCAL_2P", "LAND", "ICE", initialSeed, { handCap: 3, coreSize: 6 }),
     [demoState, initialSeed]
   );
   const [history, setHistory] = useState<HistoryState<GameState>>({
@@ -391,6 +389,9 @@ export default function App() {
   const [showDeterminismTools, setShowDeterminismTools] = useState(false);
   const [impactTarget, setImpactTarget] = useState<ImpactTargetChoice>("OPPONENT");
   const [showHowTo, setShowHowTo] = useState(false);
+  const [coachEnabled, setCoachEnabled] = useState(true);
+  const [setupHandSize, setSetupHandSize] = useState(3);
+  const [setupCoreSize, setSetupCoreSize] = useState(6);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
@@ -676,7 +677,7 @@ export default function App() {
       playsRemaining,
       impactsRemaining,
       abilitiesEnabled: (p: 0 | 1) => abilitiesEnabled(state, p),
-      handSizeLimit: DEFAULT_HAND_SIZE_LIMIT,
+      handSizeLimit: state.handCap ?? 3,
       hasUndoHistory: history.past.length > 0 && mode === "LOCAL_2P" && state.phase !== "GAME_OVER",
     }),
     [active, history.past.length, impactsRemaining, mode, playsRemaining, state],
@@ -717,7 +718,7 @@ export default function App() {
     }
     return "PLAY PHASE — Select an orb, then choose a slot";
   }, [arenaEvent, selected, state.phase]);
-  const showDiscard = state.phase === "DRAW" && isHandOverflow(state);
+  const showDiscard = state.phase === "DRAW" && state.players[state.active].hand.length > (state.handCap ?? 3);
   const canUndo = validationCtx.hasUndoHistory ?? false;
 
   const canWaterSwap = validateIntent(state, { type: "WATER_SWAP", a: 0, b: 1 }, validationCtx).ok;
@@ -731,7 +732,7 @@ export default function App() {
       if (selected.kind !== "HAND") return legal;
       if (player !== active) return legal;
       if (selected.orb.kind === "IMPACT") return legal;
-      for (let i = 0; i < 6; i += 1) {
+      for (let i = 0; i < (state.coreSize ?? 6); i += 1) {
         const intent =
           selected.orb.kind === "TERRAFORM"
             ? { type: "PLAY_TERRAFORM" as const, handIndex: selected.handIndex, slotIndex: i }
@@ -1224,6 +1225,8 @@ export default function App() {
       ? normalizeSetupConfig(setupConfig)
       : normalizeSetupConfig({
           mode: playVsComputer ? "CPU" : "HOTSEAT",
+          handSize: setupHandSize,
+          coreSize: setupCoreSize,
           coreP0: p0Core,
           coreP1: p1Core,
           seed: resolveSeed(),
@@ -1236,6 +1239,8 @@ export default function App() {
     const vsComputer = options?.vsComputer ?? resolved.mode === "CPU";
     setP0Core(resolved.coreP0);
     setP1Core(resolved.coreP1);
+    setSetupHandSize(resolved.handSize);
+    setSetupCoreSize(resolved.coreSize);
     setAiPersonality(resolved.aiPersonality);
     setAiSpeed(resolved.aiSpeed);
     setCompactMode(resolved.density === "compact");
@@ -1250,6 +1255,8 @@ export default function App() {
       coreP0: resolved.coreP0,
       coreP1: resolved.coreP1,
       seed,
+      handCap: resolved.handSize,
+      coreSize: resolved.coreSize,
     });
     setScreen("GAME");
   }
@@ -1265,6 +1272,8 @@ export default function App() {
 
     setP0Core(decodedCfg.coreP0);
     setP1Core(decodedCfg.coreP1);
+    setSetupHandSize(decodedCfg.handSize);
+    setSetupCoreSize(decodedCfg.coreSize);
     setAiPersonality(decodedCfg.aiPersonality);
     setAiSpeed(decodedCfg.aiSpeed);
     setSeedInput(String(decodedCfg.seed));
@@ -1308,6 +1317,8 @@ export default function App() {
     const parsedSeed = Number(seedInput);
     return normalizeSetupConfig({
       mode: playVsComputer ? "CPU" : "HOTSEAT",
+      handSize: setupHandSize,
+      coreSize: setupCoreSize,
       coreP0: p0Core,
       coreP1: p1Core,
       seed: Number.isFinite(parsedSeed) ? Math.trunc(parsedSeed) : DEFAULT_SETUP_CONFIG.seed,
@@ -1593,7 +1604,12 @@ export default function App() {
   useEffect(() => {
     if (screen !== "SPLASH") return;
     playMusic("splashTheme");
-  }, [playMusic, screen]);
+    if (!getAudioUnlocked()) {
+      void attemptAudioUnlock("splash-mount").then((ok) => {
+        if (ok) playMusic("splashTheme");
+      });
+    }
+  }, [attemptAudioUnlock, playMusic, screen]);
 
   useEffect(() => {
     aiConfigRef.current = aiConfig;
@@ -1612,7 +1628,7 @@ export default function App() {
         playsRemaining: snapshot.counters.playsRemaining,
         impactsRemaining: snapshot.counters.impactsRemaining,
         abilitiesEnabled: (p: 0 | 1) => aiAbilitiesEnabled(snapshot, p),
-        handSizeLimit: DEFAULT_HAND_SIZE_LIMIT,
+        handSizeLimit: snapshot.handCap ?? 3,
         hasUndoHistory: history.past.length > 0 && mode === "LOCAL_2P" && snapshot.phase !== "GAME_OVER",
       };
       const check = validateIntent(snapshot, intent, ctx);
@@ -1815,6 +1831,7 @@ export default function App() {
   }, [state.phase]);
 
   const canStartConfigured = playVsComputer ? Boolean(p0ProfileId) : Boolean(p0ProfileId && p1ProfileId);
+  const networkStatusLabel = isSupabaseConfigured && backendStatus !== "unreachable" ? "Available" : "Unavailable";
 
   const recordedMatchRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1847,6 +1864,17 @@ export default function App() {
   if (screen === "SPLASH") {
     return (
       <>
+        <div className="app-shell" style={containerStyle}>
+          <AppTopHeader
+            title="Primordial Orbs"
+            subtitle="Welcome"
+            coachEnabled={coachEnabled}
+            onCoachEnabledChange={setCoachEnabled}
+            networkStatusLabel={networkStatusLabel}
+            musicEnabled={settings.ambientEnabled}
+            onToggleMusic={() => updateSettings({ ...settings, ambientEnabled: !settings.ambientEnabled })}
+          />
+        </div>
         <SplashLoginScreen
           logoUrl={logoUrl}
           profiles={profiles}
@@ -1866,6 +1894,12 @@ export default function App() {
           }}
           rememberMe={rememberMe}
           onRememberMeChange={setRememberMe}
+          showEnableMusic={audioDebugSnapshot.locked}
+          onEnableMusic={() => {
+            void attemptAudioUnlock("splash-enable-button").then((ok) => {
+              if (ok) playMusic("splashTheme");
+            });
+          }}
           onContinue={() => {
             setGuestSession();
             setActiveProfileId(GUEST_ID);
@@ -1913,13 +1947,16 @@ export default function App() {
           <span className="setup-star setup-star--six" />
         </div>
         <div data-testid="screen-setup" style={containerStyle} className="setup-screen">
-          <div className="setup-lobby-header">
-            <div>
-              <h2 style={{ margin: 0 }}>Match Lobby</h2>
-              <p style={{ margin: "6px 0 0", color: "rgba(210, 223, 255, 0.82)" }}>Pick the essentials, then jump in.</p>
-            </div>
-            <button onClick={() => setScreen("SPLASH")}>Back</button>
-          </div>
+          <AppTopHeader
+            title="Primordial Orbs"
+            subtitle="Match Lobby"
+            onBack={() => setScreen("SPLASH")}
+            coachEnabled={coachEnabled}
+            onCoachEnabledChange={setCoachEnabled}
+            networkStatusLabel={networkStatusLabel}
+            musicEnabled={settings.ambientEnabled}
+            onToggleMusic={() => updateSettings({ ...settings, ambientEnabled: !settings.ambientEnabled })}
+          />
 
           <div className="setup-lobby-layout">
             <div className="setup-card">
@@ -2050,11 +2087,22 @@ export default function App() {
               <div className="setup-advanced__content">
                 <div className="setup-overview">
                   <div><b>Match Type:</b> {matchModeLabel}</div>
-                  <div style={{ marginTop: 6 }}><b>Planet Size:</b> Medium (fixed)</div>
+                  <div style={{ marginTop: 6 }}><b>Core Size:</b> {setupCoreSize} slots</div>
                   <div style={{ marginTop: 6 }}><b>Win:</b> 4 Colonization types</div>
-                  <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap 3 • Play 2 • Impact 1</div>
+                  <div style={{ marginTop: 6 }}><b>Turn:</b> Draw • Hand cap {setupHandSize} • Play 2 • Impact 1</div>
                 </div>
 
+
+                <div className="setup-ai-grid">
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontWeight: 600 }}>Hand Size</span>
+                    <input type="number" min={2} max={7} value={setupHandSize} onChange={(e) => setSetupHandSize(Math.max(2, Math.min(7, Number(e.target.value) || 3)))} style={{ padding: 8, borderRadius: 8 }} />
+                  </label>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontWeight: 600 }}>Core Size</span>
+                    <input type="number" min={4} max={8} value={setupCoreSize} onChange={(e) => setSetupCoreSize(Math.max(4, Math.min(8, Number(e.target.value) || 6)))} style={{ padding: 8, borderRadius: 8 }} />
+                  </label>
+                </div>
                 <div>
                   <div className="setup-section-label">Seed (for reproducible games)</div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -2708,9 +2756,6 @@ export default function App() {
   const showPlayerZeroPanel = !isMobileLayout || displayActive === 0;
   const showPlayerOnePanel = !isMobileLayout || displayActive === 1;
 
-  const backendStatusLabel = !isSupabaseConfigured
-    ? "Backend: Supabase env missing"
-    : (backendStatus === "connected" ? "Backend: Supabase online" : `Backend: ${backendStatus}`);
 
   return (
     <GameErrorBoundary onReset={() => setScreen("SETUP")}>
@@ -2739,6 +2784,16 @@ export default function App() {
             onDone={() => setTurnHandoff(null)}
           />
         )}
+        <AppTopHeader
+          title="Primordial Orbs"
+          subtitle={`Turn ${state.turn} • ${state.phase}`}
+          onBack={() => setScreen("SETUP")}
+          coachEnabled={coachEnabled}
+          onCoachEnabledChange={setCoachEnabled}
+          networkStatusLabel={networkStatusLabel}
+          musicEnabled={settings.ambientEnabled}
+          onToggleMusic={() => updateSettings({ ...settings, ambientEnabled: !settings.ambientEnabled })}
+        />
         <div className="game-topbar" data-testid="topbar" data-mobile={isMobileLayout ? "true" : "false"}>
           {isMobileLayout && (
             <>
@@ -2771,7 +2826,7 @@ export default function App() {
               {state.players[active].abilities.disabled_until_turn !== undefined && !abilitiesEnabled(state, active) && (
                 <span className="game-status-pill ui-chip" title="Solar Flare">Abilities Disabled</span>
               )}
-              {showDebugInfo && <span className="game-status-pill ui-chip">{backendStatusLabel}</span>}
+              {showDebugInfo && <span className="game-status-pill ui-chip">Network Status: {networkStatusLabel}</span>}
             </div>
           </div>
 
@@ -3353,10 +3408,10 @@ export default function App() {
                 <div><b>Plays Remaining:</b> {state.counters.playsRemaining}</div>
                 <div><b>Impacts Remaining:</b> {state.counters.impactsRemaining}</div>
                 <div>
-                  <b>Backend:</b>{" "}
+                  <b>Network Status:</b>{" "}
                   {isSupabaseConfigured
-                    ? (backendStatus === "connected" ? "Supabase reachable" : backendStatus)
-                    : "Supabase env vars missing"}
+                    ? (backendStatus === "connected" ? "Available" : "Unavailable")
+                    : "Unavailable"}
                 </div>
               </div>
               <div className="game-inspector__section">
@@ -3387,7 +3442,7 @@ export default function App() {
               />
               </div>
               <CoachStrip
-                hints={coachHints}
+                hints={coachEnabled ? coachHints : []}
                 onAction={onCoachAction}
                 isActionDisabled={(hint) => hint.actionLabel === "Draw" && !canDraw}
               />
@@ -3553,6 +3608,7 @@ export default function App() {
                     playsRemaining,
                     impactsRemaining,
                     (p: 0 | 1) => abilitiesEnabled(state, p),
+                    state.handCap ?? 3,
                   );
                   const isDisabled = isPreviewMode || disabledReason !== null;
                   const handTokenClass = `hand-token${isDisabled ? " orb-disabled" : ""}`;

@@ -56,6 +56,8 @@ export interface TurnCounters {
 export interface GameState {
   mode: Mode;
   seed: number;
+  handCap?: number;
+  coreSize?: number;
   phase: Phase;
   turn: number;          // increments each player turn
   active: 0 | 1;
@@ -69,7 +71,7 @@ export interface GameState {
 }
 
 export type Action =
-  | { type: "NEW_GAME"; mode: Mode; coreP0: Core; coreP1: Core; seed?: number }
+  | { type: "NEW_GAME"; mode: Mode; coreP0: Core; coreP1: Core; seed?: number; handCap?: number; coreSize?: number }
   | { type: "DRAW_2" }
   | { type: "DISCARD_FROM_HAND"; index: number }
   | { type: "PLAY_TERRAFORM"; handIndex: number; slotIndex: number }

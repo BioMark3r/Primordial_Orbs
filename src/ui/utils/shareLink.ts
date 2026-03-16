@@ -6,6 +6,8 @@ export type SetupDensity = "cozy" | "compact";
 
 export type SetupConfig = {
   mode: SetupMode;
+  handSize: number;
+  coreSize: number;
   coreP0: Core;
   coreP1: Core;
   seed: number;
@@ -22,6 +24,8 @@ const DENSITY_OPTIONS: readonly SetupDensity[] = ["cozy", "compact"];
 
 export const DEFAULT_SETUP_CONFIG: SetupConfig = {
   mode: "HOTSEAT",
+  handSize: 3,
+  coreSize: 6,
   coreP0: "LAND",
   coreP1: "ICE",
   seed: 1,
@@ -47,6 +51,11 @@ function asFiniteNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
+
+function asBoundedInt(value: unknown, fallback: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, asFiniteNumber(value, fallback)));
+}
+
 function padBase64(input: string): string {
   const padding = input.length % 4;
   if (padding === 0) return input;
@@ -57,6 +66,8 @@ export function normalizeSetupConfig(input: Partial<SetupConfig> | null | undefi
   const source = input ?? {};
   return {
     mode: asEnum(source.mode, MODE_OPTIONS, DEFAULT_SETUP_CONFIG.mode),
+    handSize: asBoundedInt(source.handSize, DEFAULT_SETUP_CONFIG.handSize, 2, 7),
+    coreSize: asBoundedInt(source.coreSize, DEFAULT_SETUP_CONFIG.coreSize, 4, 8),
     coreP0: asEnum(source.coreP0, CORE_OPTIONS, DEFAULT_SETUP_CONFIG.coreP0),
     coreP1: asEnum(source.coreP1, CORE_OPTIONS, DEFAULT_SETUP_CONFIG.coreP1),
     seed: asFiniteNumber(source.seed, DEFAULT_SETUP_CONFIG.seed),

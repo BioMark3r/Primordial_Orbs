@@ -144,7 +144,7 @@ Optional flags:
 - `&shots=1` – disables animations/transitions for stable screenshots
 
 Share setup links:
-- `?cfg=...` pre-fills setup values (cores, mode, AI options, seed, density)
+- `?cfg=...` pre-fills setup values (cores, mode, hand size, core size, AI options, seed, density)
 - `&autostart=1` starts immediately with that setup
 - Share links only include setup config (no match history, hand/deck, or private state)
 

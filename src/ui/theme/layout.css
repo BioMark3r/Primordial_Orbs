@@ -1869,3 +1869,19 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.app-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.app-top-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
