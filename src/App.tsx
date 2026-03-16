@@ -75,7 +75,6 @@ import {
   setSfxEnabled,
   setSfxVolume,
   unlockAudio,
-  getAudioUnlocked,
 } from "./audio/audioManager";
 import { createRateLimiter } from "./audio/hoverLimiter";
 import { loadSettings, saveSettings, type UserSettings } from "./ui/utils/settings";
@@ -1603,13 +1602,9 @@ export default function App() {
 
   useEffect(() => {
     if (screen !== "SPLASH") return;
+    if (!audioDebugSnapshot.unlocked) return;
     playMusic("splashTheme");
-    if (!getAudioUnlocked()) {
-      void attemptAudioUnlock("splash-mount").then((ok) => {
-        if (ok) playMusic("splashTheme");
-      });
-    }
-  }, [attemptAudioUnlock, playMusic, screen]);
+  }, [audioDebugSnapshot.unlocked, playMusic, screen]);
 
   useEffect(() => {
     aiConfigRef.current = aiConfig;
@@ -1864,49 +1859,49 @@ export default function App() {
   if (screen === "SPLASH") {
     return (
       <>
-        <div className="app-shell" style={containerStyle}>
-          <AppTopHeader
-            title="Primordial Orbs"
-            subtitle="Welcome"
-            coachEnabled={coachEnabled}
-            onCoachEnabledChange={setCoachEnabled}
-            networkStatusLabel={networkStatusLabel}
-            musicEnabled={settings.ambientEnabled}
-            onToggleMusic={() => updateSettings({ ...settings, ambientEnabled: !settings.ambientEnabled })}
-          />
+        <div className="app-shell" style={{ minHeight: "100vh" }}>
+          <div style={{ ...containerStyle, display: "flex", flexDirection: "column", minHeight: "100%", gap: 8 }}>
+            <AppTopHeader
+              title="Primordial Orbs"
+              subtitle="Welcome"
+              coachEnabled={coachEnabled}
+              onCoachEnabledChange={setCoachEnabled}
+              networkStatusLabel={networkStatusLabel}
+              musicEnabled={settings.ambientEnabled}
+              onToggleMusic={() => updateSettings({ ...settings, ambientEnabled: !settings.ambientEnabled })}
+            />
+            <SplashLoginScreen
+              logoUrl={logoUrl}
+              profiles={profiles}
+              selectedProfileId={selectedLoginProfileId}
+              loginDisabled={!selectedLoginProfileId}
+              onProfileChange={(profileId) => {
+                setSelectedLoginProfileId(profileId);
+                setAuthError(null);
+              }}
+              onLogin={() => {
+                setAuthError(null);
+                setPinModalOpen(true);
+              }}
+              onRegister={() => {
+                setAuthError(null);
+                setRegisterModalOpen(true);
+              }}
+              rememberMe={rememberMe}
+              onRememberMeChange={setRememberMe}
+              showEnableMusic={audioDebugSnapshot.locked}
+              onEnableMusic={() => {
+                void attemptAudioUnlock("splash-enable-button");
+              }}
+              onContinue={() => {
+                setGuestSession();
+                setActiveProfileId(GUEST_ID);
+                setP0ProfileId(GUEST_ID);
+                void exitSplashToLobby("continue as guest");
+              }}
+            />
+          </div>
         </div>
-        <SplashLoginScreen
-          logoUrl={logoUrl}
-          profiles={profiles}
-          selectedProfileId={selectedLoginProfileId}
-          loginDisabled={!selectedLoginProfileId}
-          onProfileChange={(profileId) => {
-            setSelectedLoginProfileId(profileId);
-            setAuthError(null);
-          }}
-          onLogin={() => {
-            setAuthError(null);
-            setPinModalOpen(true);
-          }}
-          onRegister={() => {
-            setAuthError(null);
-            setRegisterModalOpen(true);
-          }}
-          rememberMe={rememberMe}
-          onRememberMeChange={setRememberMe}
-          showEnableMusic={audioDebugSnapshot.locked}
-          onEnableMusic={() => {
-            void attemptAudioUnlock("splash-enable-button").then((ok) => {
-              if (ok) playMusic("splashTheme");
-            });
-          }}
-          onContinue={() => {
-            setGuestSession();
-            setActiveProfileId(GUEST_ID);
-            setP0ProfileId(GUEST_ID);
-            void exitSplashToLobby("continue as guest");
-          }}
-        />
         <PinPromptModal
           open={pinModalOpen}
           profileName={selectedLoginProfile?.name ?? "Selected Profile"}

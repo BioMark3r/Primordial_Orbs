@@ -30,7 +30,15 @@ export function SplashLoginScreen({
   onEnableMusic,
 }: SplashLoginScreenProps) {
   return (
-    <div data-testid="screen-splash" style={{ display: "grid", placeItems: "center", minHeight: "100vh", padding: 12 }}>
+    <div
+      data-testid="screen-splash"
+      style={{
+        display: "grid",
+        placeItems: "start center",
+        width: "100%",
+        padding: "clamp(10px, 2.4vh, 22px) 12px 16px",
+      }}
+    >
       <div style={{ width: "100%", maxWidth: 720, textAlign: "center" }}>
         <img
           src={logoUrl}
