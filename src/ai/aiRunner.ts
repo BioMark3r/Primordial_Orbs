@@ -64,7 +64,7 @@ export function createAiRunner(ctx: AiContext) {
             const until = state.players[p].abilities.disabled_until_turn;
             return until === undefined || state.turn > until;
           },
-          handSizeLimit: 3,
+          handSizeLimit: state.handCap ?? 3,
         }).ok) {
           intent = { type: "END_PLAY" };
         } else if (ctx.validateIntent(state, { type: "ADVANCE" }, {
@@ -75,7 +75,7 @@ export function createAiRunner(ctx: AiContext) {
             const until = state.players[p].abilities.disabled_until_turn;
             return until === undefined || state.turn > until;
           },
-          handSizeLimit: 3,
+          handSizeLimit: state.handCap ?? 3,
         }).ok) {
           intent = { type: "ADVANCE" };
         }

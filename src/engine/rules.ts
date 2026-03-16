@@ -1,5 +1,5 @@
 import type { Colonize, GameState, Orb, Terraform } from "./types";
-import { COLONIZE_REQ, HAND_CAP, MVP_PLANET_SLOTS, MVP_TERRAFORM_MIN } from "./constants";
+import { COLONIZE_REQ, MVP_TERRAFORM_MIN } from "./constants";
 
 export function planetTerraformSet(state: GameState, p: 0 | 1): Set<Terraform> {
   const set = new Set<Terraform>();
@@ -21,16 +21,16 @@ export function colonizeCount(state: GameState, p: 0 | 1): number {
   return state.players[p].planet.slots.filter((s) => s?.kind === "COLONIZE").length;
 }
 
-export function isHandOverflow(hand: Orb[]) {
-  return hand.length > HAND_CAP;
+export function isHandOverflow(hand: Orb[], handCap: number) {
+  return hand.length > handCap;
 }
 
-export function withinSlots(slotIndex: number) {
-  return slotIndex >= 0 && slotIndex < MVP_PLANET_SLOTS;
+export function withinSlots(slotIndex: number, slotCount: number) {
+  return slotIndex >= 0 && slotIndex < slotCount;
 }
 
 export function canPlaceTerraform(state: GameState, p: 0 | 1, slotIndex: number): boolean {
-  if (!withinSlots(slotIndex)) return false;
+  if (!withinSlots(slotIndex, state.players[p].planet.slots.length)) return false;
   const planet = state.players[p].planet;
   if (planet.locked[slotIndex]) return false;
   if (planet.slots[slotIndex] !== null) return false;
@@ -38,7 +38,7 @@ export function canPlaceTerraform(state: GameState, p: 0 | 1, slotIndex: number)
 }
 
 export function canPlaceColonize(state: GameState, p: 0 | 1, col: Colonize, slotIndex: number): boolean {
-  if (!withinSlots(slotIndex)) return false;
+  if (!withinSlots(slotIndex, state.players[p].planet.slots.length)) return false;
   const planet = state.players[p].planet;
   if (planet.locked[slotIndex]) return false;
   if (planet.slots[slotIndex] !== null) return false;

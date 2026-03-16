@@ -1,5 +1,5 @@
 import type { Action, GameState, Orb } from "./types";
-import { DRAW_N, HAND_CAP, IMPACT_CAP, PLAY_CAP } from "./constants";
+import { DRAW_N, IMPACT_CAP, PLAY_CAP } from "./constants";
 import { newGame } from "./setup";
 import { canPlaceColonize, canPlaceTerraform, colonizeCount, isHandOverflow } from "./rules";
 import { applyImpactDeterministic, markInstabilityIfNeeded, resetRoundFlags } from "./impacts";
@@ -33,7 +33,10 @@ function recordPlanet(state: GameState, p: 0 | 1): GameState {
 export function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case "NEW_GAME":
-      return newGame(action.mode, action.coreP0, action.coreP1, action.seed ?? Date.now());
+      return newGame(action.mode, action.coreP0, action.coreP1, action.seed ?? Date.now(), {
+        handCap: action.handCap,
+        coreSize: action.coreSize,
+      });
 
     case "DRAW_2": {
       if (state.phase !== "DRAW") return state;
@@ -52,9 +55,9 @@ export function reducer(state: GameState, action: Action): GameState {
       const players = [...next.players] as GameState["players"];
       players[p] = { ...players[p], hand };
       next = { ...next, players };
-      next = pushLog(next, `P${p} drew ${DRAW_N}. Hand: ${hand.length}/${HAND_CAP}.`);
+      next = pushLog(next, `P${p} drew ${DRAW_N}. Hand: ${hand.length}/${state.handCap ?? 3}.`);
 
-      if (isHandOverflow(hand)) return next; // must discard; stay in DRAW
+      if (isHandOverflow(hand, state.handCap ?? 3)) return next; // must discard; stay in DRAW
       return { ...next, phase: "PLAY" };
     }
 
@@ -68,7 +71,7 @@ export function reducer(state: GameState, action: Action): GameState {
       players[p] = { ...players[p], hand };
       let next = pushLog({ ...state, players, discard: [...state.discard, removed] }, `P${p} discarded 1 orb.`);
 
-      if (!isHandOverflow(hand)) next = { ...next, phase: "PLAY" };
+      if (!isHandOverflow(hand, state.handCap ?? 3)) next = { ...next, phase: "PLAY" };
       return next;
     }
 

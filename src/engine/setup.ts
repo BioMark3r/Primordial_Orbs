@@ -1,5 +1,5 @@
 import type { Core, GameState, Orb, PlayerState } from "./types";
-import { IMPACT_CAP, MVP_PLANET_SLOTS, PLAY_CAP } from "./constants";
+import { IMPACT_CAP, HAND_CAP, MVP_PLANET_SLOTS, PLAY_CAP } from "./constants";
 import { mulberry32, shuffleInPlace } from "./rng";
 import { resetRoundFlags } from "./impacts";
 
@@ -16,15 +16,15 @@ function makeBag(): Orb[] {
   return bag;
 }
 
-function makePlayer(core: Core): PlayerState {
+function makePlayer(core: Core, coreSize: number): PlayerState {
   return {
     hand: [],
     planet: {
       core,
-      slots: Array.from({ length: MVP_PLANET_SLOTS }, (_, idx) =>
+      slots: Array.from({ length: coreSize }, (_, idx) =>
         idx === 0 ? ({ kind: "TERRAFORM", t: core } as Orb) : null
       ),
-      locked: Array.from({ length: MVP_PLANET_SLOTS }, () => false),
+      locked: Array.from({ length: coreSize }, () => false),
     },
     abilities: {
       plant_block_used_round: false,
@@ -43,20 +43,26 @@ export function newGame(
   mode: GameState["mode"],
   coreP0: Core,
   coreP1: Core,
-  seed = Date.now()
+  seed = Date.now(),
+  options?: { handCap?: number; coreSize?: number }
 ): GameState {
   const rnd = mulberry32(seed);
   const bag = shuffleInPlace(makeBag(), rnd);
 
+  const handCap = Math.max(2, Math.min(7, Math.trunc(options?.handCap ?? HAND_CAP)));
+  const coreSize = Math.max(4, Math.min(8, Math.trunc(options?.coreSize ?? MVP_PLANET_SLOTS)));
+
   let state: GameState = {
     mode,
     seed,
+    handCap,
+    coreSize,
     phase: "DRAW",
     turn: 1,
     active: 0,
     bag,
     discard: [],
-    players: [makePlayer(coreP0), makePlayer(coreP1)],
+    players: [makePlayer(coreP0, coreSize), makePlayer(coreP1, coreSize)],
     planetHistory: [[], []],
     counters: { playsRemaining: PLAY_CAP, impactsRemaining: IMPACT_CAP },
     log: [`Game start (${mode}). Player 1 core ${coreP0}. Player 2 core ${coreP1}. Seed ${seed}.`],

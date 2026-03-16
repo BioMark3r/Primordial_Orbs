@@ -2,6 +2,7 @@ import type { GameState, Orb, Phase } from "../../engine/types";
 import { DEFAULT_HAND_SIZE_LIMIT, reasonForDisabledOrb, validateIntent } from "./actionValidation";
 
 type SharedCtx = {
+  handSizeLimit?: number;
   activePlayer: 0 | 1;
   playsRemaining: number;
   impactsRemaining: number;
@@ -17,7 +18,7 @@ export function getPlayPhaseReason(state: GameState): string | null {
       playsRemaining: state.counters.playsRemaining,
       impactsRemaining: state.counters.impactsRemaining,
       abilitiesEnabled: () => true,
-      handSizeLimit: DEFAULT_HAND_SIZE_LIMIT,
+      handSizeLimit: state.handCap ?? DEFAULT_HAND_SIZE_LIMIT,
     },
   );
   return result.ok ? null : result.reason;
@@ -31,13 +32,14 @@ export function getOrbDisabledReason(
   playsRemaining: number,
   impactsRemaining: number,
   abilitiesEnabled: (p: 0 | 1) => boolean,
+  handSizeLimit = DEFAULT_HAND_SIZE_LIMIT,
 ): string | null {
   return reasonForDisabledOrb(state, orb, {
     activePlayer,
     playsRemaining,
     impactsRemaining,
     abilitiesEnabled,
-    handSizeLimit: DEFAULT_HAND_SIZE_LIMIT,
+    handSizeLimit,
   });
 }
 
@@ -55,7 +57,7 @@ export function getButtonDisabledReason(
 
   const result = validateIntent(state, intent, {
     ...ctx,
-    handSizeLimit: DEFAULT_HAND_SIZE_LIMIT,
+    handSizeLimit: ctx.handSizeLimit ?? DEFAULT_HAND_SIZE_LIMIT,
   });
 
   return result.ok ? null : result.reason;

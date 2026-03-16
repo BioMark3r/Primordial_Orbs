@@ -11,6 +11,8 @@ type SplashLoginScreenProps = {
   onLogin: () => void;
   onRegister: () => void;
   onContinue: () => void;
+  showEnableMusic: boolean;
+  onEnableMusic: () => void;
 };
 
 export function SplashLoginScreen({
@@ -24,6 +26,8 @@ export function SplashLoginScreen({
   onLogin,
   onRegister,
   onContinue,
+  showEnableMusic,
+  onEnableMusic,
 }: SplashLoginScreenProps) {
   return (
     <div data-testid="screen-splash" style={{ display: "grid", placeItems: "center", minHeight: "100vh", padding: 12 }}>
@@ -34,6 +38,11 @@ export function SplashLoginScreen({
           style={{ width: "min(520px, 90vw)", height: "auto", borderRadius: 18, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
         />
         <div style={{ marginTop: 16, fontWeight: 800, letterSpacing: 2 }}>PRIMORDIAL ORBS</div>
+        {showEnableMusic && (
+          <button type="button" onClick={onEnableMusic} style={{ marginTop: 10, padding: "10px 14px", borderRadius: 10, fontWeight: 700 }}>
+            Tap to enable music
+          </button>
+        )}
 
         <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
           <div style={{ border: "1px solid #d4d4d8", borderRadius: 12, padding: 12, textAlign: "left" }}>
